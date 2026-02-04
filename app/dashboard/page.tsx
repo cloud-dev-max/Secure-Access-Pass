@@ -50,13 +50,28 @@ export default function DashboardPage() {
         fetch('/api/rules'),
       ])
       
+      // Check if responses are OK
+      if (!residentsRes.ok || !rulesRes.ok) {
+        console.error('API Error:', {
+          residents: residentsRes.status,
+          rules: rulesRes.status
+        })
+        setResidents([])
+        setRules([])
+        return
+      }
+      
       const residentsData = await residentsRes.json()
       const rulesData = await rulesRes.json()
       
-      setResidents(residentsData)
-      setRules(rulesData.filter((r: AccessRule) => r.is_active))
+      // Ensure we always have arrays, even if API returns null/undefined
+      setResidents(Array.isArray(residentsData) ? residentsData : [])
+      setRules(Array.isArray(rulesData) ? rulesData.filter((r: AccessRule) => r.is_active) : [])
     } catch (error) {
       console.error('Error loading data:', error)
+      // Set empty arrays on error to prevent crashes
+      setResidents([])
+      setRules([])
     } finally {
       setLoading(false)
     }
@@ -86,7 +101,7 @@ export default function DashboardPage() {
     setIsAddingResident(true)
     
     try {
-      await fetch('/api/residents', {
+      const response = await fetch('/api/residents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,6 +111,13 @@ export default function DashboardPage() {
           phone: newResidentPhone,
         }),
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Failed to add resident:', errorData)
+        alert(`Failed to add resident: ${errorData.error || 'Unknown error'}`)
+        return
+      }
       
       // Reset form
       setNewResidentName('')
@@ -107,6 +129,7 @@ export default function DashboardPage() {
       await loadData()
     } catch (error) {
       console.error('Error adding resident:', error)
+      alert('Network error. Please check your connection and try again.')
     } finally {
       setIsAddingResident(false)
     }
@@ -117,7 +140,7 @@ export default function DashboardPage() {
     setIsAddingRule(true)
     
     try {
-      await fetch('/api/rules', {
+      const response = await fetch('/api/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,6 +148,13 @@ export default function DashboardPage() {
           description: newRuleDescription,
         }),
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Failed to add rule:', errorData)
+        alert(`Failed to add rule: ${errorData.error || 'Unknown error'}`)
+        return
+      }
       
       // Reset form
       setNewRuleName('')
@@ -134,6 +164,7 @@ export default function DashboardPage() {
       await loadData()
     } catch (error) {
       console.error('Error adding rule:', error)
+      alert('Network error. Please check your connection and try again.')
     } finally {
       setIsAddingRule(false)
     }
@@ -298,11 +329,22 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-navy-200">
-                    {residents.map((resident, idx) => (
-                      <tr 
-                        key={resident.id}
-                        className={idx % 2 === 0 ? 'bg-white' : 'bg-navy-50'}
-                      >
+                    {residents.length === 0 ? (
+                      <tr>
+                        <td colSpan={rules.length + 4} className="px-6 py-12 text-center">
+                          <div className="text-navy-500">
+                            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p className="text-lg font-semibold mb-1">No residents yet</p>
+                            <p className="text-sm">Add your first resident using the form above.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      residents.map((resident, idx) => (
+                        <tr 
+                          key={resident.id}
+                          className={idx % 2 === 0 ? 'bg-white' : 'bg-navy-50'}
+                        >
                         <td className="px-6 py-4">
                           <div>
                             <div className="font-semibold text-navy-900">{resident.name}</div>
@@ -352,7 +394,8 @@ export default function DashboardPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>

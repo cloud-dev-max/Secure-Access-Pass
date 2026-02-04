@@ -27,6 +27,36 @@ export default function ScannerPage() {
   const startScanner = async () => {
     try {
       setCameraError(null)
+      
+      // Wait for DOM element to be available
+      const checkElement = () => {
+        return new Promise<void>((resolve, reject) => {
+          const maxAttempts = 20
+          let attempts = 0
+          
+          const check = () => {
+            const element = document.getElementById('qr-reader')
+            if (element) {
+              resolve()
+            } else if (attempts >= maxAttempts) {
+              reject(new Error('QR reader element not found after multiple attempts'))
+            } else {
+              attempts++
+              setTimeout(check, 100)
+            }
+          }
+          
+          check()
+        })
+      }
+
+      // Set scanning state first to render the DOM element
+      setIsScanning(true)
+      
+      // Wait for the element to exist
+      await checkElement()
+      
+      // Now initialize the scanner
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
 
@@ -41,11 +71,10 @@ export default function ScannerPage() {
           // Silent fail for scan errors (no QR code detected)
         }
       )
-
-      setIsScanning(true)
     } catch (error) {
       console.error('Error starting scanner:', error)
-      setCameraError('Unable to access camera. Please grant camera permissions.')
+      setIsScanning(false)
+      setCameraError('Unable to access camera. Please grant camera permissions and ensure you are using HTTPS.')
     }
   }
 
