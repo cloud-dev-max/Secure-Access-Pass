@@ -1,11 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, ensurePropertyExists } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
+/**
+ * GET /api/residents
+ * Fetch all residents with their rule statuses
+ */
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const adminClient = createAdminClient()
     
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('profiles')
       .select(`
         *,
@@ -25,9 +29,9 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json(data, { status: 200 })
+    return NextResponse.json(data || [], { status: 200 })
   } catch (error) {
-    console.error('Unexpected error in residents:', error)
+    console.error('Unexpected error in GET /api/residents:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -35,13 +39,18 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/residents
+ * Create a new resident with auto-property creation and rule initialization
+ */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const adminClient = createAdminClient()
     const body = await request.json()
     
     const { name, email, unit, phone, property_id } = body
 
+    // Validate required fields
     if (!name || !email || !unit) {
       return NextResponse.json(
         { error: 'Missing required fields: name, email, unit' },
@@ -49,51 +58,172 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Ensure property exists (creates it if missing)
+    const finalPropertyId = property_id || await ensurePropertyExists()
+
     // Generate unique QR code
     const qr_code = `SAP-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
-    const { data, error } = await supabase
+    // Insert resident using admin client (bypasses RLS)
+    const { data: resident, error: insertError } = await adminClient
       .from('profiles')
       .insert({
         name,
         email,
         unit,
-        phone,
+        phone: phone || null,
         qr_code,
-        property_id: property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
+        property_id: finalPropertyId,
         role: 'resident',
+        is_active: true,
       })
       .select()
       .single()
 
-    if (error) {
-      console.error('Error creating resident:', error)
+    if (insertError) {
+      console.error('Error creating resident:', insertError)
       return NextResponse.json(
-        { error: 'Failed to create resident', details: error.message },
+        { error: 'Failed to create resident', details: insertError.message },
         { status: 500 }
       )
     }
 
-    // Create default rule statuses for all active rules
-    const { data: rules } = await supabase
+    // Auto-create user_rule_status entries for all active rules
+    const { data: activeRules } = await adminClient
       .from('access_rules')
       .select('id')
-      .eq('property_id', data.property_id)
+      .eq('property_id', finalPropertyId)
       .eq('is_active', true)
 
-    if (rules && rules.length > 0) {
-      const ruleStatuses = rules.map(rule => ({
-        user_id: data.id,
+    if (activeRules && activeRules.length > 0) {
+      const ruleStatuses = activeRules.map(rule => ({
+        user_id: resident.id,
         rule_id: rule.id,
         status: true, // Default to passing all rules
       }))
 
-      await supabase.from('user_rule_status').insert(ruleStatuses)
+      const { error: statusError } = await adminClient
+        .from('user_rule_status')
+        .insert(ruleStatuses)
+
+      if (statusError) {
+        console.error('Warning: Failed to create rule statuses:', statusError)
+        // Don't fail the whole operation, just log the warning
+      }
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(resident, { status: 201 })
   } catch (error) {
-    console.error('Unexpected error creating resident:', error)
+    console.error('Unexpected error in POST /api/residents:', error)
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * POST /api/residents/bulk
+ * Bulk create residents from CSV data
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient()
+    const body = await request.json()
+    
+    const { residents } = body
+
+    if (!Array.isArray(residents) || residents.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid request: residents must be a non-empty array' },
+        { status: 400 }
+      )
+    }
+
+    // Ensure property exists
+    const propertyId = await ensurePropertyExists()
+
+    // Get all active rules for this property
+    const { data: activeRules } = await adminClient
+      .from('access_rules')
+      .select('id')
+      .eq('property_id', propertyId)
+      .eq('is_active', true)
+
+    const results = {
+      success: [] as any[],
+      failed: [] as any[],
+    }
+
+    // Process each resident
+    for (const residentData of residents) {
+      try {
+        const { name, email, unit, phone } = residentData
+
+        if (!name || !email || !unit) {
+          results.failed.push({
+            data: residentData,
+            error: 'Missing required fields',
+          })
+          continue
+        }
+
+        // Generate unique QR code
+        const qr_code = `SAP-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+        // Insert resident
+        const { data: resident, error: insertError } = await adminClient
+          .from('profiles')
+          .insert({
+            name,
+            email,
+            unit,
+            phone: phone || null,
+            qr_code,
+            property_id: propertyId,
+            role: 'resident',
+            is_active: true,
+          })
+          .select()
+          .single()
+
+        if (insertError) {
+          results.failed.push({
+            data: residentData,
+            error: insertError.message,
+          })
+          continue
+        }
+
+        // Create rule statuses
+        if (activeRules && activeRules.length > 0) {
+          const ruleStatuses = activeRules.map(rule => ({
+            user_id: resident.id,
+            rule_id: rule.id,
+            status: true,
+          }))
+
+          await adminClient.from('user_rule_status').insert(ruleStatuses)
+        }
+
+        results.success.push(resident)
+      } catch (error) {
+        results.failed.push({
+          data: residentData,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    }
+
+    return NextResponse.json(
+      {
+        message: `Bulk import completed: ${results.success.length} succeeded, ${results.failed.length} failed`,
+        results,
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Unexpected error in bulk resident import:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
