@@ -67,6 +67,12 @@ export interface Database {
           city: string
           state: string
           zip_code: string
+          operating_hours_start: string
+          operating_hours_end: string
+          max_capacity: number
+          guest_pass_price: number
+          is_maintenance_mode: boolean
+          maintenance_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -77,6 +83,12 @@ export interface Database {
           city: string
           state: string
           zip_code: string
+          operating_hours_start?: string
+          operating_hours_end?: string
+          max_capacity?: number
+          guest_pass_price?: number
+          is_maintenance_mode?: boolean
+          maintenance_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -87,8 +99,70 @@ export interface Database {
           city?: string
           state?: string
           zip_code?: string
+          operating_hours_start?: string
+          operating_hours_end?: string
+          max_capacity?: number
+          guest_pass_price?: number
+          is_maintenance_mode?: boolean
+          maintenance_reason?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      guest_passes: {
+        Row: {
+          id: string
+          property_id: string
+          purchased_by: string
+          guest_name: string | null
+          guest_email: string | null
+          guest_phone: string | null
+          qr_code: string
+          price_paid: number
+          status: 'active' | 'used' | 'expired' | 'cancelled'
+          expires_at: string
+          used_at: string | null
+          created_at: string
+          updated_at: string
+          notes: string | null
+          ip_address: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          property_id: string
+          purchased_by: string
+          guest_name?: string | null
+          guest_email?: string | null
+          guest_phone?: string | null
+          qr_code: string
+          price_paid?: number
+          status?: 'active' | 'used' | 'expired' | 'cancelled'
+          expires_at: string
+          used_at?: string | null
+          created_at?: string
+          updated_at?: string
+          notes?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          property_id?: string
+          purchased_by?: string
+          guest_name?: string | null
+          guest_email?: string | null
+          guest_phone?: string | null
+          qr_code?: string
+          price_paid?: number
+          status?: 'active' | 'used' | 'expired' | 'cancelled'
+          expires_at?: string
+          used_at?: string | null
+          created_at?: string
+          updated_at?: string
+          notes?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
         }
       }
       access_rules: {
@@ -230,9 +304,14 @@ export type Property = Database['public']['Tables']['properties']['Row']
 export type AccessRule = Database['public']['Tables']['access_rules']['Row']
 export type UserRuleStatus = Database['public']['Tables']['user_rule_status']['Row']
 export type AccessLog = Database['public']['Tables']['access_logs']['Row']
+export type GuestPass = Database['public']['Tables']['guest_passes']['Row']
 
 export type ProfileWithRules = Profile & {
   rule_statuses: (UserRuleStatus & { rule: AccessRule })[]
+}
+
+export type GuestPassWithPurchaser = GuestPass & {
+  purchaser: Profile | null
 }
 
 export type AccessCheckResult = {
@@ -241,4 +320,16 @@ export type AccessCheckResult = {
   user_name: string | null
   user_id: string | null
   current_location: string | null
+}
+
+export type FacilityStatus = {
+  is_open: boolean
+  current_occupancy: number
+  max_capacity: number
+  operating_hours: {
+    start: string
+    end: string
+  }
+  is_maintenance_mode: boolean
+  maintenance_reason: string | null
 }

@@ -589,6 +589,20 @@ export default function DashboardPage() {
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
+            {/* Facility Settings Card */}
+            <div className="bg-gradient-to-r from-teal-500 to-navy-600 rounded-xl shadow-lg p-6 text-white">
+              <h2 className="text-xl font-bold mb-2">Facility Settings</h2>
+              <p className="text-white/90 mb-4">
+                Configure operating hours, capacity limits, guest pass pricing, and maintenance mode
+              </p>
+              <a
+                href="/dashboard/settings"
+                className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-3 rounded-lg font-semibold transition-all"
+              >
+                Manage Facility Settings →
+              </a>
+            </div>
+
             {/* Add Rule Form */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
               <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
