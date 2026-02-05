@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import type { AccessCheckResult } from '@/lib/types/database'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Bug Fix #2: Use Admin Client to bypass RLS and reliably fetch resident data
+    const supabase = createAdminClient()
     const body = await request.json()
     const { qr_code, scan_type } = body
 

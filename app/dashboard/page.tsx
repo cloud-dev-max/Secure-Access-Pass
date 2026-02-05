@@ -539,15 +539,31 @@ export default function DashboardPage() {
                             const status = getRuleStatus(resident, rule.id)
                             return (
                               <td key={rule.id} className="px-6 py-4 text-center">
+                                {/* Toggle Switch Component - Bug Fix #1 & #3 */}
                                 <button
                                   onClick={() => toggleRule(resident.id, rule.id, status)}
-                                  className="inline-flex items-center justify-center w-10 h-10 rounded-lg hover:scale-110 transition-transform"
+                                  className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                                    status 
+                                      ? 'bg-green-500 hover:bg-green-600' 
+                                      : 'bg-gray-300 hover:bg-gray-400'
+                                  }`}
+                                  role="switch"
+                                  aria-checked={status}
+                                  title={status ? 'Rule Met (Click to mark as Failed)' : 'Rule Not Met (Click to mark as Passed)'}
                                 >
-                                  {status ? (
-                                    <CheckCircle2 className="w-7 h-7 text-green-600" />
-                                  ) : (
-                                    <XCircle className="w-7 h-7 text-red-600" />
-                                  )}
+                                  {/* Toggle Circle */}
+                                  <span
+                                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                                      status ? 'translate-x-9' : 'translate-x-1'
+                                    }`}
+                                  >
+                                    {/* Icon inside circle */}
+                                    {status ? (
+                                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                                    ) : (
+                                      <XCircle className="w-6 h-6 text-gray-500" />
+                                    )}
+                                  </span>
                                 </button>
                               </td>
                             )
