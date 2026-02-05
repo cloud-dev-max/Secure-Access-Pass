@@ -19,6 +19,7 @@ export interface Database {
           phone: string | null
           current_location: 'INSIDE' | 'OUTSIDE'
           qr_code: string
+          access_pin: string | null // V4
           property_id: string
           role: 'manager' | 'resident' | 'scanner'
           is_active: boolean
@@ -35,6 +36,7 @@ export interface Database {
           phone?: string | null
           current_location?: 'INSIDE' | 'OUTSIDE'
           qr_code: string
+          access_pin?: string | null // V4
           property_id: string
           role?: 'manager' | 'resident' | 'scanner'
           is_active?: boolean
@@ -51,6 +53,7 @@ export interface Database {
           phone?: string | null
           current_location?: 'INSIDE' | 'OUTSIDE'
           qr_code?: string
+          access_pin?: string | null // V4
           property_id?: string
           role?: 'manager' | 'resident' | 'scanner'
           is_active?: boolean
@@ -71,6 +74,7 @@ export interface Database {
           operating_hours_end: string
           max_capacity: number
           guest_pass_price: number
+          max_guests_per_resident: number // V4
           is_maintenance_mode: boolean
           maintenance_reason: string | null
           created_at: string
@@ -87,6 +91,7 @@ export interface Database {
           operating_hours_end?: string
           max_capacity?: number
           guest_pass_price?: number
+          max_guests_per_resident?: number // V4
           is_maintenance_mode?: boolean
           maintenance_reason?: string | null
           created_at?: string
@@ -103,6 +108,7 @@ export interface Database {
           operating_hours_end?: string
           max_capacity?: number
           guest_pass_price?: number
+          max_guests_per_resident?: number // V4
           is_maintenance_mode?: boolean
           maintenance_reason?: string | null
           created_at?: string

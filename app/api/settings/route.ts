@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await adminClient
       .from('properties')
-      .select('id, name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, is_maintenance_mode, maintenance_reason')
+      .select('id, name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, is_maintenance_mode, maintenance_reason')
       .eq('id', propertyId)
       .single()
 
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         operating_hours_end: '22:00:00',
         max_capacity: 50,
         guest_pass_price: 5.00,
+        max_guests_per_resident: 3, // V4
         is_maintenance_mode: false,
         maintenance_reason: null,
       }, { status: 200 })
@@ -68,6 +69,7 @@ export async function PATCH(request: NextRequest) {
       operating_hours_end,
       max_capacity,
       guest_pass_price,
+      max_guests_per_resident, // V4
       is_maintenance_mode,
       maintenance_reason,
     } = body
@@ -84,6 +86,7 @@ export async function PATCH(request: NextRequest) {
     if (operating_hours_end !== undefined) updates.operating_hours_end = operating_hours_end
     if (max_capacity !== undefined) updates.max_capacity = max_capacity
     if (guest_pass_price !== undefined) updates.guest_pass_price = guest_pass_price
+    if (max_guests_per_resident !== undefined) updates.max_guests_per_resident = max_guests_per_resident // V4
     if (is_maintenance_mode !== undefined) updates.is_maintenance_mode = is_maintenance_mode
     if (maintenance_reason !== undefined) updates.maintenance_reason = maintenance_reason
 

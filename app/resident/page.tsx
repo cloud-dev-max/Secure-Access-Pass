@@ -36,6 +36,7 @@ export default function ResidentPortalPage() {
   const [resident, setResident] = useState<ResidentProfile | null>(null)
   const [facilityStatus, setFacilityStatus] = useState<FacilityStatus | null>(null)
   const [guestPasses, setGuestPasses] = useState<GuestPass[]>([])
+  const [maxGuestsAllowed, setMaxGuestsAllowed] = useState(3) // V4: Guest limit from settings
   
   // Login form - V4: Added PIN
   const [email, setEmail] = useState('')
@@ -80,6 +81,13 @@ export default function ResidentPortalPage() {
       if (response.ok) {
         const data = await response.json()
         setFacilityStatus(data)
+      }
+
+      // V4: Also load max guests setting
+      const settingsResponse = await fetch('/api/settings')
+      if (settingsResponse.ok) {
+        const settings = await settingsResponse.json()
+        setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
       }
     } catch (error) {
       console.error('Error loading facility status:', error)
@@ -260,6 +268,12 @@ export default function ResidentPortalPage() {
     ctx.textAlign = 'center'
     ctx.fillText('✓ VALID RESIDENT', 130, 316)
 
+    // V4: Guests Allowed info
+    ctx.font = '22px Arial, sans-serif'
+    ctx.fillStyle = '#0d9488' // teal-600
+    ctx.textAlign = 'left'
+    ctx.fillText(`Guests Allowed: ${maxGuestsAllowed}`, 40, 360)
+
     // Add QR Code
     const qrCanvas = document.getElementById('resident-qr-canvas') as HTMLCanvasElement
     if (qrCanvas) {
@@ -294,6 +308,13 @@ export default function ResidentPortalPage() {
   const createGuestPass = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!resident) return
+
+    // V4: Check guest pass limit
+    const activeGuestPasses = guestPasses.filter(p => p.status === 'active')
+    if (activeGuestPasses.length >= maxGuestsAllowed) {
+      alert(`You have reached the maximum of ${maxGuestsAllowed} active guest passes. Please wait for existing passes to expire or be used before creating new ones.`)
+      return
+    }
 
     setCreatingPass(true)
 
@@ -637,6 +658,11 @@ export default function ResidentPortalPage() {
               </button>
             )}
           </div>
+
+          {/* V4: Display guest pass limit */}
+          <p className="text-sm text-navy-600 mb-4">
+            Active passes: {guestPasses.filter(p => p.status === 'active').length} / {maxGuestsAllowed} allowed
+          </p>
 
           {/* Guest Pass Purchase Form */}
           {showGuestPassForm && (

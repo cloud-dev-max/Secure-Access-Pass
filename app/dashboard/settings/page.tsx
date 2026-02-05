@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [operatingHoursEnd, setOperatingHoursEnd] = useState('22:00:00')
   const [maxCapacity, setMaxCapacity] = useState(50)
   const [guestPassPrice, setGuestPassPrice] = useState(5.00)
+  const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3) // V4: Guest pass limits
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false)
   const [maintenanceReason, setMaintenanceReason] = useState('')
 
@@ -48,6 +49,7 @@ export default function SettingsPage() {
       setOperatingHoursEnd(data.operating_hours_end || '22:00:00')
       setMaxCapacity(data.max_capacity || 50)
       setGuestPassPrice(data.guest_pass_price || 5.00)
+      setMaxGuestsPerResident(data.max_guests_per_resident || 3) // V4
       setIsMaintenanceMode(data.is_maintenance_mode || false)
       setMaintenanceReason(data.maintenance_reason || '')
     } catch (error) {
@@ -72,6 +74,7 @@ export default function SettingsPage() {
           operating_hours_end: operatingHoursEnd,
           max_capacity: maxCapacity,
           guest_pass_price: guestPassPrice,
+          max_guests_per_resident: maxGuestsPerResident, // V4
           is_maintenance_mode: isMaintenanceMode,
           maintenance_reason: isMaintenanceMode ? maintenanceReason : null,
         }),
@@ -231,6 +234,27 @@ export default function SettingsPage() {
                 placeholder="5.00"
               />
             </div>
+          </div>
+
+          {/* V4: Max Guests Per Resident */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="w-6 h-6 text-navy-600" />
+              <h2 className="text-xl font-bold text-navy-900">Guest Pass Limit</h2>
+            </div>
+            <p className="text-sm text-navy-600 mb-4">Maximum number of active guest passes per resident</p>
+            
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={maxGuestsPerResident}
+              onChange={(e) => setMaxGuestsPerResident(parseInt(e.target.value) || 3)}
+              required
+              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+              placeholder="3"
+            />
+            <p className="text-xs text-navy-500 mt-2">Prevents residents from creating too many guest passes</p>
           </div>
 
           {/* Maintenance Mode */}
