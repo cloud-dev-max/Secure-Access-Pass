@@ -56,9 +56,26 @@ export default function DashboardPage() {
   const [newRuleName, setNewRuleName] = useState('')
   const [isAddingRule, setIsAddingRule] = useState(false)
 
+  // Maintenance mode state
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false)
+  const [togglingMaintenance, setTogglingMaintenance] = useState(false)
+
   useEffect(() => {
     loadData()
+    loadMaintenanceStatus()
   }, [])
+
+  const loadMaintenanceStatus = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      if (response.ok) {
+        const data = await response.json()
+        setIsMaintenanceMode(data.is_maintenance_mode || false)
+      }
+    } catch (error) {
+      console.error('Error loading maintenance status:', error)
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -98,6 +115,23 @@ export default function DashboardPage() {
   }
 
   const toggleRule = async (userId: string, ruleId: string, currentStatus: boolean) => {
+    // OPTIMISTIC UI UPDATE - Update immediately
+    const newStatus = !currentStatus
+    setResidents(prevResidents => 
+      prevResidents.map(r => {
+        if (r.id === userId) {
+          return {
+            ...r,
+            rule_statuses: r.rule_statuses.map(rs => 
+              rs.rule_id === ruleId ? { ...rs, status: newStatus } : rs
+            )
+          }
+        }
+        return r
+      })
+    )
+
+    // Save to backend in background
     try {
       const response = await fetch('/api/toggle-rule', {
         method: 'PATCH',
@@ -105,18 +139,62 @@ export default function DashboardPage() {
         body: JSON.stringify({
           user_id: userId,
           rule_id: ruleId,
-          status: !currentStatus,
+          status: newStatus,
         }),
       })
 
       if (!response.ok) {
         throw new Error('Failed to toggle rule')
       }
-      
-      await loadData()
     } catch (error) {
       console.error('Error toggling rule:', error)
+      // Revert on error
+      setResidents(prevResidents => 
+        prevResidents.map(r => {
+          if (r.id === userId) {
+            return {
+              ...r,
+              rule_statuses: r.rule_statuses.map(rs => 
+                rs.rule_id === ruleId ? { ...rs, status: currentStatus } : rs
+              )
+            }
+          }
+          return r
+        })
+      )
       alert('Failed to update rule status')
+    }
+  }
+
+  const toggleMaintenanceMode = async () => {
+    // Optimistic update
+    const newMode = !isMaintenanceMode
+    setIsMaintenanceMode(newMode)
+    setTogglingMaintenance(true)
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_maintenance_mode: newMode,
+          maintenance_reason: newMode ? 'Pool temporarily closed' : null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle maintenance mode')
+      }
+      
+      // Reload stats to reflect changes
+      await loadMaintenanceStatus()
+    } catch (error) {
+      console.error('Error toggling maintenance mode:', error)
+      // Revert on error
+      setIsMaintenanceMode(!newMode)
+      alert('Failed to toggle maintenance mode')
+    } finally {
+      setTogglingMaintenance(false)
     }
   }
 
@@ -345,6 +423,57 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Active Rules</h3>
                 <p className="text-sm text-navy-600">Access control rules in effect</p>
+              </div>
+            </div>
+
+            {/* Maintenance Mode Quick Toggle */}
+            <div className={`rounded-xl shadow-lg p-6 border-2 transition-all ${
+              isMaintenanceMode 
+                ? 'bg-red-50 border-red-300' 
+                : 'bg-green-50 border-green-300'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-lg ${
+                    isMaintenanceMode ? 'bg-red-100' : 'bg-green-100'
+                  }`}>
+                    <Shield className={`w-6 h-6 ${
+                      isMaintenanceMode ? 'text-red-600' : 'text-green-600'
+                    }`} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-navy-900 mb-1">
+                      Pool Status: {isMaintenanceMode ? 'CLOSED' : 'OPEN'}
+                    </h3>
+                    <p className="text-sm text-navy-600">
+                      {isMaintenanceMode 
+                        ? 'Maintenance mode active - All access denied' 
+                        : 'Operating normally - Access granted per rules'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={toggleMaintenanceMode}
+                  disabled={togglingMaintenance}
+                  className={`relative inline-flex h-12 w-24 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
+                    isMaintenanceMode 
+                      ? 'bg-red-500 hover:bg-red-600 focus:ring-red-500' 
+                      : 'bg-green-500 hover:bg-green-600 focus:ring-green-500'
+                  }`}
+                  role="switch"
+                  aria-checked={isMaintenanceMode}
+                  title="Toggle Maintenance Mode"
+                >
+                  <span
+                    className={`inline-block h-10 w-10 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                      isMaintenanceMode ? 'translate-x-13' : 'translate-x-1'
+                    }`}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
+                    {isMaintenanceMode ? 'OFF' : 'ON'}
+                  </span>
+                </button>
               </div>
             </div>
 

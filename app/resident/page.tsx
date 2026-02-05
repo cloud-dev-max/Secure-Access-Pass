@@ -134,14 +134,95 @@ export default function ResidentPortalPage() {
   }
 
   const downloadQR = () => {
-    const canvas = document.getElementById('resident-qr-canvas') as HTMLCanvasElement
-    if (canvas) {
-      const url = canvas.toDataURL('image/png')
-      const link = document.createElement('a')
-      link.download = `${resident?.name.replace(/\s+/g, '-')}-Pool-Pass.png`
-      link.href = url
-      link.click()
+    if (!resident) return
+
+    // Create a new canvas for the professional digital ID
+    const idCanvas = document.createElement('canvas')
+    const ctx = idCanvas.getContext('2d')
+    if (!ctx) return
+
+    // Set card dimensions (standard ID card ratio)
+    const cardWidth = 800
+    const cardHeight = 500
+    idCanvas.width = cardWidth
+    idCanvas.height = cardHeight
+
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight)
+    gradient.addColorStop(0, '#0f172a') // navy-900
+    gradient.addColorStop(0.5, '#1e293b') // navy-800
+    gradient.addColorStop(1, '#0d9488') // teal-600
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, cardWidth, cardHeight)
+
+    // Top accent bar
+    ctx.fillStyle = '#14b8a6' // teal-500
+    ctx.fillRect(0, 0, cardWidth, 60)
+
+    // Property name (top bar)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 32px Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Seaside Luxury Apartments', cardWidth / 2, 42)
+
+    // Card title
+    ctx.font = 'bold 28px Arial, sans-serif'
+    ctx.fillStyle = '#14b8a6' // teal-500
+    ctx.textAlign = 'left'
+    ctx.fillText('Pool Access Pass', 40, 120)
+
+    // Resident name
+    ctx.font = 'bold 42px Arial, sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(resident.name, 40, 180)
+
+    // Unit number
+    ctx.font = '28px Arial, sans-serif'
+    ctx.fillStyle = '#cbd5e1' // gray-300
+    ctx.fillText(`Unit ${resident.unit}`, 40, 220)
+
+    // Email
+    ctx.font = '20px Arial, sans-serif'
+    ctx.fillStyle = '#94a3b8' // gray-400
+    ctx.fillText(resident.email, 40, 260)
+
+    // Status badge
+    ctx.fillStyle = '#10b981' // green-500
+    ctx.fillRect(40, 290, 180, 40)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 20px Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('✓ VALID RESIDENT', 130, 316)
+
+    // Add QR Code
+    const qrCanvas = document.getElementById('resident-qr-canvas') as HTMLCanvasElement
+    if (qrCanvas) {
+      // Draw QR code on right side with white background
+      const qrSize = 250
+      const qrX = cardWidth - qrSize - 60
+      const qrY = 110
+      
+      // White background for QR
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30)
+      
+      // Draw QR code
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize)
     }
+
+    // Footer text
+    ctx.fillStyle = '#64748b' // gray-500
+    ctx.font = '16px Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Scan this QR code at the pool entrance', cardWidth / 2, cardHeight - 40)
+    ctx.fillText('Valid for current resident only • Non-transferable', cardWidth / 2, cardHeight - 15)
+
+    // Download the professional card
+    const url = idCanvas.toDataURL('image/png')
+    const link = document.createElement('a')
+    link.download = `${resident.name.replace(/\s+/g, '-')}-Pool-Access-Card.png`
+    link.href = url
+    link.click()
   }
 
   const createGuestPass = async (e: React.FormEvent) => {

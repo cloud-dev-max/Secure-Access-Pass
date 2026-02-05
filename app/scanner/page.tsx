@@ -146,28 +146,39 @@ export default function ScannerPage() {
             </div>
           </div>
 
-          {/* Mode Toggle */}
-          <div className="bg-white/20 rounded-lg p-1 flex gap-1">
-            <button
-              onClick={() => setMode('ENTRY')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                mode === 'ENTRY'
-                  ? 'bg-teal-500 text-white shadow-lg'
-                  : 'text-white/70 hover:text-white'
-              }`}
+          <div className="flex items-center gap-3">
+            {/* Mode Toggle */}
+            <div className="bg-white/20 rounded-lg p-1 flex gap-1">
+              <button
+                onClick={() => setMode('ENTRY')}
+                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                  mode === 'ENTRY'
+                    ? 'bg-teal-500 text-white shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                ENTRY
+              </button>
+              <button
+                onClick={() => setMode('EXIT')}
+                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                  mode === 'EXIT'
+                    ? 'bg-navy-600 text-white shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                EXIT
+              </button>
+            </div>
+
+            {/* Return to Dashboard Button */}
+            <a
+              href="/dashboard"
+              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
             >
-              ENTRY
-            </button>
-            <button
-              onClick={() => setMode('EXIT')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                mode === 'EXIT'
-                  ? 'bg-navy-600 text-white shadow-lg'
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              EXIT
-            </button>
+              <X className="w-4 h-4" />
+              Return to Dashboard
+            </a>
           </div>
         </div>
       </div>
