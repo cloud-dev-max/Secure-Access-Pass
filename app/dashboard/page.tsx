@@ -58,7 +58,12 @@ export default function DashboardPage() {
 
   // Maintenance mode state
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false)
+  const [maintenanceReason, setMaintenanceReason] = useState('')
   const [togglingMaintenance, setTogglingMaintenance] = useState(false)
+
+  // V4: Who is Inside Modal
+  const [showInsideModal, setShowInsideModal] = useState(false)
+  const [insideResidents, setInsideResidents] = useState<ProfileWithRules[]>([])
 
   useEffect(() => {
     loadData()
@@ -167,8 +172,19 @@ export default function DashboardPage() {
   }
 
   const toggleMaintenanceMode = async () => {
-    // Optimistic update
     const newMode = !isMaintenanceMode
+    
+    // V4: Require reason when enabling maintenance mode
+    if (newMode) {
+      const reason = prompt('Enter closure reason (e.g., Thunderstorm, Maintenance, Cleaning):')
+      if (!reason || reason.trim() === '') {
+        alert('Closure reason is required')
+        return
+      }
+      setMaintenanceReason(reason.trim())
+    }
+
+    // Optimistic update
     setIsMaintenanceMode(newMode)
     setTogglingMaintenance(true)
 
@@ -178,7 +194,7 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           is_maintenance_mode: newMode,
-          maintenance_reason: newMode ? 'Pool temporarily closed' : null,
+          maintenance_reason: newMode ? maintenanceReason : null,
         }),
       })
 
@@ -195,6 +211,67 @@ export default function DashboardPage() {
       alert('Failed to toggle maintenance mode')
     } finally {
       setTogglingMaintenance(false)
+    }
+  }
+
+  // V4: Load who is inside
+  const loadInsideResidents = async () => {
+    const inside = residents.filter(r => r.current_location === 'INSIDE')
+    setInsideResidents(inside)
+    setShowInsideModal(true)
+  }
+
+  // V4: Force check out a resident
+  const forceCheckout = async (residentId: string) => {
+    if (!confirm('Force check out this resident? They will be marked as OUTSIDE.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/residents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: residentId,
+          current_location: 'OUTSIDE',
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update location')
+      
+      // Reload data
+      await loadData()
+      loadInsideResidents()
+    } catch (error) {
+      console.error('Error forcing checkout:', error)
+      alert('Failed to force checkout')
+    }
+  }
+
+  // V4: Regenerate PIN for resident
+  const regeneratePin = async (residentId: string) => {
+    if (!confirm('Generate a new 4-digit PIN for this resident?')) {
+      return
+    }
+
+    try {
+      const newPin = Math.floor(1000 + Math.random() * 9000).toString()
+      const response = await fetch('/api/residents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: residentId,
+          access_pin: newPin,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to regenerate PIN')
+      
+      alert(`New PIN generated: ${newPin}`)
+      await loadData()
+    } catch (error) {
+      console.error('Error regenerating PIN:', error)
+      alert('Failed to regenerate PIN')
     }
   }
 
@@ -401,8 +478,11 @@ export default function DashboardPage() {
                 <p className="text-sm text-navy-600">Active residents in the system</p>
               </div>
 
-              {/* Current Occupancy */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              {/* Current Occupancy - V4: Clickable to show "Who is Inside?" */}
+              <button
+                onClick={loadInsideResidents}
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-teal-100 p-3 rounded-lg">
                     <Activity className="w-6 h-6 text-teal-600" />
@@ -411,7 +491,8 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Current Occupancy</h3>
                 <p className="text-sm text-navy-600">Residents currently inside the pool</p>
-              </div>
+                <p className="text-xs text-teal-600 font-semibold mt-2">Click to see who is inside →</p>
+              </button>
 
               {/* Active Rules */}
               <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
@@ -616,6 +697,7 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-left text-sm font-bold">Resident</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Unit</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Location</th>
+                      <th className="px-6 py-4 text-center text-sm font-bold">Access PIN</th>
                       {rules.map((rule) => (
                         <th key={rule.id} className="px-6 py-4 text-center text-sm font-bold">
                           {rule.rule_name}
@@ -664,35 +746,56 @@ export default function DashboardPage() {
                               {resident.current_location}
                             </span>
                           </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="font-mono text-lg font-bold text-navy-900 bg-yellow-100 px-3 py-1 rounded">
+                                {(resident as any).access_pin || '----'}
+                              </span>
+                              <button
+                                onClick={() => regeneratePin(resident.id)}
+                                className="text-teal-600 hover:text-teal-700 text-xs font-semibold underline"
+                                title="Generate new PIN"
+                              >
+                                Regenerate
+                              </button>
+                            </div>
+                          </td>
                           {rules.map((rule) => {
                             const status = getRuleStatus(resident, rule.id)
                             return (
                               <td key={rule.id} className="px-6 py-4 text-center">
-                                {/* Toggle Switch Component - Bug Fix #1 & #3 */}
+                                {/* V4 Traffic Light Toggle - Wide PASS/FAIL Design */}
                                 <button
                                   onClick={() => toggleRule(resident.id, rule.id, status)}
-                                  className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                                  className={`relative inline-flex h-10 w-24 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md ${
                                     status 
-                                      ? 'bg-green-500 hover:bg-green-600' 
-                                      : 'bg-gray-300 hover:bg-gray-400'
+                                      ? 'bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-400' 
+                                      : 'bg-rose-500 hover:bg-rose-600 focus:ring-rose-400'
                                   }`}
                                   role="switch"
                                   aria-checked={status}
-                                  title={status ? 'Rule Met (Click to mark as Failed)' : 'Rule Not Met (Click to mark as Passed)'}
+                                  title={status ? 'PASS - Click to mark as FAIL' : 'FAIL - Click to mark as PASS'}
                                 >
-                                  {/* Toggle Circle */}
-                                  <span
-                                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-                                      status ? 'translate-x-9' : 'translate-x-1'
-                                    }`}
-                                  >
-                                    {/* Icon inside circle */}
-                                    {status ? (
-                                      <CheckCircle2 className="w-6 h-6 text-green-600" />
-                                    ) : (
-                                      <XCircle className="w-6 h-6 text-gray-500" />
-                                    )}
+                                  {/* LEFT Text: PASS (visible when TRUE) */}
+                                  <span className={`absolute left-2 text-xs font-bold text-white transition-opacity duration-200 ${
+                                    status ? 'opacity-100' : 'opacity-0'
+                                  }`}>
+                                    PASS
                                   </span>
+                                  
+                                  {/* RIGHT Text: FAIL (visible when FALSE) */}
+                                  <span className={`absolute right-2 text-xs font-bold text-white transition-opacity duration-200 ${
+                                    !status ? 'opacity-100' : 'opacity-0'
+                                  }`}>
+                                    FAIL
+                                  </span>
+                                  
+                                  {/* Sliding Knob */}
+                                  <span
+                                    className={`inline-block h-8 w-8 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                                      status ? 'translate-x-14' : 'translate-x-1'
+                                    }`}
+                                  />
                                 </button>
                               </td>
                             )
@@ -796,6 +899,62 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* QR Code Modal */}
+      {/* V4: "Who is Inside?" Modal */}
+      {showInsideModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowInsideModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
+              <Activity className="w-6 h-6 text-teal-600" />
+              Who is Inside?
+            </h3>
+            <p className="text-navy-600 mb-6">
+              {insideResidents.length} {insideResidents.length === 1 ? 'resident is' : 'residents are'} currently inside the pool
+            </p>
+            
+            {insideResidents.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-navy-300 mx-auto mb-4" />
+                <p className="text-navy-500 text-lg">No one is inside</p>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-6">
+                {insideResidents.map((resident) => (
+                  <div
+                    key={resident.id}
+                    className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-semibold text-navy-900">{resident.name}</p>
+                      <p className="text-sm text-navy-600">Unit {resident.unit}</p>
+                    </div>
+                    <button
+                      onClick={() => forceCheckout(resident.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                    >
+                      Force Check Out
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <button
+              onClick={() => setShowInsideModal(false)}
+              className="w-full bg-navy-600 hover:bg-navy-700 text-white px-6 py-3 rounded-lg font-semibold transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* QR Code Modal */}
       {selectedResident && (

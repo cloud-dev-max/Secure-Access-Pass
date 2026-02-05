@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { Camera, X, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { Camera, X, CheckCircle2, XCircle, Loader2, Home } from 'lucide-react'
 
 type ScanMode = 'ENTRY' | 'EXIT'
 type ScanResult = 'idle' | 'scanning' | 'success' | 'denied' | 'error'
@@ -171,13 +171,13 @@ export default function ScannerPage() {
               </button>
             </div>
 
-            {/* Return to Dashboard Button */}
+            {/* V4: Return to Dashboard Button with Home Icon */}
             <a
               href="/dashboard"
               className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
             >
-              <X className="w-4 h-4" />
-              Return to Dashboard
+              <Home className="w-4 h-4" />
+              Dashboard
             </a>
           </div>
         </div>

@@ -37,10 +37,18 @@ export default function ResidentPortalPage() {
   const [facilityStatus, setFacilityStatus] = useState<FacilityStatus | null>(null)
   const [guestPasses, setGuestPasses] = useState<GuestPass[]>([])
   
-  // Login form
+  // Login form - V4: Added PIN
   const [email, setEmail] = useState('')
+  const [pin, setPin] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
+
+  // V4: Change PIN form
+  const [showChangePinForm, setShowChangePinForm] = useState(false)
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [changingPin, setChangingPin] = useState(false)
 
   // Guest pass form
   const [showGuestPassForm, setShowGuestPassForm] = useState(false)
@@ -95,16 +103,26 @@ export default function ResidentPortalPage() {
     setLoginLoading(true)
     setLoginError('')
 
+    // V4: Validate PIN format
+    if (!/^\d{4}$/.test(pin)) {
+      setLoginError('PIN must be exactly 4 digits')
+      setLoginLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('/api/resident-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ 
+          email: email.trim().toLowerCase(),
+          pin: pin.trim()
+        }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        setLoginError(errorData.message || 'Invalid email address')
+        setLoginError(errorData.message || 'Invalid email or PIN')
         setLoginLoading(false)
         return
       }
@@ -116,6 +134,7 @@ export default function ResidentPortalPage() {
       
       setResident(profile)
       setIsLoggedIn(true)
+      setPin('') // Clear PIN from memory
       loadFacilityStatus()
       loadGuestPasses(profile.id)
     } catch (error) {
@@ -123,6 +142,53 @@ export default function ResidentPortalPage() {
       setLoginError('Network error. Please try again.')
     } finally {
       setLoginLoading(false)
+    }
+  }
+
+  // V4: Handle PIN change
+  const handleChangePin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!/^\d{4}$/.test(newPin)) {
+      alert('New PIN must be exactly 4 digits')
+      return
+    }
+
+    if (newPin !== confirmPin) {
+      alert('New PIN and confirmation do not match')
+      return
+    }
+
+    setChangingPin(true)
+
+    try {
+      const response = await fetch('/api/change-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resident_id: resident?.id,
+          current_pin: currentPin,
+          new_pin: newPin,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to change PIN')
+        setChangingPin(false)
+        return
+      }
+
+      alert('PIN changed successfully!')
+      setShowChangePinForm(false)
+      setCurrentPin('')
+      setNewPin('')
+      setConfirmPin('')
+    } catch (error) {
+      console.error('Error changing PIN:', error)
+      alert('Network error. Please try again.')
+    } finally {
+      setChangingPin(false)
     }
   }
 
@@ -301,7 +367,7 @@ export default function ResidentPortalPage() {
               <Shield className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-navy-900 mb-2">Resident Portal</h1>
-            <p className="text-navy-600">Enter your email to access your pool pass</p>
+            <p className="text-navy-600">Enter your email and 4-digit PIN</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -317,6 +383,23 @@ export default function ResidentPortalPage() {
                 required
                 className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-navy-700 mb-2">
+                4-Digit PIN
+              </label>
+              <input
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                required
+                maxLength={4}
+                pattern="\d{4}"
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+              />
+              <p className="text-xs text-navy-500 mt-1">Your manager provided this PIN when you registered</p>
             </div>
 
             {loginError && (
@@ -442,6 +525,98 @@ export default function ResidentPortalPage() {
               Save to Photos
             </button>
           </div>
+        </div>
+
+        {/* V4: Change PIN Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+          <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+            <Shield className="w-6 h-6 text-teal-600" />
+            Security Settings
+          </h2>
+          
+          {!showChangePinForm ? (
+            <button
+              onClick={() => setShowChangePinForm(true)}
+              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+            >
+              Change PIN
+            </button>
+          ) : (
+            <form onSubmit={handleChangePin} className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Important:</strong> Your PIN is used to log in to the resident portal. Keep it secure and don't share it with anyone.
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  Current PIN
+                </label>
+                <input
+                  type="password"
+                  value={currentPin}
+                  onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  New PIN (4 digits)
+                </label>
+                <input
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  Confirm New PIN
+                </label>
+                <input
+                  type="password"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={changingPin}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+                >
+                  {changingPin ? 'Changing...' : 'Update PIN'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePinForm(false)
+                    setCurrentPin('')
+                    setNewPin('')
+                    setConfirmPin('')
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 px-4 py-2 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Guest Passes */}

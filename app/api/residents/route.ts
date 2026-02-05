@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
 
     // Generate unique QR code
     const qr_code = `SAP-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    
+    // V4: Generate random 4-digit PIN
+    const access_pin = Math.floor(1000 + Math.random() * 9000).toString()
 
     // Insert resident using admin client (bypasses RLS)
     const { data: resident, error: insertError } = await adminClient
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
         unit,
         phone: phone || null,
         qr_code,
+        access_pin,
         property_id: finalPropertyId,
         role: 'resident',
         is_active: true,
@@ -224,6 +228,63 @@ export async function PUT(request: NextRequest) {
     )
   } catch (error) {
     console.error('Unexpected error in bulk resident import:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PATCH /api/residents
+ * Update resident information (PIN, location, etc.)
+ * V4: Used for PIN regeneration and force checkout
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient()
+    const body = await request.json()
+    
+    const { id, access_pin, current_location } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Resident ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Build update object with only provided fields
+    const updates: any = {}
+    if (access_pin !== undefined) updates.access_pin = access_pin
+    if (current_location !== undefined) updates.current_location = current_location
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No fields to update' },
+        { status: 400 }
+      )
+    }
+
+    // Update resident
+    const { data, error } = await adminClient
+      .from('profiles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating resident:', error)
+      return NextResponse.json(
+        { error: 'Failed to update resident', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(data, { status: 200 })
+  } catch (error) {
+    console.error('Unexpected error in PATCH /api/residents:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

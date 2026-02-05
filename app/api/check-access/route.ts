@@ -437,7 +437,18 @@ export async function POST(request: NextRequest) {
       for (const ruleStatus of ruleStatuses) {
         const rule = ruleStatus.rule as any
         if (rule && rule.is_active && !ruleStatus.status) {
-          const reason = `Access Denied: ${rule.rule_name} is False`
+          // V4: Human-friendly error messages
+          const humanFriendlyMessages: Record<string, string> = {
+            'rent_paid': 'Rent Payment Outstanding',
+            'pet_deposit': 'Pet Deposit Required',
+            'background_check': 'Background Check Pending',
+            'lease_signed': 'Lease Agreement Required',
+            'insurance': 'Renters Insurance Required',
+          }
+          
+          const ruleName = rule.rule_name.toLowerCase().replace(/\s+/g, '_')
+          const friendlyMessage = humanFriendlyMessages[ruleName] || `Access Denied: ${rule.rule_name} is not met`
+          
           console.log(`❌ DENIED: Rule failed - ${rule.rule_name}`)
           await logAccess(supabase, {
             user_id: resident.id,
@@ -445,7 +456,7 @@ export async function POST(request: NextRequest) {
             qr_code,
             scan_type,
             result: 'DENIED',
-            denial_reason: reason,
+            denial_reason: friendlyMessage,
             location_before: resident.current_location,
             location_after: resident.current_location,
             request
@@ -453,7 +464,7 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json({
             can_access: false,
-            denial_reason: reason,
+            denial_reason: friendlyMessage,
             user_name: resident.name,
             user_id: resident.id,
             current_location: resident.current_location,

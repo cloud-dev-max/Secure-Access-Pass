@@ -3,47 +3,48 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * POST /api/resident-auth
- * Simple email-based authentication for residents
- * Looks up resident by email and returns their profile
+ * V4: Secure PIN-based authentication for residents
+ * Requires both email and 4-digit PIN
  */
 export async function POST(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
     const body = await request.json()
-    const { email } = body
+    const { email, pin } = body
 
-    if (!email) {
+    if (!email || !pin) {
       return NextResponse.json(
-        { error: 'Email is required' },
+        { error: 'Email and PIN are required' },
         { status: 400 }
       )
     }
 
     console.log('Looking up resident with email:', email)
 
-    // Find resident by email
+    // Find resident by email and PIN
     const { data: profile, error } = await adminClient
       .from('profiles')
       .select('*')
       .eq('email', email.toLowerCase().trim())
+      .eq('access_pin', pin.trim())
       .eq('role', 'resident')
       .eq('is_active', true)
       .single()
 
     if (error || !profile) {
-      console.log('Resident not found:', email)
+      console.log('Invalid email or PIN')
       return NextResponse.json(
         { 
-          error: 'Resident not found',
-          message: 'No active resident account found with this email address.'
+          error: 'Invalid credentials',
+          message: 'Invalid email or PIN. Please check your credentials and try again.'
         },
-        { status: 404 }
+        { status: 401 }
       )
     }
 
-    console.log('Resident found:', profile.name)
+    console.log('Resident authenticated:', profile.name)
 
-    // Return resident profile (client will store ID in localStorage)
+    // Return resident profile (client will store in localStorage)
     return NextResponse.json({
       id: profile.id,
       name: profile.name,
