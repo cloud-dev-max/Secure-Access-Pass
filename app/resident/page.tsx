@@ -6,7 +6,7 @@ import {
   QrCode,
   Download,
   LogOut,
-  Activity,
+
   Shield,
   Clock,
   Users,
@@ -57,6 +57,7 @@ export default function ResidentPortalPage() {
   const [guestEmail, setGuestEmail] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
   const [creatingPass, setCreatingPass] = useState(false)
+  const [latestGuestPassPrice, setLatestGuestPassPrice] = useState(5.00) // V5: Track latest price
 
   useEffect(() => {
     // Check if resident is already logged in (stored in localStorage)
@@ -92,6 +93,14 @@ export default function ResidentPortalPage() {
     } catch (error) {
       console.error('Error loading facility status:', error)
     }
+  }
+
+  // V5: Helper to convert 24hr to 12hr format
+  const formatTime12Hour = (time24: string) => {
+    const [hours, minutes] = time24.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const hours12 = hours % 12 || 12
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
   }
 
   const loadGuestPasses = async (residentId: string) => {
@@ -502,20 +511,20 @@ export default function ResidentPortalPage() {
                 </p>
               )}
             </div>
-            <Activity className="w-12 h-12" />
+            {/* V5: Removed Activity icon per requirements */}
           </div>
           
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5" />
               <span>
-                {facilityStatus?.current_occupancy} / {facilityStatus?.max_capacity} Residents
+                <strong className="font-bold">{facilityStatus?.current_occupancy} People Currently in Pool</strong> / {facilityStatus?.max_capacity}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
               <span>
-                {facilityStatus?.operating_hours.start} - {facilityStatus?.operating_hours.end}
+                {facilityStatus && formatTime12Hour(facilityStatus.operating_hours.start)} - {facilityStatus && formatTime12Hour(facilityStatus.operating_hours.end)}
               </span>
             </div>
           </div>
@@ -548,98 +557,6 @@ export default function ResidentPortalPage() {
           </div>
         </div>
 
-        {/* V4: Change PIN Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-          <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
-            <Shield className="w-6 h-6 text-teal-600" />
-            Security Settings
-          </h2>
-          
-          {!showChangePinForm ? (
-            <button
-              onClick={() => setShowChangePinForm(true)}
-              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-all"
-            >
-              Change PIN
-            </button>
-          ) : (
-            <form onSubmit={handleChangePin} className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
-                <p className="text-sm text-yellow-800">
-                  <strong>Important:</strong> Your PIN is used to log in to the resident portal. Keep it secure and don't share it with anyone.
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-navy-700 mb-2">
-                  Current PIN
-                </label>
-                <input
-                  type="password"
-                  value={currentPin}
-                  onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
-                  required
-                  maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-navy-700 mb-2">
-                  New PIN (4 digits)
-                </label>
-                <input
-                  type="password"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
-                  required
-                  maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-navy-700 mb-2">
-                  Confirm New PIN
-                </label>
-                <input
-                  type="password"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
-                  required
-                  maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={changingPin}
-                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {changingPin ? 'Changing...' : 'Update PIN'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowChangePinForm(false)
-                    setCurrentPin('')
-                    setNewPin('')
-                    setConfirmPin('')
-                  }}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 px-4 py-2 rounded-lg font-semibold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
         {/* Guest Passes */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
           <div className="flex items-center justify-between mb-4">
@@ -650,7 +567,19 @@ export default function ResidentPortalPage() {
             
             {!showGuestPassForm && (
               <button
-                onClick={() => setShowGuestPassForm(true)}
+                onClick={async () => {
+                  // V5: Fetch latest price before opening form
+                  try {
+                    const response = await fetch('/api/settings')
+                    if (response.ok) {
+                      const settings = await response.json()
+                      setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
+                    }
+                  } catch (error) {
+                    console.error('Error fetching latest price:', error)
+                  }
+                  setShowGuestPassForm(true)
+                }}
                 className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
               >
                 <Plus className="w-5 h-5" />
@@ -668,7 +597,7 @@ export default function ResidentPortalPage() {
           {showGuestPassForm && (
             <form onSubmit={createGuestPass} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
-                Purchase Guest Pass (${facilityStatus?.operating_hours ? '5.00' : '...'})
+                Purchase Guest Pass (${latestGuestPassPrice.toFixed(2)})
               </h3>
               <div className="space-y-3">
                 <input
@@ -775,6 +704,98 @@ export default function ResidentPortalPage() {
               })
             )}
           </div>
+        </div>
+
+        {/* V4: Change PIN Section - Moved to bottom per V5 requirements */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+          <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+            <Shield className="w-6 h-6 text-teal-600" />
+            Security Settings
+          </h2>
+          
+          {!showChangePinForm ? (
+            <button
+              onClick={() => setShowChangePinForm(true)}
+              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+            >
+              Change PIN
+            </button>
+          ) : (
+            <form onSubmit={handleChangePin} className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Important:</strong> Your PIN is used to log in to the resident portal. Keep it secure and don't share it with anyone.
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  Current PIN
+                </label>
+                <input
+                  type="password"
+                  value={currentPin}
+                  onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  New PIN (4 digits)
+                </label>
+                <input
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-navy-700 mb-2">
+                  Confirm New PIN
+                </label>
+                <input
+                  type="password"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  required
+                  maxLength={4}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={changingPin}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+                >
+                  {changingPin ? 'Changing...' : 'Update PIN'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePinForm(false)
+                    setCurrentPin('')
+                    setNewPin('')
+                    setConfirmPin('')
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 px-4 py-2 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
