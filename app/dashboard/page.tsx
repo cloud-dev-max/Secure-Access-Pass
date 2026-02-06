@@ -568,9 +568,6 @@ export default function DashboardPage() {
                     }`}
                   />
                 </button>
-                    {isMaintenanceMode ? 'OFF' : 'ON'}
-                  </span>
-                </button>
               </div>
             </div>
 
