@@ -1,8 +1,10 @@
 # 🏊 Secure Access Pass
 
+**Version 5.0.0 - Professional Multi-Property SaaS Platform**
+
 **Resort-Grade Digital Entry Solution for Swimming Pool Access Management**
 
-A sophisticated B2B SaaS application that replaces physical key fobs with mobile QR codes, enabling property managers to instantly control pool access using flexible, custom rules.
+A sophisticated B2B SaaS application that replaces physical key fobs with mobile QR codes, enabling property managers to instantly control pool access using flexible, custom rules. Now with full multi-property support, professional UI, and enhanced resident portal.
 
 ---
 
@@ -33,6 +35,35 @@ A web-based dashboard where managers can:
 - Fast, responsive experience
 - Mobile-first QR scanner
 - Real-time updates
+
+---
+
+## 🎉 **What's New in V5.0**
+
+### Multi-Property SaaS Architecture
+- ✅ **Property Switcher** - Manage multiple properties from one dashboard
+- ✅ **Owner-based Access** - Each property linked to owner account
+- ✅ **Isolated Data** - Complete separation between properties
+
+### Professional UI Enhancements
+- ✅ **Wide Pill Toggles** - OPEN/CLOSED status (Green/Red)
+- ✅ **YES/NO Rule Toggles** - Replaced PASS/FAIL for clarity
+- ✅ **Custom Property Names** - "Sunrise Condos", "Riverside Pool", etc.
+- ✅ **Dynamic Digital IDs** - Show property name on resident cards
+
+### Resident Portal Improvements
+- ✅ **12-Hour Time Format** - "9:00 AM - 10:00 PM" (easier to read)
+- ✅ **Bold Occupancy** - "X People Currently in Pool" (more prominent)
+- ✅ **Real-Time Pricing** - Guest pass prices sync from settings
+- ✅ **Better Layout** - Security settings moved to bottom
+
+### Enhanced Features
+- ✅ **Force Exit Logging** - Track manual checkouts by managers
+- ✅ **Guest Pass Support** - Scanner validates both residents and guests
+- ✅ **Accompanying Guest Limit** - Better terminology for guest restrictions
+- ✅ **Complete Audit Trail** - FORCE_EXIT events logged separately
+
+See [V5-PROFESSIONAL-SAAS-UPDATE.md](./V5-PROFESSIONAL-SAAS-UPDATE.md) for full details.
 
 ---
 
@@ -249,18 +280,35 @@ Complete audit trail of all access attempts
 - `scanned_at`, `ip_address`, `user_agent`
 
 ### `properties`
-Multi-property support for property management companies
+Multi-property support for property management companies (V5+)
 - `id`, `name`, `address`, `city`, `state`, `zip_code`
+- `owner_id` (links to user account)
+- `property_name` (custom display name)
+- `operating_hours_start`, `operating_hours_end`
+- `max_capacity`, `guest_pass_price`
+- `max_guests_per_resident` (accompanying guest limit)
+- `is_maintenance_mode`, `maintenance_reason`
+
+### `guest_passes` (V3+)
+One-time guest access passes purchased by residents
+- `id`, `property_id`, `purchased_by` (resident user_id)
+- `qr_code` (unique identifier)
+- `guest_name`, `guest_email`, `guest_phone`
+- `price_paid`, `status` (active/used/expired)
+- `expires_at`, `used_at`
 
 ---
 
 ## 🔐 **Security Features**
 
 - ✅ **Row Level Security (RLS)** enabled on all tables
+- ✅ **Service Role Key** - Admin operations bypass RLS securely
+- ✅ **4-Digit Random PINs** (V4+) - Secure resident authentication
+- ✅ **Email + PIN Login** - Two-factor resident portal access
 - ✅ **Manager-only access** to sensitive operations
 - ✅ **Unique QR codes** - Cannot be duplicated or shared effectively
 - ✅ **Anti-passback enforcement** - Prevents code sharing
-- ✅ **Complete audit logs** - Track every access attempt
+- ✅ **Complete audit logs** - Track every access attempt including force exits
 - ✅ **Server-side validation** - All checks run on backend
 
 ---
