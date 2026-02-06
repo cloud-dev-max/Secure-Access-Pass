@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await adminClient
       .from('properties')
-      .select('id, name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, is_maintenance_mode, maintenance_reason')
+      .select('id, name, property_name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, is_maintenance_mode, maintenance_reason')
       .eq('id', propertyId)
       .single()
 
@@ -65,11 +65,12 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
 
     const {
+      property_name, // V5
       operating_hours_start,
       operating_hours_end,
       max_capacity,
       guest_pass_price,
-      max_guests_per_resident, // V4
+      max_guests_per_resident, // V5
       is_maintenance_mode,
       maintenance_reason,
     } = body
@@ -82,11 +83,12 @@ export async function PATCH(request: NextRequest) {
       id: propertyId, // Required for upsert
     }
 
+    if (property_name !== undefined) updates.property_name = property_name // V5
     if (operating_hours_start !== undefined) updates.operating_hours_start = operating_hours_start
     if (operating_hours_end !== undefined) updates.operating_hours_end = operating_hours_end
     if (max_capacity !== undefined) updates.max_capacity = max_capacity
     if (guest_pass_price !== undefined) updates.guest_pass_price = guest_pass_price
-    if (max_guests_per_resident !== undefined) updates.max_guests_per_resident = max_guests_per_resident // V4
+    if (max_guests_per_resident !== undefined) updates.max_guests_per_resident = max_guests_per_resident // V5
     if (is_maintenance_mode !== undefined) updates.is_maintenance_mode = is_maintenance_mode
     if (maintenance_reason !== undefined) updates.maintenance_reason = maintenance_reason
 

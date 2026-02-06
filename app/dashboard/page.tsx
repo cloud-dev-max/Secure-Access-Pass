@@ -534,24 +534,40 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* V5: Wide Pill Toggle - OPEN/CLOSED */}
                 <button
                   onClick={toggleMaintenanceMode}
                   disabled={togglingMaintenance}
-                  className={`relative inline-flex h-12 w-24 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
-                    isMaintenanceMode 
-                      ? 'bg-red-500 hover:bg-red-600 focus:ring-red-500' 
-                      : 'bg-green-500 hover:bg-green-600 focus:ring-green-500'
+                  className={`relative inline-flex h-12 w-32 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 shadow-md ${
+                    !isMaintenanceMode 
+                      ? 'bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-400' 
+                      : 'bg-rose-500 hover:bg-rose-600 focus:ring-rose-400'
                   }`}
                   role="switch"
-                  aria-checked={isMaintenanceMode}
-                  title="Toggle Maintenance Mode"
+                  aria-checked={!isMaintenanceMode}
+                  title={isMaintenanceMode ? "Click to open pool" : "Click to close pool"}
                 >
+                  {/* LEFT Text: OPEN (visible when pool is open) */}
+                  <span className={`absolute left-3 text-sm font-bold text-white transition-opacity duration-200 ${
+                    !isMaintenanceMode ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    OPEN
+                  </span>
+                  
+                  {/* RIGHT Text: CLOSED (visible when pool is closed) */}
+                  <span className={`absolute right-2 text-sm font-bold text-white transition-opacity duration-200 ${
+                    isMaintenanceMode ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    CLOSED
+                  </span>
+                  
+                  {/* Sliding Knob */}
                   <span
                     className={`inline-block h-10 w-10 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-                      isMaintenanceMode ? 'translate-x-13' : 'translate-x-1'
+                      !isMaintenanceMode ? 'translate-x-1' : 'translate-x-20'
                     }`}
                   />
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
+                </button>
                     {isMaintenanceMode ? 'OFF' : 'ON'}
                   </span>
                 </button>
@@ -764,36 +780,36 @@ export default function DashboardPage() {
                             const status = getRuleStatus(resident, rule.id)
                             return (
                               <td key={rule.id} className="px-6 py-4 text-center">
-                                {/* V4 Traffic Light Toggle - Wide PASS/FAIL Design */}
+                                {/* V5: Wide Pill Toggle - YES/NO Design */}
                                 <button
                                   onClick={() => toggleRule(resident.id, rule.id, status)}
-                                  className={`relative inline-flex h-10 w-24 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md ${
+                                  className={`relative inline-flex h-10 w-20 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md ${
                                     status 
                                       ? 'bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-400' 
                                       : 'bg-rose-500 hover:bg-rose-600 focus:ring-rose-400'
                                   }`}
                                   role="switch"
                                   aria-checked={status}
-                                  title={status ? 'PASS - Click to mark as FAIL' : 'FAIL - Click to mark as PASS'}
+                                  title={status ? 'YES - Click to mark as NO' : 'NO - Click to mark as YES'}
                                 >
-                                  {/* LEFT Text: PASS (visible when TRUE) */}
+                                  {/* LEFT Text: YES (visible when TRUE) */}
                                   <span className={`absolute left-2 text-xs font-bold text-white transition-opacity duration-200 ${
                                     status ? 'opacity-100' : 'opacity-0'
                                   }`}>
-                                    PASS
+                                    YES
                                   </span>
                                   
-                                  {/* RIGHT Text: FAIL (visible when FALSE) */}
-                                  <span className={`absolute right-2 text-xs font-bold text-white transition-opacity duration-200 ${
+                                  {/* RIGHT Text: NO (visible when FALSE) */}
+                                  <span className={`absolute right-3 text-xs font-bold text-white transition-opacity duration-200 ${
                                     !status ? 'opacity-100' : 'opacity-0'
                                   }`}>
-                                    FAIL
+                                    NO
                                   </span>
                                   
                                   {/* Sliding Knob */}
                                   <span
                                     className={`inline-block h-8 w-8 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-                                      status ? 'translate-x-14' : 'translate-x-1'
+                                      status ? 'translate-x-1' : 'translate-x-11'
                                     }`}
                                   />
                                 </button>

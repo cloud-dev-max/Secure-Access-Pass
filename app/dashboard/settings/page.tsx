@@ -12,7 +12,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  ArrowLeft
+  ArrowLeft,
+  Building2
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -22,11 +23,12 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Form state
+  const [propertyName, setPropertyName] = useState('Pool Access System') // V5: Customizable pool name
   const [operatingHoursStart, setOperatingHoursStart] = useState('06:00:00')
   const [operatingHoursEnd, setOperatingHoursEnd] = useState('22:00:00')
   const [maxCapacity, setMaxCapacity] = useState(50)
   const [guestPassPrice, setGuestPassPrice] = useState(5.00)
-  const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3) // V4: Guest pass limits
+  const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3) // V5: Accompanying guest limit
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false)
   const [maintenanceReason, setMaintenanceReason] = useState('')
 
@@ -45,11 +47,12 @@ export default function SettingsPage() {
 
       const data = await response.json()
       
+      setPropertyName(data.property_name || 'Pool Access System') // V5
       setOperatingHoursStart(data.operating_hours_start || '06:00:00')
       setOperatingHoursEnd(data.operating_hours_end || '22:00:00')
       setMaxCapacity(data.max_capacity || 50)
       setGuestPassPrice(data.guest_pass_price || 5.00)
-      setMaxGuestsPerResident(data.max_guests_per_resident || 3) // V4
+      setMaxGuestsPerResident(data.max_guests_per_resident || 3) // V5
       setIsMaintenanceMode(data.is_maintenance_mode || false)
       setMaintenanceReason(data.maintenance_reason || '')
     } catch (error) {
@@ -70,11 +73,12 @@ export default function SettingsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          property_name: propertyName, // V5
           operating_hours_start: operatingHoursStart,
           operating_hours_end: operatingHoursEnd,
           max_capacity: maxCapacity,
           guest_pass_price: guestPassPrice,
-          max_guests_per_resident: maxGuestsPerResident, // V4
+          max_guests_per_resident: maxGuestsPerResident, // V5
           is_maintenance_mode: isMaintenanceMode,
           maintenance_reason: isMaintenanceMode ? maintenanceReason : null,
         }),
@@ -157,6 +161,26 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* V5: Property Name */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+            <div className="flex items-center gap-3 mb-4">
+              <Building2 className="w-6 h-6 text-navy-600" />
+              <h2 className="text-xl font-bold text-navy-900">Property Name</h2>
+            </div>
+            <p className="text-sm text-navy-600 mb-4">Customize your pool or property name (appears on digital ID cards)</p>
+            
+            <input
+              type="text"
+              value={propertyName}
+              onChange={(e) => setPropertyName(e.target.value)}
+              required
+              maxLength={50}
+              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+              placeholder="e.g., Sunrise Condos Pool, Oak Park Recreation Center"
+            />
+            <p className="text-xs text-navy-500 mt-2">This name will appear on all digital ID cards and in the resident portal</p>
+          </div>
+
           {/* Operating Hours */}
           <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
             <div className="flex items-center gap-3 mb-4">
@@ -236,13 +260,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* V4: Max Guests Per Resident */}
+          {/* V5: Accompanying Guest Limit */}
           <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
             <div className="flex items-center gap-3 mb-4">
               <Users className="w-6 h-6 text-navy-600" />
-              <h2 className="text-xl font-bold text-navy-900">Guest Pass Limit</h2>
+              <h2 className="text-xl font-bold text-navy-900">Accompanying Guest Limit</h2>
             </div>
-            <p className="text-sm text-navy-600 mb-4">Maximum number of active guest passes per resident</p>
+            <p className="text-sm text-navy-600 mb-4">Maximum number of guests that can accompany a resident (guests entering with the resident)</p>
             
             <input
               type="number"
