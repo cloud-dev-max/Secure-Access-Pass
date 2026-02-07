@@ -15,7 +15,8 @@ import {
   Activity,
   Clock,
   LogIn,
-  LogOut
+  LogOut,
+  AlertCircle
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import type { Profile, AccessRule, UserRuleStatus } from '@/lib/types/database'
@@ -30,6 +31,12 @@ interface Stats {
   currentOccupancy: number
   activeRules: number
   recentActivity: any[]
+  // V6: Occupancy breakdown
+  occupancyBreakdown?: {
+    residents: number
+    accompanying_guests: number
+    visitor_passes: number
+  }
 }
 
 export default function DashboardPage() {
@@ -65,9 +72,15 @@ export default function DashboardPage() {
   const [showInsideModal, setShowInsideModal] = useState(false)
   const [insideResidents, setInsideResidents] = useState<ProfileWithRules[]>([])
 
+  // V6: Broadcast Alert Modal
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+  const [broadcastMessage, setBroadcastMessage] = useState('')
+  const [sendingBroadcast, setSendingBroadcast] = useState(false)
+
   useEffect(() => {
     loadData()
     loadMaintenanceStatus()
+    loadOccupancyBreakdown() // V6
   }, [])
 
   const loadMaintenanceStatus = async () => {
@@ -79,6 +92,27 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error loading maintenance status:', error)
+    }
+  }
+
+  // V6: Load occupancy breakdown
+  const loadOccupancyBreakdown = async () => {
+    try {
+      const response = await fetch('/api/occupancy')
+      if (response.ok) {
+        const data = await response.json()
+        setStats(prev => ({
+          ...prev,
+          currentOccupancy: data.total,
+          occupancyBreakdown: {
+            residents: data.residents,
+            accompanying_guests: data.accompanying_guests,
+            visitor_passes: data.visitor_passes
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading occupancy breakdown:', error)
     }
   }
 
@@ -211,6 +245,39 @@ export default function DashboardPage() {
       alert('Failed to toggle maintenance mode')
     } finally {
       setTogglingMaintenance(false)
+    }
+  }
+
+  // V6: Broadcast health alert
+  const sendBroadcastAlert = async () => {
+    if (!broadcastMessage || broadcastMessage.trim() === '') {
+      alert('Please enter a message')
+      return
+    }
+
+    setSendingBroadcast(true)
+    try {
+      const response = await fetch('/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: broadcastMessage.trim()
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send broadcast')
+      }
+
+      const data = await response.json()
+      alert(`Alert sent to ${data.recipients_count} resident(s) currently inside`)
+      setBroadcastMessage('')
+      setShowBroadcastModal(false)
+    } catch (error) {
+      console.error('Error sending broadcast:', error)
+      alert('Failed to send broadcast alert')
+    } finally {
+      setSendingBroadcast(false)
     }
   }
 
@@ -478,7 +545,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-navy-600">Active residents in the system</p>
               </div>
 
-              {/* Current Occupancy - V4: Clickable to show "Who is Inside?" */}
+              {/* Current Occupancy - V6: With breakdown */}
               <button
                 onClick={loadInsideResidents}
                 className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
@@ -489,8 +556,14 @@ export default function DashboardPage() {
                   </div>
                   <span className="text-3xl font-bold text-navy-900">{stats.currentOccupancy}</span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-1">Current Occupancy</h3>
-                <p className="text-sm text-navy-600">Residents currently inside the pool</p>
+                <h3 className="text-lg font-semibold text-navy-900 mb-2">Current Occupancy</h3>
+                {stats.occupancyBreakdown && (
+                  <div className="text-sm text-navy-600 space-y-1 mb-2">
+                    <div>Residents: <span className="font-semibold">{stats.occupancyBreakdown.residents}</span></div>
+                    <div>Accompanying Guests: <span className="font-semibold">{stats.occupancyBreakdown.accompanying_guests}</span></div>
+                    <div>Visitor Passes: <span className="font-semibold">{stats.occupancyBreakdown.visitor_passes}</span></div>
+                  </div>
+                )}
                 <p className="text-xs text-teal-600 font-semibold mt-2">Click to see who is inside →</p>
               </button>
 
@@ -534,11 +607,11 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* V5: Wide Pill Toggle - OPEN/CLOSED */}
+                {/* V6: Fixed-width OPEN/CLOSED toggle */}
                 <button
                   onClick={toggleMaintenanceMode}
                   disabled={togglingMaintenance}
-                  className={`relative inline-flex h-12 w-32 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 shadow-md ${
+                  className={`relative inline-flex h-12 w-36 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 shadow-md ${
                     !isMaintenanceMode 
                       ? 'bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-400' 
                       : 'bg-rose-500 hover:bg-rose-600 focus:ring-rose-400'
@@ -547,26 +620,43 @@ export default function DashboardPage() {
                   aria-checked={!isMaintenanceMode}
                   title={isMaintenanceMode ? "Click to open pool" : "Click to close pool"}
                 >
-                  {/* LEFT Text: OPEN (visible when pool is open) */}
-                  <span className={`absolute left-3 text-sm font-bold text-white transition-opacity duration-200 ${
+                  {/* Text: OPEN (left side, visible when open) */}
+                  <span className={`absolute left-4 text-sm font-bold text-white z-10 ${
                     !isMaintenanceMode ? 'opacity-100' : 'opacity-0'
                   }`}>
                     OPEN
                   </span>
                   
-                  {/* RIGHT Text: CLOSED (visible when pool is closed) */}
-                  <span className={`absolute right-2 text-sm font-bold text-white transition-opacity duration-200 ${
+                  {/* Text: CLOSED (right side, visible when closed) */}
+                  <span className={`absolute right-4 text-sm font-bold text-white z-10 ${
                     isMaintenanceMode ? 'opacity-100' : 'opacity-0'
                   }`}>
                     CLOSED
                   </span>
                   
-                  {/* Sliding Knob */}
+                  {/* Sliding Knob - RIGHT when OPEN, LEFT when CLOSED */}
                   <span
-                    className={`inline-block h-10 w-10 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-                      !isMaintenanceMode ? 'translate-x-1' : 'translate-x-20'
+                    className={`relative inline-block h-10 w-10 rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                      !isMaintenanceMode ? 'translate-x-24' : 'translate-x-1'
                     }`}
                   />
+                </button>
+              </div>
+            </div>
+
+            {/* V6: Broadcast Health Alert */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-navy-900 mb-1">Health & Safety Alerts</h3>
+                  <p className="text-sm text-navy-600">Broadcast message to all residents currently inside</p>
+                </div>
+                <button
+                  onClick={() => setShowBroadcastModal(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  Broadcast Alert
                 </button>
               </div>
             </div>
@@ -1006,6 +1096,57 @@ export default function DashboardPage() {
                 className="flex-1 bg-navy-200 hover:bg-navy-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* V6: Broadcast Alert Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
+              <AlertCircle className="w-7 h-7 text-red-600" />
+              Broadcast Health Alert
+            </h2>
+            <p className="text-navy-600 mb-6">
+              This message will be sent to all residents currently inside the facility
+            </p>
+            
+            <textarea
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              placeholder="Enter your alert message (e.g., 'Severe weather approaching - please exit immediately')"
+              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none h-32 mb-6"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={sendBroadcastAlert}
+                disabled={sendingBroadcast || !broadcastMessage.trim()}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {sendingBroadcast ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-5 h-5" />
+                    Send Alert
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowBroadcastModal(false)
+                  setBroadcastMessage('')
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
+              >
+                Cancel
               </button>
             </div>
           </div>

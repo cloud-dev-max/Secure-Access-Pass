@@ -20,6 +20,8 @@ export interface Database {
           current_location: 'INSIDE' | 'OUTSIDE'
           qr_code: string
           access_pin: string | null // V4
+          personal_guest_limit: number | null // V6: Personal accompanying guest limit
+          active_guests: number // V6: Current guests with resident
           property_id: string
           role: 'manager' | 'resident' | 'scanner'
           is_active: boolean
@@ -37,6 +39,8 @@ export interface Database {
           current_location?: 'INSIDE' | 'OUTSIDE'
           qr_code: string
           access_pin?: string | null // V4
+          personal_guest_limit?: number | null // V6
+          active_guests?: number // V6
           property_id: string
           role?: 'manager' | 'resident' | 'scanner'
           is_active?: boolean
@@ -54,6 +58,8 @@ export interface Database {
           current_location?: 'INSIDE' | 'OUTSIDE'
           qr_code?: string
           access_pin?: string | null // V4
+          personal_guest_limit?: number | null // V6
+          active_guests?: number // V6
           property_id?: string
           role?: 'manager' | 'resident' | 'scanner'
           is_active?: boolean
@@ -310,15 +316,18 @@ export type Property = Database['public']['Tables']['properties']['Row']
 export type AccessRule = Database['public']['Tables']['access_rules']['Row']
 export type UserRuleStatus = Database['public']['Tables']['user_rule_status']['Row']
 export type AccessLog = Database['public']['Tables']['access_logs']['Row']
-export type GuestPass = Database['public']['Tables']['guest_passes']['Row']
+// V6: Renamed from GuestPass to VisitorPass
+export type VisitorPass = Database['public']['Tables']['guest_passes']['Row']
+export type GuestPass = VisitorPass // Backwards compatibility alias
 
 export type ProfileWithRules = Profile & {
   rule_statuses: (UserRuleStatus & { rule: AccessRule })[]
 }
 
-export type GuestPassWithPurchaser = GuestPass & {
+export type VisitorPassWithPurchaser = VisitorPass & {
   purchaser: Profile | null
 }
+export type GuestPassWithPurchaser = VisitorPassWithPurchaser // Backwards compatibility
 
 export type AccessCheckResult = {
   can_access: boolean
@@ -338,4 +347,10 @@ export type FacilityStatus = {
   }
   is_maintenance_mode: boolean
   maintenance_reason: string | null
+  // V6: Occupancy breakdown
+  occupancy_breakdown?: {
+    residents: number
+    accompanying_guests: number
+    visitor_passes: number
+  }
 }

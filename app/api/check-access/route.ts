@@ -3,24 +3,22 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * POST /api/check-access
- * Smart scanner logic with global rules enforcement + Multi-Property Support
+ * V6: Real World Logic - Group Entry/Exit Support
  * 
  * CRITICAL: Uses Service Role Key to bypass RLS
  * 
- * Priority order:
- * 1. Lookup resident/guest by QR code
- * 2. Maintenance Mode check
- * 3. Operating Hours check
- * 4. Max Capacity check (ENTRY only)
- * 5. Resident-specific rules check
- * 6. Anti-passback check (ENTRY only)
+ * V6 Changes:
+ * - Supports group entry/exit with guest_count parameter
+ * - Tracks active_guests per resident
+ * - Personal guest limits override property defaults
+ * - Enhanced logging with guest counts
+ * - Check-only mode for scanner UI
  */
 export async function POST(request: NextRequest) {
   try {
-    // CRITICAL: Use Admin Client with Service Role Key
     const supabase = createAdminClient()
     const body = await request.json()
-    const { qr_code, scan_type } = body
+    const { qr_code, scan_type, guest_count = 0, check_only = false } = body
 
     if (!qr_code || !scan_type) {
       return NextResponse.json(
@@ -36,14 +34,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`\n=== Access Check Started ===`)
-    console.log(`QR Code: ${qr_code}`)
-    console.log(`Scan Type: ${scan_type}`)
+    console.log(`\n=== V6 Access Check ===`)
+    console.log(`QR: ${qr_code}, Type: ${scan_type}, Guests: ${guest_count}, CheckOnly: ${check_only}`)
 
     // ========================================================================
-    // STEP 1: Check if QR Code is a Guest Pass
+    // STEP 1: Check if QR Code is a Visitor Pass
     // ========================================================================
-    const { data: guestPass, error: guestError } = await supabase
+    const { data: visitorPass, error: visitorError } = await supabase
       .from('guest_passes')
       .select(`
         *,
@@ -53,224 +50,119 @@ export async function POST(request: NextRequest) {
       .eq('qr_code', qr_code)
       .single()
 
-    if (guestPass && !guestError) {
-      console.log('✓ Guest pass detected:', guestPass.id)
-      const property = guestPass.property as any
+    if (visitorPass && !visitorError) {
+      console.log('✓ Visitor pass detected')
       
-      // Check guest pass validity
+      if (check_only) {
+        return NextResponse.json({
+          can_access: true,
+          user_type: 'visitor',
+          user_name: visitorPass.guest_name || 'Visitor',
+          user_id: null,
+          current_location: 'OUTSIDE'
+        })
+      }
+
+      const property = visitorPass.property as any
       const now = new Date()
-      const expiresAt = new Date(guestPass.expires_at)
+      const expiresAt = new Date(visitorPass.expires_at)
 
-      if (guestPass.status === 'used') {
-        console.log('❌ DENIED: Guest pass already used')
-        await logAccess(supabase, {
-          user_id: guestPass.purchased_by,
-          property_id: guestPass.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: 'Guest pass already used (one-time entry)',
-          location_before: 'OUTSIDE',
-          location_after: 'OUTSIDE',
-          request
-        })
-        
+      if (visitorPass.status === 'used') {
+        console.log('❌ DENIED: Visitor pass already used')
         return NextResponse.json({
           can_access: false,
-          denial_reason: 'This guest pass has already been used (one-time entry)',
-          user_name: guestPass.guest_name || 'Guest',
-          user_id: null,
-          current_location: null,
-        }, { status: 200 })
+          denial_reason: 'This visitor pass has already been used (one-time entry)',
+          user_name: visitorPass.guest_name || 'Visitor'
+        })
       }
 
-      if (guestPass.status === 'expired' || now > expiresAt) {
-        console.log('❌ DENIED: Guest pass expired')
-        await logAccess(supabase, {
-          user_id: guestPass.purchased_by,
-          property_id: guestPass.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: 'Guest pass has expired',
-          location_before: 'OUTSIDE',
-          location_after: 'OUTSIDE',
-          request
-        })
-        
+      if (visitorPass.status === 'expired' || now > expiresAt) {
+        console.log('❌ DENIED: Visitor pass expired')
         return NextResponse.json({
           can_access: false,
-          denial_reason: 'This guest pass has expired',
-          user_name: guestPass.guest_name || 'Guest',
-          user_id: null,
-          current_location: null,
-        }, { status: 200 })
+          denial_reason: 'This visitor pass has expired',
+          user_name: visitorPass.guest_name || 'Visitor'
+        })
       }
 
-      // Check global rules for guest pass
+      // Check global rules for visitor pass
       if (scan_type === 'ENTRY') {
-        // Maintenance check
         if (property.is_maintenance_mode) {
-          const reason = property.maintenance_reason || 'Facility is currently closed for maintenance'
-          console.log('❌ DENIED: Maintenance mode')
-          await logAccess(supabase, {
-            user_id: guestPass.purchased_by,
-            property_id: guestPass.property_id,
-            qr_code,
-            scan_type,
-            result: 'DENIED',
-            denial_reason: reason,
-            location_before: 'OUTSIDE',
-            location_after: 'OUTSIDE',
-            request
-          })
           return NextResponse.json({
             can_access: false,
-            denial_reason: reason,
-            user_name: guestPass.guest_name || 'Guest',
-            user_id: null,
-            current_location: null,
-          }, { status: 200 })
+            denial_reason: property.maintenance_reason || 'Facility closed for maintenance'
+          })
         }
 
-        // Operating hours check
         const currentTime = new Date().toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          second: '2-digit' 
+          hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' 
         })
         if (currentTime < property.operating_hours_start || currentTime > property.operating_hours_end) {
-          const reason = `Pool is closed. Operating hours: ${property.operating_hours_start} - ${property.operating_hours_end}`
-          console.log('❌ DENIED: Outside operating hours')
-          await logAccess(supabase, {
-            user_id: guestPass.purchased_by,
-            property_id: guestPass.property_id,
-            qr_code,
-            scan_type,
-            result: 'DENIED',
-            denial_reason: reason,
-            location_before: 'OUTSIDE',
-            location_after: 'OUTSIDE',
-            request
-          })
           return NextResponse.json({
             can_access: false,
-            denial_reason: reason,
-            user_name: guestPass.guest_name || 'Guest',
-            user_id: null,
-            current_location: null,
-          }, { status: 200 })
+            denial_reason: `Pool is closed. Hours: ${property.operating_hours_start} - ${property.operating_hours_end}`
+          })
         }
 
-        // Capacity check
         const { count: occupancy } = await supabase
           .from('profiles')
           .select('id', { count: 'exact', head: true })
-          .eq('property_id', guestPass.property_id)
+          .eq('property_id', visitorPass.property_id)
           .eq('current_location', 'INSIDE')
           .eq('is_active', true)
 
         if (occupancy !== null && occupancy >= property.max_capacity) {
-          const reason = `Facility is at maximum capacity (${property.max_capacity} people)`
-          console.log('❌ DENIED: Max capacity reached')
-          await logAccess(supabase, {
-            user_id: guestPass.purchased_by,
-            property_id: guestPass.property_id,
-            qr_code,
-            scan_type,
-            result: 'DENIED',
-            denial_reason: reason,
-            location_before: 'OUTSIDE',
-            location_after: 'OUTSIDE',
-            request
-          })
           return NextResponse.json({
             can_access: false,
-            denial_reason: reason,
-            user_name: guestPass.guest_name || 'Guest',
-            user_id: null,
-            current_location: null,
-          }, { status: 200 })
+            denial_reason: `Facility at max capacity (${property.max_capacity})`
+          })
         }
       }
 
-      // Guest pass is valid - Grant access and mark as used
+      // Grant visitor pass access
       if (scan_type === 'ENTRY') {
-        console.log('✅ GRANTED: Valid guest pass')
         await supabase
           .from('guest_passes')
-          .update({ 
-            status: 'used',
-            used_at: now.toISOString(),
-          })
-          .eq('id', guestPass.id)
-
-        await logAccess(supabase, {
-          user_id: guestPass.purchased_by,
-          property_id: guestPass.property_id,
-          qr_code,
-          scan_type: 'ENTRY',
-          result: 'GRANTED',
-          location_before: 'OUTSIDE',
-          location_after: 'INSIDE',
-          request
-        })
-
-        return NextResponse.json({
-          can_access: true,
-          denial_reason: null,
-          user_name: guestPass.guest_name || 'Guest',
-          user_id: null,
-          current_location: 'OUTSIDE',
-        }, { status: 200 })
-      } else {
-        // EXIT for guest pass
-        await logAccess(supabase, {
-          user_id: guestPass.purchased_by,
-          property_id: guestPass.property_id,
-          qr_code,
-          scan_type: 'EXIT',
-          result: 'GRANTED',
-          location_before: 'INSIDE',
-          location_after: 'OUTSIDE',
-          request
-        })
-        
-        return NextResponse.json({
-          can_access: true,
-          denial_reason: null,
-          user_name: guestPass.guest_name || 'Guest',
-          user_id: null,
-          current_location: 'INSIDE',
-        }, { status: 200 })
+          .update({ status: 'used', used_at: new Date().toISOString() })
+          .eq('id', visitorPass.id)
       }
+
+      const ip = request.headers.get('x-forwarded-for') || 'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
+      await supabase.from('access_logs').insert({
+        user_id: visitorPass.purchased_by,
+        property_id: visitorPass.property_id,
+        qr_code,
+        scan_type,
+        result: 'GRANTED',
+        denial_reason: null,
+        location_before: 'OUTSIDE',
+        location_after: scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE',
+        guest_count: 0,
+        event_type: 'SCAN',
+        ip_address: ip,
+        user_agent: userAgent
+      })
+
+      return NextResponse.json({
+        can_access: true,
+        user_name: visitorPass.guest_name || 'Visitor',
+        user_id: null,
+        current_location: scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE'
+      })
     }
 
     // ========================================================================
-    // STEP 2: Lookup Resident by QR Code (Multi-Property Support)
+    // STEP 2: Lookup Resident by QR Code
     // ========================================================================
-    console.log('Looking up resident by QR code...')
-    
     const { data: resident, error: residentError } = await supabase
       .from('profiles')
       .select(`
-        id,
-        name,
-        email,
-        unit,
-        current_location,
-        property_id,
-        role,
-        is_active,
+        *,
         property:property_id(
-          id,
-          name,
-          operating_hours_start,
-          operating_hours_end,
-          max_capacity,
-          is_maintenance_mode,
-          maintenance_reason
+          id, name, operating_hours_start, operating_hours_end,
+          is_maintenance_mode, maintenance_reason, max_capacity,
+          max_guests_per_resident
         )
       `)
       .eq('qr_code', qr_code)
@@ -279,273 +171,222 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (residentError || !resident) {
-      console.log('❌ DENIED: Invalid QR code or inactive resident')
+      console.log('❌ No resident/visitor found with QR code')
       return NextResponse.json({
         can_access: false,
-        denial_reason: 'Invalid QR Code',
-        user_name: null,
-        user_id: null,
-        current_location: null,
+        denial_reason: 'Invalid QR code',
+        user_name: 'Unknown'
       }, { status: 200 })
     }
 
-    console.log(`✓ Resident found: ${resident.name} (Property: ${(resident.property as any)?.name})`)
+    console.log(`✓ Resident found: ${resident.name}`)
     const property = resident.property as any
 
+    // V6: Calculate effective guest limit (personal overrides property)
+    const effectiveGuestLimit = resident.personal_guest_limit ?? property.max_guests_per_resident ?? 3
+
+    // Check-only mode: Return resident info for scanner UI
+    if (check_only) {
+      return NextResponse.json({
+        can_access: true,
+        user_type: 'resident',
+        user_name: resident.name,
+        user_id: resident.id,
+        current_location: resident.current_location,
+        active_guests: resident.active_guests || 0,
+        personal_guest_limit: resident.personal_guest_limit,
+        property_max_guests: property.max_guests_per_resident || 3
+      })
+    }
+
     // ========================================================================
-    // STEP 3: Global Rules Check (ENTRY only)
+    // STEP 3: Validate Group Size
+    // ========================================================================
+    if (scan_type === 'ENTRY' && guest_count > effectiveGuestLimit) {
+      console.log(`❌ DENIED: Too many guests (${guest_count} > ${effectiveGuestLimit})`)
+      return NextResponse.json({
+        can_access: false,
+        denial_reason: `Maximum ${effectiveGuestLimit} accompanying guests allowed`,
+        user_name: resident.name
+      })
+    }
+
+    // ========================================================================
+    // STEP 4: Global Rules Check (ENTRY only)
     // ========================================================================
     if (scan_type === 'ENTRY') {
-      // Maintenance Mode check
+      // Maintenance mode
       if (property.is_maintenance_mode) {
-        const reason = property.maintenance_reason || 'Facility is currently closed for maintenance'
         console.log('❌ DENIED: Maintenance mode')
-        await logAccess(supabase, {
-          user_id: resident.id,
-          property_id: resident.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: reason,
-          location_before: resident.current_location,
-          location_after: resident.current_location,
-          request
-        })
-        
+        const reason = property.maintenance_reason || 'Facility is currently closed for maintenance'
         return NextResponse.json({
           can_access: false,
           denial_reason: reason,
-          user_name: resident.name,
-          user_id: resident.id,
-          current_location: resident.current_location,
-        }, { status: 200 })
+          user_name: resident.name
+        })
       }
 
-      // Operating Hours check
+      // Operating hours
       const currentTime = new Date().toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
+        hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' 
       })
-      
       if (currentTime < property.operating_hours_start || currentTime > property.operating_hours_end) {
-        const reason = `Pool is closed. Operating hours: ${property.operating_hours_start} - ${property.operating_hours_end}`
         console.log('❌ DENIED: Outside operating hours')
-        await logAccess(supabase, {
-          user_id: resident.id,
-          property_id: resident.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: reason,
-          location_before: resident.current_location,
-          location_after: resident.current_location,
-          request
-        })
-        
+        const reason = `Pool is closed. Hours: ${property.operating_hours_start} - ${property.operating_hours_end}`
         return NextResponse.json({
           can_access: false,
           denial_reason: reason,
-          user_name: resident.name,
-          user_id: resident.id,
-          current_location: resident.current_location,
-        }, { status: 200 })
+          user_name: resident.name
+        })
       }
-      console.log(`✓ Within operating hours`)
 
-      // Max Capacity check
-      const { count: occupancy } = await supabase
+      // Capacity check (count resident + guests)
+      const totalGroupSize = 1 + guest_count
+      const { count: currentOccupancy } = await supabase
         .from('profiles')
         .select('id', { count: 'exact', head: true })
         .eq('property_id', resident.property_id)
         .eq('current_location', 'INSIDE')
         .eq('is_active', true)
 
-      console.log(`Current occupancy: ${occupancy} / ${property.max_capacity}`)
-      
-      if (occupancy !== null && occupancy >= property.max_capacity) {
-        const reason = `Facility is at maximum capacity (${property.max_capacity} people)`
-        console.log('❌ DENIED: Max capacity')
-        await logAccess(supabase, {
-          user_id: resident.id,
-          property_id: resident.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: reason,
-          location_before: resident.current_location,
-          location_after: resident.current_location,
-          request
-        })
-        
+      const occupancy = currentOccupancy || 0
+      if (occupancy + totalGroupSize > property.max_capacity) {
+        console.log('❌ DENIED: Would exceed capacity')
         return NextResponse.json({
           can_access: false,
-          denial_reason: reason,
-          user_name: resident.name,
-          user_id: resident.id,
-          current_location: resident.current_location,
-        }, { status: 200 })
-      }
-      console.log(`✓ Capacity OK`)
-
-      // Anti-Passback check
-      if (resident.current_location === 'INSIDE') {
-        const reason = 'Pass already in use (already INSIDE)'
-        console.log('❌ DENIED: Anti-passback')
-        await logAccess(supabase, {
-          user_id: resident.id,
-          property_id: resident.property_id,
-          qr_code,
-          scan_type,
-          result: 'DENIED',
-          denial_reason: reason,
-          location_before: resident.current_location,
-          location_after: resident.current_location,
-          request
+          denial_reason: `Facility at max capacity (${property.max_capacity})`,
+          user_name: resident.name
         })
-        
-        return NextResponse.json({
-          can_access: false,
-          denial_reason: reason,
-          user_name: resident.name,
-          user_id: resident.id,
-          current_location: resident.current_location,
-        }, { status: 200 })
       }
-      console.log(`✓ Anti-passback OK`)
     }
 
     // ========================================================================
-    // STEP 4: Check Resident-Specific Access Rules
+    // STEP 5: Check Resident-Specific Access Rules
     // ========================================================================
-    console.log('Checking resident-specific access rules...')
-    
-    const { data: ruleStatuses, error: rulesError } = await supabase
-      .from('user_rule_status')
-      .select(`
-        status,
-        rule:rule_id(
+    if (scan_type === 'ENTRY') {
+      const { data: ruleStatuses, error: rulesError } = await supabase
+        .from('user_rule_status')
+        .select(`
           id,
-          rule_name,
-          is_active
-        )
-      `)
-      .eq('user_id', resident.id)
+          status,
+          rule:rule_id(id, rule_name, is_active)
+        `)
+        .eq('user_id', resident.id)
 
-    if (!rulesError && ruleStatuses) {
-      for (const ruleStatus of ruleStatuses) {
-        const rule = ruleStatus.rule as any
-        if (rule && rule.is_active && !ruleStatus.status) {
-          // V4: Human-friendly error messages
-          const humanFriendlyMessages: Record<string, string> = {
-            'rent_paid': 'Rent Payment Outstanding',
-            'pet_deposit': 'Pet Deposit Required',
-            'background_check': 'Background Check Pending',
-            'lease_signed': 'Lease Agreement Required',
-            'insurance': 'Renters Insurance Required',
+      if (!rulesError && ruleStatuses) {
+        for (const rs of ruleStatuses) {
+          const rule = rs.rule as any
+          if (rule?.is_active && !rs.status) {
+            // V5: Human-friendly error messages
+            let denialReason = `Access Denied: ${rule.rule_name}`
+            
+            if (rule.rule_name.toLowerCase().includes('rent')) {
+              denialReason = 'Rent Payment Outstanding'
+            } else if (rule.rule_name.toLowerCase().includes('lease')) {
+              denialReason = 'Lease Violation - Contact Management'
+            } else if (rule.rule_name.toLowerCase().includes('id') || rule.rule_name.toLowerCase().includes('verification')) {
+              denialReason = 'ID Verification Required'
+            }
+
+            console.log(`❌ DENIED: Rule failed - ${rule.rule_name}`)
+            return NextResponse.json({
+              can_access: false,
+              denial_reason: denialReason,
+              user_name: resident.name
+            })
           }
-          
-          const ruleName = rule.rule_name.toLowerCase().replace(/\s+/g, '_')
-          const friendlyMessage = humanFriendlyMessages[ruleName] || `Access Denied: ${rule.rule_name} is not met`
-          
-          console.log(`❌ DENIED: Rule failed - ${rule.rule_name}`)
-          await logAccess(supabase, {
-            user_id: resident.id,
-            property_id: resident.property_id,
-            qr_code,
-            scan_type,
-            result: 'DENIED',
-            denial_reason: friendlyMessage,
-            location_before: resident.current_location,
-            location_after: resident.current_location,
-            request
-          })
-          
-          return NextResponse.json({
-            can_access: false,
-            denial_reason: friendlyMessage,
-            user_name: resident.name,
-            user_id: resident.id,
-            current_location: resident.current_location,
-          }, { status: 200 })
         }
       }
     }
-    console.log(`✓ All access rules passed`)
 
     // ========================================================================
-    // STEP 5: GRANT ACCESS - Update Location and Log
+    // STEP 6: GRANT ACCESS - Update Location and Guest Count
     // ========================================================================
-    const newLocation = scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE'
-    console.log(`✅ GRANTED: Updating location to ${newLocation}`)
+    const locationBefore = resident.current_location
+    let locationAfter = locationBefore
+    let newActiveGuests = resident.active_guests || 0
 
+    if (scan_type === 'ENTRY') {
+      if (locationBefore === 'OUTSIDE') {
+        // Normal entry with group
+        locationAfter = 'INSIDE'
+        newActiveGuests = guest_count
+      } else {
+        // Already inside - add more guests
+        locationAfter = 'INSIDE'
+        newActiveGuests = (resident.active_guests || 0) + guest_count
+      }
+    } else {
+      // EXIT logic
+      if (guest_count === 0 && (resident.active_guests || 0) === 0) {
+        // Just resident leaving
+        locationAfter = 'OUTSIDE'
+        newActiveGuests = 0
+      } else if (guest_count > 0) {
+        // Partial exit
+        newActiveGuests = Math.max(0, (resident.active_guests || 0) - guest_count)
+        if (newActiveGuests === 0) {
+          // All guests left, resident also leaving
+          locationAfter = 'OUTSIDE'
+        } else {
+          // Some guests remain
+          locationAfter = 'INSIDE'
+        }
+      }
+    }
+
+    // Update resident location and active_guests
     await supabase
       .from('profiles')
-      .update({ 
-        current_location: newLocation,
+      .update({
+        current_location: locationAfter,
+        active_guests: newActiveGuests,
         last_scan_at: new Date().toISOString()
       })
       .eq('id', resident.id)
 
-    await logAccess(supabase, {
+    console.log(`✓ Updated: ${locationBefore} → ${locationAfter}, Active Guests: ${newActiveGuests}`)
+
+    // Log access event with V6 group info
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+    await supabase.from('access_logs').insert({
       user_id: resident.id,
       property_id: resident.property_id,
       qr_code,
       scan_type,
       result: 'GRANTED',
-      location_before: resident.current_location,
-      location_after: newLocation,
-      request
+      denial_reason: null,
+      location_before: locationBefore,
+      location_after: locationAfter,
+      guest_count: guest_count,
+      event_type: guest_count > 0 ? 'GROUP_ENTRY' : 'SCAN',
+      ip_address: ip,
+      user_agent: userAgent
     })
 
-    console.log('=== Access Check Complete ===\n')
-    
+    // V6: Format display message
+    let displayMessage = resident.name
+    if (guest_count > 0) {
+      displayMessage = `${resident.name} + ${guest_count} Guest${guest_count > 1 ? 's' : ''}`
+    }
+
     return NextResponse.json({
       can_access: true,
-      denial_reason: null,
-      user_name: resident.name,
+      user_name: displayMessage,
       user_id: resident.id,
-      current_location: resident.current_location,
+      current_location: locationAfter,
+      active_guests: newActiveGuests
     }, { status: 200 })
 
   } catch (error) {
-    console.error('Unexpected error in check-access:', error)
+    console.error('Unexpected error in POST /api/check-access:', error)
     return NextResponse.json(
       { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
       },
       { status: 500 }
     )
   }
-}
-
-// Helper function to log access attempts
-async function logAccess(
-  supabase: any,
-  data: {
-    user_id: string
-    property_id: string
-    qr_code: string
-    scan_type: string
-    result: string
-    denial_reason?: string | null
-    location_before: string | null
-    location_after: string | null
-    request: NextRequest
-  }
-) {
-  await supabase.from('access_logs').insert({
-    user_id: data.user_id,
-    property_id: data.property_id,
-    qr_code: data.qr_code,
-    scan_type: data.scan_type,
-    result: data.result,
-    denial_reason: data.denial_reason || null,
-    location_before: data.location_before,
-    location_after: data.location_after,
-    ip_address: data.request.headers.get('x-forwarded-for') || data.request.headers.get('x-real-ip'),
-    user_agent: data.request.headers.get('user-agent'),
-  })
 }
