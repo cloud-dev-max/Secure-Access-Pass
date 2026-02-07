@@ -801,6 +801,7 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-left text-sm font-bold">Unit</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Location</th>
                       <th className="px-6 py-4 text-center text-sm font-bold">Access PIN</th>
+                      <th className="px-6 py-4 text-center text-sm font-bold">Guest Limit</th>
                       {rules.map((rule) => (
                         <th key={rule.id} className="px-6 py-4 text-center text-sm font-bold">
                           {rule.rule_name}
@@ -812,7 +813,7 @@ export default function DashboardPage() {
                   <tbody className="divide-y divide-navy-200">
                     {residents.length === 0 ? (
                       <tr>
-                        <td colSpan={rules.length + 4} className="px-6 py-12 text-center">
+                        <td colSpan={rules.length + 5} className="px-6 py-12 text-center">
                           <div className="text-navy-500">
                             <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p className="text-lg font-semibold mb-1">No residents yet</p>
@@ -862,6 +863,11 @@ export default function DashboardPage() {
                                 Regenerate
                               </button>
                             </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="font-semibold text-navy-900">
+                              {(resident as any).personal_guest_limit ?? 'Default'}
+                            </span>
                           </td>
                           {rules.map((rule) => {
                             const status = getRuleStatus(resident, rule.id)

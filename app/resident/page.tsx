@@ -366,8 +366,8 @@ export default function ResidentPortalPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Pool Guest Pass',
-          text: 'Here is your guest pass for pool access!',
+          title: 'Pool Visitor Pass',
+          text: 'Here is your 24-hour visitor pass for pool access!',
           url: shareUrl,
         })
         return
@@ -557,12 +557,12 @@ export default function ResidentPortalPage() {
           </div>
         </div>
 
-        {/* Guest Passes */}
+        {/* V6: Visitor Passes (renamed from Guest Passes) */
         <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-navy-900 flex items-center gap-2">
               <DollarSign className="w-6 h-6 text-teal-600" />
-              Guest Passes
+              Visitor Passes
             </h2>
             
             {!showGuestPassForm && (
@@ -583,21 +583,21 @@ export default function ResidentPortalPage() {
                 className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
               >
                 <Plus className="w-5 h-5" />
-                Buy Guest Pass
+                Buy Visitor Pass
               </button>
             )}
           </div>
 
-          {/* V4: Display guest pass limit */}
+          {/* V4: Display visitor pass limit */
           <p className="text-sm text-navy-600 mb-4">
             Active passes: {guestPasses.filter(p => p.status === 'active').length} / {maxGuestsAllowed} allowed
           </p>
 
-          {/* Guest Pass Purchase Form */}
+          {/* V6: Visitor Pass Purchase Form */
           {showGuestPassForm && (
             <form onSubmit={createGuestPass} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
-                Purchase Guest Pass (${latestGuestPassPrice.toFixed(2)})
+                Purchase Visitor Pass (${latestGuestPassPrice.toFixed(2)})
               </h3>
               <div className="space-y-3">
                 <input
