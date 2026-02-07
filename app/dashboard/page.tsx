@@ -77,6 +77,12 @@ export default function DashboardPage() {
   const [broadcastMessage, setBroadcastMessage] = useState('')
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
 
+  // V6: Edit Guest Limit Modal
+  const [showEditLimitModal, setShowEditLimitModal] = useState(false)
+  const [editingResident, setEditingResident] = useState<ProfileWithRules | null>(null)
+  const [newGuestLimit, setNewGuestLimit] = useState<number | null>(null)
+  const [savingLimit, setSavingLimit] = useState(false)
+
   useEffect(() => {
     loadData()
     loadMaintenanceStatus()
@@ -281,6 +287,44 @@ export default function DashboardPage() {
     }
   }
 
+  // V6: Edit guest limit for a resident
+  const openEditLimitModal = (resident: ProfileWithRules) => {
+    setEditingResident(resident)
+    setNewGuestLimit((resident as any).personal_guest_limit ?? null)
+    setShowEditLimitModal(true)
+  }
+
+  const saveGuestLimit = async () => {
+    if (!editingResident) return
+
+    setSavingLimit(true)
+    try {
+      const response = await fetch('/api/residents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingResident.id,
+          personal_guest_limit: newGuestLimit
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update guest limit')
+      }
+
+      // Reload residents to show updated limit
+      await loadData()
+      setShowEditLimitModal(false)
+      setEditingResident(null)
+      alert('Guest limit updated successfully')
+    } catch (error) {
+      console.error('Error updating guest limit:', error)
+      alert('Failed to update guest limit')
+    } finally {
+      setSavingLimit(false)
+    }
+  }
+
   // V4: Load who is inside
   const loadInsideResidents = async () => {
     const inside = residents.filter(r => r.current_location === 'INSIDE')
@@ -432,17 +476,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-navy-600 animate-spin mx-auto mb-4" />
-          <p className="text-navy-600 font-semibold">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
+  // V6: Removed full-screen loading - using inline skeleton loaders instead
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
       {/* Header */}
@@ -539,7 +573,11 @@ export default function DashboardPage() {
                   <div className="bg-blue-100 p-3 rounded-lg">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
-                  <span className="text-3xl font-bold text-navy-900">{stats.totalResidents}</span>
+                  {loading ? (
+                    <div className="h-9 w-16 bg-navy-200 animate-pulse rounded"></div>
+                  ) : (
+                    <span className="text-3xl font-bold text-navy-900">{stats.totalResidents}</span>
+                  )}
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Total Residents</h3>
                 <p className="text-sm text-navy-600">Active residents in the system</p>
@@ -554,7 +592,11 @@ export default function DashboardPage() {
                   <div className="bg-teal-100 p-3 rounded-lg">
                     <Activity className="w-6 h-6 text-teal-600" />
                   </div>
-                  <span className="text-3xl font-bold text-navy-900">{stats.currentOccupancy}</span>
+                  {loading ? (
+                    <div className="h-9 w-16 bg-navy-200 animate-pulse rounded"></div>
+                  ) : (
+                    <span className="text-3xl font-bold text-navy-900">{stats.currentOccupancy}</span>
+                  )}
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-2">Current Occupancy</h3>
                 {stats.occupancyBreakdown && (
@@ -573,7 +615,11 @@ export default function DashboardPage() {
                   <div className="bg-purple-100 p-3 rounded-lg">
                     <Shield className="w-6 h-6 text-purple-600" />
                   </div>
-                  <span className="text-3xl font-bold text-navy-900">{stats.activeRules}</span>
+                  {loading ? (
+                    <div className="h-9 w-16 bg-navy-200 animate-pulse rounded"></div>
+                  ) : (
+                    <span className="text-3xl font-bold text-navy-900">{stats.activeRules}</span>
+                  )}
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Active Rules</h3>
                 <p className="text-sm text-navy-600">Access control rules in effect</p>
@@ -865,9 +911,18 @@ export default function DashboardPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <span className="font-semibold text-navy-900">
-                              {(resident as any).personal_guest_limit ?? 'Default'}
-                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="font-semibold text-navy-900">
+                                {(resident as any).personal_guest_limit ?? 'Default'}
+                              </span>
+                              <button
+                                onClick={() => openEditLimitModal(resident)}
+                                className="text-teal-600 hover:text-teal-700 text-xs font-semibold underline"
+                                title="Edit guest limit"
+                              >
+                                Edit
+                              </button>
+                            </div>
                           </td>
                           {rules.map((rule) => {
                             const status = getRuleStatus(resident, rule.id)
@@ -1149,6 +1204,80 @@ export default function DashboardPage() {
                 onClick={() => {
                   setShowBroadcastModal(false)
                   setBroadcastMessage('')
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* V6: Edit Guest Limit Modal */}
+      {showEditLimitModal && editingResident && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-2xl font-bold text-navy-900 mb-2">
+              Edit Guest Limit
+            </h2>
+            <p className="text-navy-600 mb-2">
+              Resident: <strong>{editingResident.name}</strong>
+            </p>
+            <p className="text-sm text-navy-500 mb-6">
+              Set a personal limit or use property default
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-navy-700 mb-2">
+                Accompanying Guest Limit
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setNewGuestLimit(null)}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    newGuestLimit === null
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-gray-200 text-navy-900 hover:bg-gray-300'
+                  }`}
+                >
+                  Default
+                </button>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => setNewGuestLimit(num)}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                      newGuestLimit === num
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-gray-200 text-navy-900 hover:bg-gray-300'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={saveGuestLimit}
+                disabled={savingLimit}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {savingLimit ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Limit'
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditLimitModal(false)
+                  setEditingResident(null)
                 }}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
               >

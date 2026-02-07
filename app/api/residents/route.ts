@@ -245,7 +245,7 @@ export async function PATCH(request: NextRequest) {
     const adminClient = createAdminClient()
     const body = await request.json()
     
-    const { id, access_pin, current_location } = body
+    const { id, access_pin, current_location, personal_guest_limit } = body
 
     if (!id) {
       return NextResponse.json(
@@ -258,6 +258,7 @@ export async function PATCH(request: NextRequest) {
     const updates: any = {}
     if (access_pin !== undefined) updates.access_pin = access_pin
     if (current_location !== undefined) updates.current_location = current_location
+    if (personal_guest_limit !== undefined) updates.personal_guest_limit = personal_guest_limit
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
