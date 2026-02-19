@@ -1,6 +1,6 @@
 # 🏊 Secure Access Pass
 
-**Version 5.0.0 - Professional Multi-Property SaaS Platform**
+**Version 7.0 - Enhanced Analytics & Communication Platform**
 
 **Resort-Grade Digital Entry Solution for Swimming Pool Access Management**
 
@@ -35,6 +35,35 @@ A web-based dashboard where managers can:
 - Fast, responsive experience
 - Mobile-first QR scanner
 - Real-time updates
+
+---
+
+## 🎉 **What's New in V7.0**
+
+### Revenue Analytics & Reporting
+- ✅ **Comprehensive Revenue API** - Track guest pass sales and revenue
+- ✅ **Daily/Weekly/Monthly Charts** - Visual breakdown of income streams
+- ✅ **Real-Time Stats** - Current month, last 7 days, total revenue
+- ✅ **Pass Analytics** - Active vs expired pass tracking
+
+### Enhanced Communication
+- ✅ **Broadcast Targeting** - Send alerts to specific groups (inside/all/recent visitors)
+- ✅ **Maintenance Notifications** - Residents see closure reasons automatically
+- ✅ **Flexible Messaging** - Choose audience based on location and activity
+
+### UI/UX Improvements
+- ✅ **Dedicated Settings Tab** - Centralized facility configuration
+- ✅ **Revenue Dashboard Tab** - Financial analytics at a glance
+- ✅ **Less Intrusive Alerts** - Broadcast button moved to appropriate section
+- ✅ **Better Information Hierarchy** - Cleaner dashboard organization
+
+### Developer Experience
+- ✅ **Comprehensive Implementation Guide** - V7-IMPLEMENTATION-GUIDE.md
+- ✅ **Complete API Documentation** - Ready-to-use revenue endpoints
+- ✅ **Payment Integration Docs** - Stripe/PayPal setup instructions
+- ✅ **Modular Architecture** - Easy to extend and customize
+
+See [V7-FINAL-SUMMARY.md](./V7-FINAL-SUMMARY.md) for implementation status and [V7-IMPLEMENTATION-GUIDE.md](./V7-IMPLEMENTATION-GUIDE.md) for detailed code examples.
 
 ---
 
@@ -346,6 +375,33 @@ Validates QR code and enforces access rules
 }
 ```
 
+### `POST /api/broadcast` (V7)
+Send health/safety alerts to residents
+```json
+{
+  "message": "Pool closing early due to weather",
+  "target_filter": "INSIDE" | "ALL" | "RECENT"
+}
+```
+
+### `GET /api/revenue` (V7)
+Fetch comprehensive revenue analytics
+```json
+{
+  "summary": {
+    "totalRevenue": 150.00,
+    "totalPasses": 30,
+    "currentMonth": {...},
+    "last7Days": {...}
+  },
+  "charts": {
+    "daily": [...],
+    "weekly": [...],
+    "monthly": [...]
+  }
+}
+```
+
 ### `GET /api/residents`
 Fetch all residents with their rule statuses
 
@@ -367,6 +423,18 @@ Toggle a user's status for a specific rule
   "status": true | false
 }
 ```
+
+### `GET /api/settings` (V5+)
+Fetch facility settings (hours, capacity, pricing)
+
+### `PATCH /api/settings` (V5+)
+Update facility settings
+
+### `GET /api/guest-passes` (V6+)
+Fetch guest passes for a resident
+
+### `POST /api/guest-passes/purchase` (V6+)
+Purchase a new visitor pass
 
 ---
 
