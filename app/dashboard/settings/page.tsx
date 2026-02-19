@@ -161,7 +161,7 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Property Name */}
+          {/* V5: Property Name */}
           <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
             <div className="flex items-center gap-3 mb-4">
               <Building2 className="w-6 h-6 text-navy-600" />
@@ -237,13 +237,13 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* V6: Visitor Pass Price (renamed from Guest Pass) */
+          {/* Guest Pass Price */}
           <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
             <div className="flex items-center gap-3 mb-4">
               <DollarSign className="w-6 h-6 text-navy-600" />
-              <h2 className="text-xl font-bold text-navy-900">Visitor Pass Price</h2>
+              <h2 className="text-xl font-bold text-navy-900">Guest Pass Price</h2>
             </div>
-            <p className="text-sm text-navy-600 mb-4">Price in USD for a 24-hour visitor pass (unlimited entry/exit for 24 hours)</p>
+            <p className="text-sm text-navy-600 mb-4">Price in USD for a single-use guest pass (valid 24 hours)</p>
             
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
@@ -260,6 +260,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* V5: Accompanying Guest Limit */}
           <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
             <div className="flex items-center gap-3 mb-4">
               <Users className="w-6 h-6 text-navy-600" />
