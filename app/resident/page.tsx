@@ -593,7 +593,6 @@ export default function ResidentPortalPage() {
             Active passes: {guestPasses.filter(p => p.status === 'active').length} / {maxGuestsAllowed} allowed
           </p>
 
-          {/* V6: Visitor Pass Purchase Form */
           {showGuestPassForm && (
             <form onSubmit={createGuestPass} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
