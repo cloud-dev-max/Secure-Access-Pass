@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
   const [broadcastMessage, setBroadcastMessage] = useState('')
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
+  const [broadcastTargetFilter, setBroadcastTargetFilter] = useState<'INSIDE' | 'ALL' | 'RECENT'>('INSIDE')
 
   useEffect(() => {
     loadData()
@@ -261,7 +262,8 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: broadcastMessage.trim()
+          message: broadcastMessage.trim(),
+          target_filter: broadcastTargetFilter
         }),
       })
 
@@ -270,8 +272,11 @@ export default function DashboardPage() {
       }
 
       const data = await response.json()
-      alert(`Alert sent to ${data.recipients_count} resident(s) currently inside`)
+      const targetDesc = broadcastTargetFilter === 'INSIDE' ? 'currently inside' : 
+                        broadcastTargetFilter === 'RECENT' ? 'who visited recently (last 4 hours)' : 'active residents'
+      alert(`Alert sent to ${data.recipients_count} resident(s) ${targetDesc}`)
       setBroadcastMessage('')
+      setBroadcastTargetFilter('INSIDE')
       setShowBroadcastModal(false)
     } catch (error) {
       console.error('Error sending broadcast:', error)
@@ -1111,9 +1116,30 @@ export default function DashboardPage() {
               Broadcast Health Alert
             </h2>
             <p className="text-navy-600 mb-6">
-              This message will be sent to all residents currently inside the facility
+              Send emergency or informational messages to residents
             </p>
             
+            {/* Target Filter Dropdown */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-navy-900 mb-2">
+                Target Audience
+              </label>
+              <select
+                value={broadcastTargetFilter}
+                onChange={(e) => setBroadcastTargetFilter(e.target.value as 'INSIDE' | 'ALL' | 'RECENT')}
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              >
+                <option value="INSIDE">Currently Inside Only</option>
+                <option value="RECENT">Visited in Last 4 Hours</option>
+                <option value="ALL">All Active Residents</option>
+              </select>
+              <p className="text-xs text-navy-500 mt-1">
+                {broadcastTargetFilter === 'INSIDE' && 'Send to residents currently at the facility'}
+                {broadcastTargetFilter === 'RECENT' && 'Send to residents who visited within the last 4 hours'}
+                {broadcastTargetFilter === 'ALL' && 'Send to all active residents regardless of location'}
+              </p>
+            </div>
+
             <textarea
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
@@ -1143,6 +1169,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   setShowBroadcastModal(false)
                   setBroadcastMessage('')
+                  setBroadcastTargetFilter('INSIDE')
                 }}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
               >
