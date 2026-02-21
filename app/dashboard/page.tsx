@@ -73,9 +73,9 @@ export default function DashboardPage() {
   const [maintenanceReason, setMaintenanceReason] = useState('')
   const [togglingMaintenance, setTogglingMaintenance] = useState(false)
 
-  // V4: Who is Inside Modal
-  const [showInsideModal, setShowInsideModal] = useState(false)
+  // V7.2: Current Occupancy Tab (modal removed)
   const [insideResidents, setInsideResidents] = useState<ProfileWithRules[]>([])
+  const [loadingInsideResidents, setLoadingInsideResidents] = useState(false)
 
   // V6: Broadcast Alert Modal
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
@@ -90,7 +90,7 @@ export default function DashboardPage() {
   const [maxCapacity, setMaxCapacity] = useState(50)
   const [guestPassPrice, setGuestPassPrice] = useState(5.00)
   const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3)
-  const [maxVisitorPasses, setMaxVisitorPasses] = useState(10) // V7.1: Max visitor passes
+  const [maxVisitorPasses, setMaxVisitorPasses] = useState(100) // V7.2: Max visitor passes (fixed default)
   const [savingSettings, setSavingSettings] = useState(false)
 
   // V7: Revenue Analytics
@@ -316,9 +316,13 @@ export default function DashboardPage() {
 
   // V4: Load who is inside
   const loadInsideResidents = async () => {
-    const inside = residents.filter(r => r.current_location === 'INSIDE')
-    setInsideResidents(inside)
-    setShowInsideModal(true)
+    setLoadingInsideResidents(true)
+    try {
+      const inside = residents.filter(r => r.current_location === 'INSIDE')
+      setInsideResidents(inside)
+    } finally {
+      setLoadingInsideResidents(false)
+    }
   }
 
   // V4: Force check out a resident
@@ -341,7 +345,7 @@ export default function DashboardPage() {
       
       // Reload data
       await loadData()
-      loadInsideResidents()
+      await loadInsideResidents()
     } catch (error) {
       console.error('Error forcing checkout:', error)
       alert('Failed to force checkout')
@@ -408,7 +412,7 @@ export default function DashboardPage() {
         setMaxCapacity(data.max_capacity || 50)
         setGuestPassPrice(data.guest_pass_price || 5.00)
         setMaxGuestsPerResident(data.max_guests_per_resident || 3)
-        setMaxVisitorPasses(data.max_visitor_passes || 10) // V7.1
+        setMaxVisitorPasses(data.max_visitor_passes || 100) // V7.2
       }
     } catch (error) {
       console.error('Error loading facility settings:', error)
@@ -1724,60 +1728,7 @@ export default function DashboardPage() {
       </div>
 
       {/* QR Code Modal */}
-      {/* V4: "Who is Inside?" Modal */}
-      {showInsideModal && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowInsideModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
-              <Activity className="w-6 h-6 text-teal-600" />
-              Who is Inside?
-            </h3>
-            <p className="text-navy-600 mb-6">
-              {insideResidents.length} {insideResidents.length === 1 ? 'resident is' : 'residents are'} currently inside the pool
-            </p>
-            
-            {insideResidents.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-navy-300 mx-auto mb-4" />
-                <p className="text-navy-500 text-lg">No one is inside</p>
-              </div>
-            ) : (
-              <div className="space-y-3 mb-6">
-                {insideResidents.map((resident) => (
-                  <div
-                    key={resident.id}
-                    className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-semibold text-navy-900">{resident.name}</p>
-                      <p className="text-sm text-navy-600">Unit {resident.unit}</p>
-                    </div>
-                    <button
-                      onClick={() => forceCheckout(resident.id)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                    >
-                      Force Check Out
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <button
-              onClick={() => setShowInsideModal(false)}
-              className="w-full bg-navy-600 hover:bg-navy-700 text-white px-6 py-3 rounded-lg font-semibold transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* V7.2: Leftover modal removed - use Occupancy tab instead */}
 
       {/* V7: Enhanced QR Code Modal with Full ID Card and Sharing */}
       {selectedResident && (

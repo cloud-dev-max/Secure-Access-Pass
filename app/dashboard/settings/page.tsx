@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [maxCapacity, setMaxCapacity] = useState(50)
   const [guestPassPrice, setGuestPassPrice] = useState(5.00)
   const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3) // V5: Accompanying guest limit
+  const [maxVisitorPasses, setMaxVisitorPasses] = useState(100) // V7.2: Max visitor passes
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false)
   const [maintenanceReason, setMaintenanceReason] = useState('')
 
@@ -53,6 +54,7 @@ export default function SettingsPage() {
       setMaxCapacity(data.max_capacity || 50)
       setGuestPassPrice(data.guest_pass_price || 5.00)
       setMaxGuestsPerResident(data.max_guests_per_resident || 3) // V5
+      setMaxVisitorPasses(data.max_visitor_passes || 100) // V7.2
       setIsMaintenanceMode(data.is_maintenance_mode || false)
       setMaintenanceReason(data.maintenance_reason || '')
     } catch (error) {
@@ -79,6 +81,7 @@ export default function SettingsPage() {
           max_capacity: maxCapacity,
           guest_pass_price: guestPassPrice,
           max_guests_per_resident: maxGuestsPerResident, // V5
+          max_visitor_passes: maxVisitorPasses, // V7.2
           is_maintenance_mode: isMaintenanceMode,
           maintenance_reason: isMaintenanceMode ? maintenanceReason : null,
         }),
@@ -278,7 +281,28 @@ export default function SettingsPage() {
               className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="3"
             />
-            <p className="text-xs text-navy-500 mt-2">Prevents residents from creating too many guest passes</p>
+            <p className="text-xs text-navy-500 mt-2">Guests entering together with the resident at the same time</p>
+          </div>
+
+          {/* V7.2: Maximum Visitor Passes */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="w-6 h-6 text-navy-600" />
+              <h2 className="text-xl font-bold text-navy-900">Maximum Visitor Passes Allowed</h2>
+            </div>
+            <p className="text-sm text-navy-600 mb-4">Maximum number of active visitor passes allowed at the property at one time</p>
+            
+            <input
+              type="number"
+              min="1"
+              max="1000"
+              value={maxVisitorPasses}
+              onChange={(e) => setMaxVisitorPasses(parseInt(e.target.value) || 100)}
+              required
+              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+              placeholder="100"
+            />
+            <p className="text-xs text-navy-500 mt-2">Prevents unlimited guest pass creation. Recommended: 50-200 depending on facility size.</p>
           </div>
 
           {/* Maintenance Mode */}
