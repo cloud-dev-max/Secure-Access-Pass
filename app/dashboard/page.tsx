@@ -17,7 +17,11 @@ import {
   LogIn,
   LogOut,
   AlertCircle,
-  DollarSign
+  DollarSign,
+  Download,
+  Share2,
+  Mail,
+  MessageSquare
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import type { Profile, AccessRule, UserRuleStatus } from '@/lib/types/database'
@@ -515,15 +519,132 @@ export default function DashboardPage() {
     return ruleStatus?.status ?? false
   }
 
-  const downloadQRCode = (resident: ProfileWithRules) => {
-    const canvas = document.getElementById(`qr-${resident.id}`) as HTMLCanvasElement
-    if (canvas) {
-      const url = canvas.toDataURL('image/png')
-      const link = document.createElement('a')
-      link.download = `${resident.name.replace(/\s+/g, '-')}-QR.png`
-      link.href = url
-      link.click()
+  // V7: Download full professional ID card (matching resident portal format)
+  const downloadFullIDCard = (resident: ProfileWithRules) => {
+    const idCanvas = document.createElement('canvas')
+    const ctx = idCanvas.getContext('2d')
+    if (!ctx) return
+
+    // Card dimensions (landscape professional card)
+    const cardWidth = 1000
+    const cardHeight = 450
+    idCanvas.width = cardWidth
+    idCanvas.height = cardHeight
+
+    // Draw gradient background (navy to teal)
+    const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight)
+    gradient.addColorStop(0, '#1e3a8a') // navy-900
+    gradient.addColorStop(1, '#0d9488') // teal-600
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, cardWidth, cardHeight)
+
+    // Border
+    ctx.strokeStyle = '#14b8a6' // teal-500
+    ctx.lineWidth = 8
+    ctx.strokeRect(4, 4, cardWidth - 8, cardHeight - 8)
+
+    // White shield icon background (top left)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.beginPath()
+    ctx.arc(80, 80, 60, 0, 2 * Math.PI)
+    ctx.fill()
+
+    // Card title
+    ctx.font = 'bold 28px Arial, sans-serif'
+    ctx.fillStyle = '#14b8a6' // teal-500
+    ctx.textAlign = 'left'
+    ctx.fillText('Pool Access Pass', 40, 120)
+
+    // Resident name
+    ctx.font = 'bold 42px Arial, sans-serif'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(resident.name, 40, 180)
+
+    // Unit number
+    ctx.font = '28px Arial, sans-serif'
+    ctx.fillStyle = '#cbd5e1' // gray-300
+    ctx.fillText(`Unit ${resident.unit}`, 40, 220)
+
+    // Email
+    ctx.font = '20px Arial, sans-serif'
+    ctx.fillStyle = '#94a3b8' // gray-400
+    ctx.fillText(resident.email, 40, 260)
+
+    // Status badge
+    ctx.fillStyle = '#10b981' // green-500
+    ctx.fillRect(40, 290, 180, 40)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 20px Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('✓ VALID RESIDENT', 130, 316)
+
+    // Guests Allowed info
+    ctx.font = '22px Arial, sans-serif'
+    ctx.fillStyle = '#0d9488' // teal-600
+    ctx.textAlign = 'left'
+    ctx.fillText(`Guests Allowed: ${maxGuestsPerResident}`, 40, 360)
+
+    // Add QR Code
+    const qrCanvas = document.getElementById(`qr-${resident.id}`) as HTMLCanvasElement
+    if (qrCanvas) {
+      // Draw QR code on right side with white background
+      const qrSize = 250
+      const qrX = cardWidth - qrSize - 60
+      const qrY = 110
+      
+      // White background for QR
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30)
+      
+      // Draw QR code
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize)
     }
+
+    // Footer text
+    ctx.fillStyle = '#64748b' // gray-500
+    ctx.font = '16px Arial, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Scan this QR code at the pool entrance', cardWidth / 2, cardHeight - 40)
+    ctx.fillText('Valid for current resident only • Non-transferable', cardWidth / 2, cardHeight - 15)
+
+    // Download the professional card
+    const url = idCanvas.toDataURL('image/png')
+    const link = document.createElement('a')
+    link.download = `${resident.name.replace(/\s+/g, '-')}-Pool-Access-Card.png`
+    link.href = url
+    link.click()
+  }
+
+  // V7: Share resident pass via email
+  const sharePassViaEmail = (resident: ProfileWithRules) => {
+    const subject = encodeURIComponent(`Your Pool Access Pass - ${resident.name}`)
+    const body = encodeURIComponent(
+      `Hi ${resident.name},\n\n` +
+      `Your pool access pass is ready!\n\n` +
+      `Resident: ${resident.name}\n` +
+      `Unit: ${resident.unit}\n` +
+      `Email: ${resident.email}\n\n` +
+      `Please download your full access card from the resident portal at:\n` +
+      `${window.location.origin}/resident\n\n` +
+      `Your QR code: ${resident.qr_code}\n\n` +
+      `Best regards,\n` +
+      `Pool Management`
+    )
+    window.location.href = `mailto:${resident.email}?subject=${subject}&body=${body}`
+  }
+
+  // V7: Share resident pass via SMS
+  const sharePassViaSMS = (resident: ProfileWithRules) => {
+    if (!resident.phone) {
+      alert('This resident does not have a phone number on file.')
+      return
+    }
+    const message = encodeURIComponent(
+      `Hi ${resident.name}! Your pool access pass is ready. ` +
+      `Visit ${window.location.origin}/resident to download your full access card. ` +
+      `QR Code: ${resident.qr_code}`
+    )
+    window.location.href = `sms:${resident.phone}?body=${message}`
   }
 
   if (loading) {
@@ -1041,23 +1162,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && (
+        {/* ACCESS RULES TAB */}
+        {activeTab === 'rules' && (
           <div className="space-y-6">
-            {/* Facility Settings Card */}
-            <div className="bg-gradient-to-r from-teal-500 to-navy-600 rounded-xl shadow-lg p-6 text-white">
-              <h2 className="text-xl font-bold mb-2">Facility Settings</h2>
-              <p className="text-white/90 mb-4">
-                Configure operating hours, capacity limits, guest pass pricing, and maintenance mode
-              </p>
-              <a
-                href="/dashboard/settings"
-                className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-3 rounded-lg font-semibold transition-all"
-              >
-                Manage Facility Settings →
-              </a>
-            </div>
-
             {/* Add Rule Form */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
               <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
@@ -1121,6 +1228,246 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* FACILITY SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-lg p-8 border border-navy-200">
+              <h2 className="text-2xl font-bold text-navy-900 mb-6 flex items-center gap-3">
+                <Settings className="w-7 h-7 text-teal-600" />
+                Facility Settings
+              </h2>
+              
+              <form onSubmit={saveFacilitySettings} className="space-y-6">
+                {/* Property Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">
+                    Property Name
+                  </label>
+                  <input
+                    type="text"
+                    value={propertyName}
+                    onChange={(e) => setPropertyName(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="My Pool"
+                    required
+                  />
+                </div>
+
+                {/* Operating Hours */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-navy-900 mb-2">
+                      Opening Time
+                    </label>
+                    <input
+                      type="time"
+                      value={operatingHoursStart}
+                      onChange={(e) => setOperatingHoursStart(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-navy-900 mb-2">
+                      Closing Time
+                    </label>
+                    <input
+                      type="time"
+                      value={operatingHoursEnd}
+                      onChange={(e) => setOperatingHoursEnd(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Max Capacity */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">
+                    Maximum Capacity
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={maxCapacity}
+                    onChange={(e) => setMaxCapacity(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    placeholder="50"
+                    required
+                  />
+                </div>
+
+                {/* Guest Pass Price */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">
+                    Visitor Pass Price (24-hour pass)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-navy-600 font-bold text-lg">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={guestPassPrice}
+                      onChange={(e) => setGuestPassPrice(parseFloat(e.target.value))}
+                      className="w-full pl-10 pr-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      placeholder="5.00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Max Guests Per Resident */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">
+                    Maximum Guests Per Resident
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={maxGuestsPerResident}
+                    onChange={(e) => setMaxGuestsPerResident(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    placeholder="3"
+                    required
+                  />
+                  <p className="text-xs text-navy-500 mt-1">
+                    Maximum number of accompanying guests allowed per resident visit
+                  </p>
+                </div>
+
+                {/* Save Button */}
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {savingSettings ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Saving Settings...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="w-5 h-5" />
+                      Save Settings
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* REVENUE ANALYTICS TAB */}
+        {activeTab === 'revenue' && (
+          <div className="space-y-6">
+            {revenueLoading ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 text-navy-600 animate-spin mx-auto mb-4" />
+                <p className="text-navy-600 font-semibold">Loading revenue data...</p>
+              </div>
+            ) : revenueData ? (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                      <span className="text-2xl font-bold text-green-600">
+                        ${revenueData.summary.totalRevenue.toFixed(2)}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Total Revenue</h3>
+                    <p className="text-xs text-navy-600">{revenueData.summary.totalPasses} passes sold</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <TrendingUp className="w-6 h-6 text-blue-600" />
+                      <span className="text-2xl font-bold text-blue-600">
+                        ${revenueData.summary.currentMonth.revenue.toFixed(2)}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">This Month</h3>
+                    <p className="text-xs text-navy-600">{revenueData.summary.currentMonth.count} passes</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Clock className="w-6 h-6 text-purple-600" />
+                      <span className="text-2xl font-bold text-purple-600">
+                        ${revenueData.summary.last7Days.revenue.toFixed(2)}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Last 7 Days</h3>
+                    <p className="text-xs text-navy-600">{revenueData.summary.last7Days.count} passes</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Users className="w-6 h-6 text-teal-600" />
+                      <span className="text-2xl font-bold text-teal-600">
+                        {revenueData.summary.activePasses}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Active Passes</h3>
+                    <p className="text-xs text-navy-600">${revenueData.summary.guestPassPrice.toFixed(2)}/pass</p>
+                  </div>
+                </div>
+
+                {/* Daily Revenue Chart */}
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-6 h-6 text-teal-600" />
+                    Daily Revenue (Last 7 Days)
+                  </h3>
+                  <div className="space-y-2">
+                    {revenueData.charts.daily.slice(-7).map((day: any) => (
+                      <div key={day.date} className="flex items-center gap-4">
+                        <span className="text-sm text-navy-600 w-24 font-medium">{day.date}</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-10 relative overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-teal-500 to-blue-500 h-full rounded-full flex items-center px-3 transition-all duration-500"
+                            style={{ width: `${Math.max(5, (day.revenue / Math.max(...revenueData.charts.daily.map((d: any) => d.revenue))) * 100)}%` }}
+                          >
+                            <span className="text-xs font-bold text-white">${day.revenue.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <span className="text-sm text-navy-600 w-20 text-right">{day.count} {day.count === 1 ? 'pass' : 'passes'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Monthly Summary */}
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                    <DollarSign className="w-6 h-6 text-green-600" />
+                    Monthly Revenue
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                    {revenueData.charts.monthly.slice(-6).map((month: any) => (
+                      <div key={month.month} className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-lg p-4 text-center border-2 border-teal-200 hover:border-teal-400 transition-colors">
+                        <p className="text-xs font-semibold text-navy-600 mb-2">{month.month}</p>
+                        <p className="text-xl font-bold text-teal-600">${month.revenue.toFixed(2)}</p>
+                        <p className="text-xs text-navy-600 mt-1">{month.count} {month.count === 1 ? 'pass' : 'passes'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <DollarSign className="w-16 h-16 text-navy-300 mx-auto mb-4" />
+                <p className="text-xl font-semibold text-navy-600 mb-2">No revenue data available</p>
+                <p className="text-sm text-navy-500">Revenue will appear once guest passes are purchased</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* QR Code Modal */}
@@ -1179,45 +1526,84 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* QR Code Modal */}
+      {/* V7: Enhanced QR Code Modal with Full ID Card and Sharing */}
       {selectedResident && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedResident(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-2xl font-bold text-navy-900 mb-2">
-              {selectedResident.name}
-            </h3>
-            <p className="text-navy-600 mb-6">Unit {selectedResident.unit}</p>
-            
-            <div className="bg-white p-6 rounded-xl border-4 border-navy-800 mb-6">
-              <QRCodeCanvas
-                id={`qr-${selectedResident.id}`}
-                value={selectedResident.qr_code}
-                size={300}
-                level="H"
-                className="w-full h-auto"
-              />
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-navy-900">
+                  {selectedResident.name}
+                </h3>
+                <p className="text-navy-600">Unit {selectedResident.unit} • {selectedResident.email}</p>
+              </div>
+              <button
+                onClick={() => setSelectedResident(null)}
+                className="text-navy-400 hover:text-navy-600 transition-colors"
+              >
+                <XCircle className="w-8 h-8" />
+              </button>
             </div>
             
-            <div className="flex gap-3">
+            {/* QR Code Display */}
+            <div className="bg-gradient-to-br from-navy-900 to-teal-700 p-6 rounded-xl mb-6">
+              <div className="bg-white p-6 rounded-lg mx-auto w-fit">
+                <QRCodeCanvas
+                  id={`qr-${selectedResident.id}`}
+                  value={selectedResident.qr_code}
+                  size={280}
+                  level="H"
+                  className="w-full h-auto"
+                />
+              </div>
+              <p className="text-center text-white text-sm mt-4 font-medium">
+                Scan at pool entrance • Non-transferable
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <button
-                onClick={() => downloadQRCode(selectedResident)}
-                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
+                onClick={() => downloadFullIDCard(selectedResident)}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                Download QR Code
+                <Download className="w-5 h-5" />
+                Download Full Pass Card
+              </button>
+              <button
+                onClick={() => sharePassViaEmail(selectedResident)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <Mail className="w-5 h-5" />
+                Email Pass
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => sharePassViaSMS(selectedResident)}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <MessageSquare className="w-5 h-5" />
+                Text Pass Link
               </button>
               <button
                 onClick={() => setSelectedResident(null)}
-                className="flex-1 bg-navy-200 hover:bg-navy-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
+                className="bg-navy-200 hover:bg-navy-300 text-navy-900 px-6 py-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
               >
                 Close
               </button>
             </div>
+            
+            <p className="text-xs text-navy-500 text-center mt-4">
+              💡 Tip: The full pass card includes resident name, unit, QR code, and guest allowance
+            </p>
           </div>
         </div>
       )}
