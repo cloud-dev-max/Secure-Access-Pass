@@ -416,7 +416,7 @@ export default function ResidentPortalPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 required
-                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
               />
             </div>
 
@@ -432,7 +432,7 @@ export default function ResidentPortalPage() {
                 required
                 maxLength={4}
                 pattern="\d{4}"
-                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
               />
               <p className="text-xs text-navy-500 mt-1">Your manager provided this PIN when you registered</p>
             </div>
@@ -614,21 +614,21 @@ export default function ResidentPortalPage() {
                   placeholder="Guest Name (optional)"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="email"
                   placeholder="Guest Email (optional)"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="tel"
                   placeholder="Guest Phone (optional)"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 
                 <div className="flex gap-2">
@@ -764,7 +764,7 @@ export default function ResidentPortalPage() {
                   placeholder="••••"
                   required
                   maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
 
@@ -779,7 +779,7 @@ export default function ResidentPortalPage() {
                   placeholder="••••"
                   required
                   maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
 
@@ -794,7 +794,7 @@ export default function ResidentPortalPage() {
                   placeholder="••••"
                   required
                   maxLength={4}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-gray-900 bg-white text-center text-2xl font-mono tracking-widest"
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
 

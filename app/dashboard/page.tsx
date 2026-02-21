@@ -1048,7 +1048,7 @@ export default function DashboardPage() {
                   value={newResidentName}
                   onChange={(e) => setNewResidentName(e.target.value)}
                   required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="email"
@@ -1056,7 +1056,7 @@ export default function DashboardPage() {
                   value={newResidentEmail}
                   onChange={(e) => setNewResidentEmail(e.target.value)}
                   required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="text"
@@ -1064,14 +1064,14 @@ export default function DashboardPage() {
                   value={newResidentUnit}
                   onChange={(e) => setNewResidentUnit(e.target.value)}
                   required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="tel"
                   placeholder="Phone (optional)"
                   value={newResidentPhone}
                   onChange={(e) => setNewResidentPhone(e.target.value)}
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <button
                   type="submit"
@@ -1247,7 +1247,7 @@ export default function DashboardPage() {
                   value={newRuleName}
                   onChange={(e) => setNewRuleName(e.target.value)}
                   required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <button
                   type="submit"
@@ -1317,7 +1317,7 @@ export default function DashboardPage() {
                     type="text"
                     value={propertyName}
                     onChange={(e) => setPropertyName(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                     placeholder="My Pool"
                     required
                   />
@@ -1333,7 +1333,7 @@ export default function DashboardPage() {
                       type="time"
                       value={operatingHoursStart}
                       onChange={(e) => setOperatingHoursStart(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900"
                       required
                     />
                   </div>
@@ -1345,7 +1345,7 @@ export default function DashboardPage() {
                       type="time"
                       value={operatingHoursEnd}
                       onChange={(e) => setOperatingHoursEnd(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900"
                       required
                     />
                   </div>
@@ -1361,7 +1361,7 @@ export default function DashboardPage() {
                     min="1"
                     value={maxCapacity}
                     onChange={(e) => setMaxCapacity(parseInt(e.target.value))}
-                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500"
                     placeholder="50"
                     required
                   />
@@ -1380,7 +1380,7 @@ export default function DashboardPage() {
                       step="0.01"
                       value={guestPassPrice}
                       onChange={(e) => setGuestPassPrice(parseFloat(e.target.value))}
-                      className="w-full pl-10 pr-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      className="w-full pl-10 pr-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500"
                       placeholder="5.00"
                       required
                     />
@@ -1398,7 +1398,7 @@ export default function DashboardPage() {
                     max="10"
                     value={maxGuestsPerResident}
                     onChange={(e) => setMaxGuestsPerResident(parseInt(e.target.value))}
-                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500"
                     placeholder="3"
                     required
                   />
@@ -1717,11 +1717,11 @@ export default function DashboardPage() {
               <select
                 value={broadcastTargetFilter}
                 onChange={(e) => setBroadcastTargetFilter(e.target.value as 'INSIDE' | 'ALL' | 'RECENT')}
-                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-gray-900"
               >
-                <option value="INSIDE">Currently Inside Only</option>
-                <option value="RECENT">Visited in Last 4 Hours</option>
-                <option value="ALL">All Active Residents</option>
+                <option value="INSIDE" className="bg-white text-gray-900">Currently Inside Only</option>
+                <option value="RECENT" className="bg-white text-gray-900">Visited in Last 4 Hours</option>
+                <option value="ALL" className="bg-white text-gray-900">All Active Residents</option>
               </select>
               <p className="text-xs text-navy-500 mt-1">
                 {broadcastTargetFilter === 'INSIDE' && 'Send to residents currently at the facility'}
@@ -1734,7 +1734,7 @@ export default function DashboardPage() {
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
               placeholder="Enter your alert message (e.g., 'Severe weather approaching - please exit immediately')"
-              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none h-32 mb-6"
+              className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none h-32 mb-6 bg-white text-gray-900 placeholder-gray-500"
             />
 
             <div className="flex gap-3">
