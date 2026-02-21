@@ -16,7 +16,8 @@ import {
   Clock,
   LogIn,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  DollarSign
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import type { Profile, AccessRule, UserRuleStatus } from '@/lib/types/database'
@@ -49,7 +50,7 @@ export default function DashboardPage() {
     recentActivity: [],
   })
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'residents' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'residents' | 'rules' | 'settings' | 'revenue'>('overview')
   const [selectedResident, setSelectedResident] = useState<ProfileWithRules | null>(null)
   
   // New Resident Form
@@ -78,11 +79,31 @@ export default function DashboardPage() {
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
   const [broadcastTargetFilter, setBroadcastTargetFilter] = useState<'INSIDE' | 'ALL' | 'RECENT'>('INSIDE')
 
+  // V7: Facility Settings
+  const [propertyName, setPropertyName] = useState('')
+  const [operatingHoursStart, setOperatingHoursStart] = useState('06:00')
+  const [operatingHoursEnd, setOperatingHoursEnd] = useState('22:00')
+  const [maxCapacity, setMaxCapacity] = useState(50)
+  const [guestPassPrice, setGuestPassPrice] = useState(5.00)
+  const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  // V7: Revenue Analytics
+  const [revenueData, setRevenueData] = useState<any>(null)
+  const [revenueLoading, setRevenueLoading] = useState(false)
+
   useEffect(() => {
     loadData()
     loadMaintenanceStatus()
     loadOccupancyBreakdown() // V6
+    loadFacilitySettings() // V7
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'revenue') {
+      loadRevenueData()
+    }
+  }, [activeTab])
 
   const loadMaintenanceStatus = async () => {
     try {
@@ -347,6 +368,74 @@ export default function DashboardPage() {
     }
   }
 
+  // V7: Load Facility Settings
+  const loadFacilitySettings = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      if (response.ok) {
+        const data = await response.json()
+        setPropertyName(data.property_name || '')
+        setOperatingHoursStart(data.operating_hours_start || '06:00')
+        setOperatingHoursEnd(data.operating_hours_end || '22:00')
+        setMaxCapacity(data.max_capacity || 50)
+        setGuestPassPrice(data.guest_pass_price || 5.00)
+        setMaxGuestsPerResident(data.max_guests_per_resident || 3)
+      }
+    } catch (error) {
+      console.error('Error loading facility settings:', error)
+    }
+  }
+
+  // V7: Save Facility Settings
+  const saveFacilitySettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingSettings(true)
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_name: propertyName,
+          operating_hours_start: operatingHoursStart,
+          operating_hours_end: operatingHoursEnd,
+          max_capacity: maxCapacity,
+          guest_pass_price: guestPassPrice,
+          max_guests_per_resident: maxGuestsPerResident,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      alert('Settings saved successfully!')
+      await loadFacilitySettings()
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      alert('Failed to save settings')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  // V7: Load Revenue Data
+  const loadRevenueData = async () => {
+    setRevenueLoading(true)
+    try {
+      const response = await fetch('/api/revenue')
+      if (response.ok) {
+        const data = await response.json()
+        setRevenueData(data)
+      }
+    } catch (error) {
+      console.error('Error loading revenue data:', error)
+      setRevenueData(null)
+    } finally {
+      setRevenueLoading(false)
+    }
+  }
+
   const addResident = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsAddingResident(true)
@@ -515,6 +604,19 @@ export default function DashboardPage() {
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('rules')}
+              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+                activeTab === 'rules'
+                  ? 'border-teal-500 text-navy-900'
+                  : 'border-transparent text-navy-500 hover:text-navy-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Access Rules ({stats.activeRules})
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('settings')}
               className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === 'settings'
@@ -524,7 +626,20 @@ export default function DashboardPage() {
             >
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5" />
-                Access Rules ({stats.activeRules})
+                Facility Settings
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('revenue')}
+              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+                activeTab === 'revenue'
+                  ? 'border-teal-500 text-navy-900'
+                  : 'border-transparent text-navy-500 hover:text-navy-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Revenue Analytics
               </div>
             </button>
           </div>
