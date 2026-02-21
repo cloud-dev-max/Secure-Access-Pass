@@ -102,6 +102,7 @@ export default function DashboardPage() {
     loadMaintenanceStatus()
     loadOccupancyBreakdown() // V6
     loadFacilitySettings() // V7
+    loadRevenueData() // V7.1: Load revenue for mini widget
   }, [])
 
   useEffect(() => {
@@ -370,6 +371,27 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error regenerating PIN:', error)
       alert('Failed to regenerate PIN')
+    }
+  }
+
+  // V7.1: Update personal guest limit
+  const updatePersonalGuestLimit = async (residentId: string, newLimit: number | null) => {
+    try {
+      const response = await fetch('/api/residents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: residentId,
+          personal_guest_limit: newLimit,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update guest limit')
+      
+      await loadData()
+    } catch (error) {
+      console.error('Error updating guest limit:', error)
+      alert('Failed to update guest limit')
     }
   }
 
@@ -822,6 +844,33 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Active Rules</h3>
                 <p className="text-sm text-navy-600">Access control rules in effect</p>
               </div>
+
+              {/* V7.1: Mini Revenue Widget */}
+              <button
+                onClick={() => {
+                  setActiveTab('revenue')
+                  if (!revenueData) loadRevenueData()
+                }}
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-green-100 p-3 rounded-lg">
+                    <DollarSign className="w-6 h-6 text-green-600" />
+                  </div>
+                  {revenueData ? (
+                    <span className="text-3xl font-bold text-green-600">
+                      ${revenueData.daily[0]?.revenue?.toFixed(0) || '0'}
+                    </span>
+                  ) : (
+                    <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-navy-900 mb-1">Today's Revenue</h3>
+                <p className="text-sm text-navy-600">
+                  {revenueData ? `${revenueData.daily[0]?.count || 0} passes sold` : 'Loading...'}
+                </p>
+                <p className="text-xs text-green-600 font-semibold mt-2">View full analytics →</p>
+              </button>
             </div>
 
             {/* Maintenance Mode Quick Toggle */}
@@ -1045,6 +1094,7 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-left text-sm font-bold">Unit</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Location</th>
                       <th className="px-6 py-4 text-center text-sm font-bold">Access PIN</th>
+                      <th className="px-6 py-4 text-center text-sm font-bold">Guest Limit</th>
                       {rules.map((rule) => (
                         <th key={rule.id} className="px-6 py-4 text-center text-sm font-bold">
                           {rule.rule_name}
@@ -1056,7 +1106,7 @@ export default function DashboardPage() {
                   <tbody className="divide-y divide-navy-200">
                     {residents.length === 0 ? (
                       <tr>
-                        <td colSpan={rules.length + 4} className="px-6 py-12 text-center">
+                        <td colSpan={rules.length + 5} className="px-6 py-12 text-center">
                           <div className="text-navy-500">
                             <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p className="text-lg font-semibold mb-1">No residents yet</p>
@@ -1106,6 +1156,22 @@ export default function DashboardPage() {
                                 Regenerate
                               </button>
                             </div>
+                          </td>
+                          {/* V7.1: Personal Guest Limit */}
+                          <td className="px-6 py-4 text-center">
+                            <select
+                              value={(resident as any).personal_guest_limit || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                updatePersonalGuestLimit(resident.id, val === '' ? null : parseInt(val))
+                              }}
+                              className="px-3 py-1 border-2 border-navy-300 rounded-lg text-sm font-semibold text-navy-900 bg-white focus:ring-2 focus:ring-teal-500"
+                            >
+                              <option value="">Default ({maxGuestsPerResident})</option>
+                              {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                                <option key={num} value={num}>{num}</option>
+                              ))}
+                            </select>
                           </td>
                           {rules.map((rule) => {
                             const status = getRuleStatus(resident, rule.id)
@@ -1338,6 +1404,26 @@ export default function DashboardPage() {
                   />
                   <p className="text-xs text-navy-500 mt-1">
                     Maximum number of accompanying guests allowed per resident visit
+                  </p>
+                </div>
+
+                {/* V7.1: Max Visitor Passes */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">
+                    Maximum Visitor Passes Allowed
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={maxVisitorPasses}
+                    onChange={(e) => setMaxVisitorPasses(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    placeholder="10"
+                    required
+                  />
+                  <p className="text-xs text-navy-500 mt-1">
+                    Total number of concurrent visitor passes (24-hour paid passes) allowed
                   </p>
                 </div>
 
