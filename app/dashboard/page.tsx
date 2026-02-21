@@ -54,7 +54,7 @@ export default function DashboardPage() {
     recentActivity: [],
   })
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'residents' | 'rules' | 'settings' | 'revenue'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'residents' | 'rules' | 'settings' | 'revenue' | 'occupancy'>('overview')
   const [selectedResident, setSelectedResident] = useState<ProfileWithRules | null>(null)
   
   // New Resident Form
@@ -102,7 +102,8 @@ export default function DashboardPage() {
     loadMaintenanceStatus()
     loadOccupancyBreakdown() // V6
     loadFacilitySettings() // V7
-    loadRevenueData() // V7.1: Load revenue for mini widget
+    // V7.1: Load revenue after mount to avoid undefined function error
+    loadRevenueData()
   }, [])
 
   useEffect(() => {
@@ -788,6 +789,19 @@ export default function DashboardPage() {
                 Revenue Analytics
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('occupancy')}
+              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+                activeTab === 'occupancy'
+                  ? 'border-teal-500 text-navy-900'
+                  : 'border-transparent text-navy-500 hover:text-navy-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Current Occupancy ({stats.currentOccupancy})
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -799,8 +813,11 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Total Residents */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              {/* V7.1: Total Residents - Clickable */}
+              <button
+                onClick={() => setActiveTab('residents')}
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-blue-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-blue-100 p-3 rounded-lg">
                     <Users className="w-6 h-6 text-blue-600" />
@@ -809,11 +826,12 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Total Residents</h3>
                 <p className="text-sm text-navy-600">Active residents in the system</p>
-              </div>
+                <p className="text-xs text-blue-600 font-semibold mt-2">View all residents →</p>
+              </button>
 
-              {/* Current Occupancy - V6: With breakdown */}
+              {/* V7.1: Current Occupancy - Goes to Occupancy tab */}
               <button
-                onClick={loadInsideResidents}
+                onClick={() => setActiveTab('occupancy')}
                 className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-4">
@@ -830,11 +848,14 @@ export default function DashboardPage() {
                     <div>Visitor Passes: <span className="font-semibold">{stats.occupancyBreakdown.visitor_passes}</span></div>
                   </div>
                 )}
-                <p className="text-xs text-teal-600 font-semibold mt-2">Click to see who is inside →</p>
+                <p className="text-xs text-teal-600 font-semibold mt-2">View detailed occupancy →</p>
               </button>
 
-              {/* Active Rules */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              {/* V7.1: Active Rules - Clickable */}
+              <button
+                onClick={() => setActiveTab('rules')}
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-purple-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-purple-100 p-3 rounded-lg">
                     <Shield className="w-6 h-6 text-purple-600" />
@@ -843,13 +864,13 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Active Rules</h3>
                 <p className="text-sm text-navy-600">Access control rules in effect</p>
-              </div>
+                <p className="text-xs text-purple-600 font-semibold mt-2">Manage rules →</p>
+              </button>
 
-              {/* V7.1: Mini Revenue Widget */}
+              {/* V7.2: Mini Revenue Widget - Fixed Loading Bug */}
               <button
                 onClick={() => {
                   setActiveTab('revenue')
-                  if (!revenueData) loadRevenueData()
                 }}
                 className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
               >
@@ -857,17 +878,19 @@ export default function DashboardPage() {
                   <div className="bg-green-100 p-3 rounded-lg">
                     <DollarSign className="w-6 h-6 text-green-600" />
                   </div>
-                  {revenueData ? (
+                  {revenueLoading ? (
+                    <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
+                  ) : revenueData?.daily && revenueData.daily.length > 0 ? (
                     <span className="text-3xl font-bold text-green-600">
                       ${revenueData.daily[0]?.revenue?.toFixed(0) || '0'}
                     </span>
                   ) : (
-                    <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
+                    <span className="text-3xl font-bold text-gray-400">$0</span>
                   )}
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Today's Revenue</h3>
                 <p className="text-sm text-navy-600">
-                  {revenueData ? `${revenueData.daily[0]?.count || 0} passes sold` : 'Loading...'}
+                  {revenueLoading ? 'Loading...' : revenueData?.daily && revenueData.daily.length > 0 ? `${revenueData.daily[0]?.count || 0} passes sold` : 'No sales yet'}
                 </p>
                 <p className="text-xs text-green-600 font-semibold mt-2">View full analytics →</p>
               </button>
@@ -969,25 +992,37 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {stats.recentActivity.map((log, idx) => (
-                    <div
-                      key={log.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border ${
-                        log.result === 'GRANTED'
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        {log.scan_type === 'ENTRY' ? (
-                          <LogIn className={`w-5 h-5 ${
-                            log.result === 'GRANTED' ? 'text-green-600' : 'text-red-600'
-                          }`} />
-                        ) : (
-                          <LogOut className={`w-5 h-5 ${
-                            log.result === 'GRANTED' ? 'text-green-600' : 'text-red-600'
-                          }`} />
-                        )}
+                  {stats.recentActivity.map((log, idx) => {
+                    // V7.1: Color code by event type
+                    let bgColor = 'bg-gray-50'
+                    let borderColor = 'border-gray-200'
+                    let iconColor = 'text-gray-600'
+                    
+                    if (log.result === 'DENIED') {
+                      bgColor = 'bg-red-50'
+                      borderColor = 'border-red-200'
+                      iconColor = 'text-red-600'
+                    } else if (log.scan_type === 'ENTRY') {
+                      bgColor = 'bg-green-50'
+                      borderColor = 'border-green-200'
+                      iconColor = 'text-green-600'
+                    } else if (log.scan_type === 'EXIT') {
+                      bgColor = 'bg-blue-50'
+                      borderColor = 'border-blue-200'
+                      iconColor = 'text-blue-600'
+                    }
+                    
+                    return (
+                      <div
+                        key={log.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border ${bgColor} ${borderColor}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          {log.scan_type === 'ENTRY' ? (
+                            <LogIn className={`w-5 h-5 ${iconColor}`} />
+                          ) : (
+                            <LogOut className={`w-5 h-5 ${iconColor}`} />
+                          )}
                         <div>
                           <p className="font-semibold text-navy-900">
                             {log.user?.name || 'Unknown'} - Unit {log.user?.unit || 'N/A'}
@@ -1002,7 +1037,7 @@ export default function DashboardPage() {
                         {new Date(log.scanned_at).toLocaleString()}
                       </span>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -1555,6 +1590,135 @@ export default function DashboardPage() {
                 <p className="text-sm text-navy-500">Revenue will appear once guest passes are purchased</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* V7.2: New Current Occupancy Tab */}
+        {activeTab === 'occupancy' && (
+          <div className="space-y-6">
+            {/* Occupancy Summary */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              <div className="flex items-center gap-3 mb-6">
+                <Activity className="w-6 h-6 text-teal-600" />
+                <h2 className="text-2xl font-bold text-navy-900">Current Occupancy</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-lg p-4 border-2 border-teal-200">
+                  <p className="text-sm font-semibold text-navy-600 mb-1">Total</p>
+                  <p className="text-3xl font-bold text-teal-600">{stats.currentOccupancy}</p>
+                  <p className="text-xs text-navy-500 mt-1">People inside</p>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <p className="text-sm font-semibold text-navy-600 mb-1">Residents</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.occupancyBreakdown?.residents || 0}</p>
+                </div>
+                
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <p className="text-sm font-semibold text-navy-600 mb-1">Guests</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.occupancyBreakdown?.accompanying_guests || 0}</p>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <p className="text-sm font-semibold text-navy-600 mb-1">Visitor Passes</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.occupancyBreakdown?.visitor_passes || 0}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={loadInsideResidents}
+                disabled={loadingInsideResidents}
+                className="w-full bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loadingInsideResidents ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-5 h-5" />
+                    Refresh Occupancy List
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* People Inside Table */}
+            <div className="bg-white rounded-xl shadow-lg border border-navy-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-teal-600 to-navy-700 px-6 py-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  People Currently Inside
+                </h3>
+              </div>
+              
+              {insideResidents.length === 0 ? (
+                <div className="text-center py-12 text-navy-500">
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-semibold mb-2">No one is currently inside</p>
+                  <p className="text-sm">The facility is empty</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-navy-50 border-b border-navy-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Resident</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Unit</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Entry Time</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Guests</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Total</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-navy-700 uppercase tracking-wider">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-navy-100">
+                      {insideResidents.map((resident) => (
+                        <tr key={resident.id} className="hover:bg-teal-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="font-semibold text-navy-900">{resident.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-navy-600">{resident.unit}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-navy-600">{resident.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-navy-600">
+                            {resident.last_scan_at ? new Date(resident.last_scan_at).toLocaleString() : 'Unknown'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${
+                              (resident.active_guests || 0) > 0 
+                                ? 'bg-purple-100 text-purple-700' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              <Users className="w-4 h-4" />
+                              {resident.active_guests || 0}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-teal-100 text-teal-700">
+                              {1 + (resident.active_guests || 0)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => handleForceCheckout(resident.id)}
+                              className="text-red-600 hover:text-red-800 font-semibold text-sm flex items-center gap-1 hover:underline"
+                            >
+                              <LogOut className="w-4 h-4" />
+                              Force Exit
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

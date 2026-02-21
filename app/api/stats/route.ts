@@ -33,7 +33,7 @@ export async function GET() {
       console.error('Exception fetching residents count:', error)
     }
 
-    // Get current occupancy (residents currently INSIDE)
+    // V7.1: Get current occupancy (residents + their guests currently INSIDE)
     try {
       const { count, error: occupancyError } = await adminClient
         .from('profiles')
@@ -45,7 +45,18 @@ export async function GET() {
       if (occupancyError) {
         console.error('Error fetching occupancy:', occupancyError)
       } else {
-        currentOccupancy = count || 0
+        const residentsInside = count || 0
+        
+        // V7.1: Also sum up active_guests for residents inside
+        const { data: residentsWithGuests } = await adminClient
+          .from('profiles')
+          .select('active_guests')
+          .eq('role', 'resident')
+          .eq('is_active', true)
+          .eq('current_location', 'INSIDE')
+        
+        const totalGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
+        currentOccupancy = residentsInside + totalGuests
       }
     } catch (error) {
       console.error('Exception fetching occupancy:', error)

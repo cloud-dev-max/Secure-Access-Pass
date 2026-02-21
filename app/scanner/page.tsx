@@ -188,14 +188,12 @@ export default function ScannerPage() {
 
       if (data.can_access) {
         setScanResult('success')
-        if (guestCount > 0) {
-          setMessage(`${data.user_name} + ${guestCount} Guest${guestCount > 1 ? 's' : ''}`)
-        } else {
-          setMessage(`${data.user_name}`)
-        }
+        // V7.1: Use API-formatted message directly (already includes guest count)
+        setMessage(data.user_name)
       } else {
         setScanResult('denied')
-        setMessage(data.denial_reason || 'Access Denied')
+        // V7.1: Use specific denial reason from API
+        setMessage(data.denial_reason || data.message || 'Access Denied')
       }
       
       setShowGroupModal(false)
