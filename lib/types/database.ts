@@ -80,7 +80,8 @@ export interface Database {
           operating_hours_end: string
           max_capacity: number
           guest_pass_price: number
-          max_guests_per_resident: number // V4
+          max_guests_per_resident: number // V4: Per resident accompanying guests
+          max_visitor_passes: number // V7.1: Max visitor passes allowed
           is_maintenance_mode: boolean
           maintenance_reason: string | null
           created_at: string
@@ -98,6 +99,7 @@ export interface Database {
           max_capacity?: number
           guest_pass_price?: number
           max_guests_per_resident?: number // V4
+          max_visitor_passes?: number // V7.1
           is_maintenance_mode?: boolean
           maintenance_reason?: string | null
           created_at?: string
@@ -115,6 +117,7 @@ export interface Database {
           max_capacity?: number
           guest_pass_price?: number
           max_guests_per_resident?: number // V4
+          max_visitor_passes?: number // V7.1
           is_maintenance_mode?: boolean
           maintenance_reason?: string | null
           created_at?: string

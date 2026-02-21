@@ -237,7 +237,7 @@ export default function ScannerPage() {
               Entry: {userInfo.name}
             </h2>
             <p className="text-navy-600 mb-6">
-              How many people total (including yourself)?
+              How many guests are with you?
             </p>
             
             <div className="grid grid-cols-3 gap-4">
@@ -248,7 +248,7 @@ export default function ScannerPage() {
                   disabled={processingGroup}
                   className="h-20 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-2xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
                 >
-                  {count === 0 ? 'Just Me' : count}
+                  {count === 0 ? 'Just me' : `+${count}`}
                 </button>
               ))}
             </div>

@@ -57,6 +57,7 @@ export default function ResidentPortalPage() {
   const [guestEmail, setGuestEmail] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
   const [creatingPass, setCreatingPass] = useState(false)
+  const [showPassHistory, setShowPassHistory] = useState(false) // V7.1: Show expired/used passes
   const [latestGuestPassPrice, setLatestGuestPassPrice] = useState(5.00) // V5: Track latest price
 
   useEffect(() => {
@@ -318,8 +319,12 @@ export default function ResidentPortalPage() {
     e.preventDefault()
     if (!resident) return
 
-    // V4: Check guest pass limit
-    const activeGuestPasses = guestPasses.filter(p => p.status === 'active')
+    // V7.1: Check guest pass limit - only count ACTIVE and NOT EXPIRED
+    const activeGuestPasses = guestPasses.filter(p => {
+      const isActive = p.status === 'active'
+      const notExpired = new Date(p.expires_at) > new Date()
+      return isActive && notExpired
+    })
     if (activeGuestPasses.length >= maxGuestsAllowed) {
       alert(`You have reached the maximum of ${maxGuestsAllowed} active guest passes. Please wait for existing passes to expire or be used before creating new ones.`)
       return
@@ -588,9 +593,13 @@ export default function ResidentPortalPage() {
             )}
           </div>
 
-          {/* V4: Display guest pass limit */}
+          {/* V7.1: Display guest pass limit - Only count ACTIVE and NOT EXPIRED */}
           <p className="text-sm text-navy-600 mb-4">
-            Active passes: {guestPasses.filter(p => p.status === 'active').length} / {maxGuestsAllowed} allowed
+            Active passes: {guestPasses.filter(p => {
+              const isActive = p.status === 'active'
+              const notExpired = new Date(p.expires_at) > new Date()
+              return isActive && notExpired
+            }).length} / {maxGuestsAllowed} allowed
           </p>
 
           {/* Guest Pass Purchase Form */}
@@ -642,6 +651,16 @@ export default function ResidentPortalPage() {
             </form>
           )}
 
+          {/* V7.1: Show/Hide Pass History Toggle */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowPassHistory(!showPassHistory)}
+              className="text-sm text-teal-600 hover:text-teal-700 font-semibold flex items-center gap-1"
+            >
+              {showPassHistory ? '▼ Hide' : '▶ Show'} Pass History
+            </button>
+          </div>
+
           {/* Guest Pass List */}
           <div className="space-y-3">
             {guestPasses.length === 0 ? (
@@ -649,7 +668,13 @@ export default function ResidentPortalPage() {
                 No guest passes yet. Purchase one to invite a guest!
               </p>
             ) : (
-              guestPasses.map((pass) => {
+              guestPasses.filter((pass) => {
+                // V7.1: Filter out old passes unless showing history
+                if (showPassHistory) return true
+                const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
+                const isUsed = pass.status === 'used'
+                return !isExpired && !isUsed
+              }).map((pass) => {
                 const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
                 const isUsed = pass.status === 'used'
                 

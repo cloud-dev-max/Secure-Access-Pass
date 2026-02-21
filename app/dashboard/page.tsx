@@ -90,6 +90,7 @@ export default function DashboardPage() {
   const [maxCapacity, setMaxCapacity] = useState(50)
   const [guestPassPrice, setGuestPassPrice] = useState(5.00)
   const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3)
+  const [maxVisitorPasses, setMaxVisitorPasses] = useState(10) // V7.1: Max visitor passes
   const [savingSettings, setSavingSettings] = useState(false)
 
   // V7: Revenue Analytics
@@ -384,6 +385,7 @@ export default function DashboardPage() {
         setMaxCapacity(data.max_capacity || 50)
         setGuestPassPrice(data.guest_pass_price || 5.00)
         setMaxGuestsPerResident(data.max_guests_per_resident || 3)
+        setMaxVisitorPasses(data.max_visitor_passes || 10) // V7.1
       }
     } catch (error) {
       console.error('Error loading facility settings:', error)
@@ -406,6 +408,7 @@ export default function DashboardPage() {
           max_capacity: maxCapacity,
           guest_pass_price: guestPassPrice,
           max_guests_per_resident: maxGuestsPerResident,
+          max_visitor_passes: maxVisitorPasses, // V7.1
         }),
       })
 
