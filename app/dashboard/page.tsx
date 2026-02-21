@@ -315,11 +315,15 @@ export default function DashboardPage() {
   }
 
   // V4: Load who is inside
+  // V7.3 Bug Fix #2: Refresh occupancy breakdown when loading inside residents
   const loadInsideResidents = async () => {
     setLoadingInsideResidents(true)
     try {
       const inside = residents.filter(r => r.current_location === 'INSIDE')
       setInsideResidents(inside)
+      
+      // V7.3: Also reload occupancy breakdown to update cards
+      await loadOccupancyBreakdown()
     } finally {
       setLoadingInsideResidents(false)
     }

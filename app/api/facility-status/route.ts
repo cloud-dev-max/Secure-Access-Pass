@@ -26,8 +26,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get current occupancy (count of residents currently INSIDE)
-    const { count: occupancy, error: countError } = await adminClient
+    // V7.3 Bug Fix #3: Get total occupancy including guests (not just residents)
+    // Use the same logic as /api/occupancy for consistency
+    
+    // Count residents currently INSIDE
+    const { count: residentsCount, error: residentsError } = await adminClient
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
@@ -35,13 +38,49 @@ export async function GET(request: NextRequest) {
       .eq('is_active', true)
       .eq('role', 'resident')
 
-    if (countError) {
-      console.error('Error counting occupancy:', countError)
+    if (residentsError) {
+      console.error('Error counting residents:', residentsError)
       return NextResponse.json(
         { error: 'Failed to count occupancy' },
         { status: 500 }
       )
     }
+
+    // Sum active_guests from residents who are INSIDE
+    const { data: residentsWithGuests, error: guestsError } = await adminClient
+      .from('profiles')
+      .select('active_guests')
+      .eq('property_id', propertyId)
+      .eq('current_location', 'INSIDE')
+      .eq('is_active', true)
+      .eq('role', 'resident')
+
+    if (guestsError) {
+      console.error('Error fetching guests:', guestsError)
+    }
+
+    const accompanyingGuests = residentsWithGuests?.reduce(
+      (sum, r) => sum + (r.active_guests || 0),
+      0
+    ) || 0
+
+    // Count visitor passes used today
+    const today = new Date().toISOString().split('T')[0]
+    const { count: visitorPassesCount, error: visitorError } = await adminClient
+      .from('guest_passes')
+      .select('id', { count: 'exact', head: true })
+      .eq('property_id', propertyId)
+      .eq('status', 'used')
+      .gte('used_at', today)
+
+    if (visitorError) {
+      console.error('Error counting visitor passes:', visitorError)
+    }
+
+    // V7.3: Total occupancy = residents + their guests + visitor passes
+    const occupancy = (residentsCount || 0) + accompanyingGuests + (visitorPassesCount || 0)
+    
+    console.log(`[V7.3] Total Occupancy: ${occupancy} = Residents: ${residentsCount} + Guests: ${accompanyingGuests} + Visitors: ${visitorPassesCount}`)
 
     // Check if facility is open based on operating hours
     const now = new Date()

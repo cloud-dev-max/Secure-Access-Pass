@@ -19,8 +19,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Looking up resident with email:', email)
+    console.log('[V7.3] Looking up resident with email:', email)
 
+    // V7.3 Bug Fix: Enhanced logging for debugging
     // Find resident by email and PIN
     const { data: profile, error } = await adminClient
       .from('profiles')
@@ -32,7 +33,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !profile) {
-      console.log('Invalid email or PIN')
+      console.log('[V7.3] Login failed for email:', email, 'Error:', error?.message)
+      console.log('[V7.3] Query used: email =', email.toLowerCase().trim(), ', pin =', pin.trim())
       return NextResponse.json(
         { 
           error: 'Invalid credentials',

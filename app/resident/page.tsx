@@ -57,6 +57,7 @@ export default function ResidentPortalPage() {
   const [guestEmail, setGuestEmail] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
   const [creatingPass, setCreatingPass] = useState(false)
+  const [guestPassError, setGuestPassError] = useState('') // V7.3: Error handling
   const [showPassHistory, setShowPassHistory] = useState(false) // V7.1: Show expired/used passes
   const [latestGuestPassPrice, setLatestGuestPassPrice] = useState(5.00) // V5: Track latest price
 
@@ -315,9 +316,12 @@ export default function ResidentPortalPage() {
     link.click()
   }
 
+  // V7.3 Bug Fix #5: Better error handling for guest pass creation
   const createGuestPass = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!resident) return
+
+    setGuestPassError('') // Clear previous errors
 
     // V7.1: Check guest pass limit - only count ACTIVE and NOT EXPIRED
     const activeGuestPasses = guestPasses.filter(p => {
@@ -326,7 +330,7 @@ export default function ResidentPortalPage() {
       return isActive && notExpired
     })
     if (activeGuestPasses.length >= maxGuestsAllowed) {
-      alert(`You have reached the maximum of ${maxGuestsAllowed} active guest passes. Please wait for existing passes to expire or be used before creating new ones.`)
+      setGuestPassError(`You have reached the maximum of ${maxGuestsAllowed} active guest passes. Please wait for existing passes to expire or be used.`)
       return
     }
 
@@ -345,20 +349,25 @@ export default function ResidentPortalPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create guest pass')
+        // V7.3: Parse the actual error from API instead of generic message
+        const errorData = await response.json()
+        const errorMessage = errorData.error || errorData.details || 'Failed to create guest pass'
+        setGuestPassError(errorMessage)
+        return
       }
 
-      // Reset form
+      // Success - Reset form
       setGuestName('')
       setGuestEmail('')
       setGuestPhone('')
+      setGuestPassError('')
       setShowGuestPassForm(false)
 
       // Reload guest passes
       await loadGuestPasses(resident.id)
     } catch (error) {
       console.error('Error creating guest pass:', error)
-      alert('Failed to create guest pass. Please try again.')
+      setGuestPassError('Network error. Please check your connection and try again.')
     } finally {
       setCreatingPass(false)
     }
@@ -602,32 +611,44 @@ export default function ResidentPortalPage() {
             }).length} / {maxGuestsAllowed} allowed
           </p>
 
-          {/* Guest Pass Purchase Form */}
+          {/* V7.3 Bug Fix #4 & #5: Guest Pass Purchase Form */}
           {showGuestPassForm && (
             <form onSubmit={createGuestPass} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Purchase Guest Pass (${latestGuestPassPrice.toFixed(2)})
               </h3>
+              
+              {/* V7.3: Error message display */}
+              {guestPassError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600 font-semibold">{guestPassError}</p>
+                </div>
+              )}
+              
               <div className="space-y-3">
+                {/* V7.3 Bug Fix #4: Removed (optional) and added required */}
                 <input
                   type="text"
-                  placeholder="Guest Name (optional)"
+                  placeholder="Guest Name"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
+                  required
                   className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="email"
-                  placeholder="Guest Email (optional)"
+                  placeholder="Guest Email"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
+                  required
                   className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="tel"
-                  placeholder="Guest Phone (optional)"
+                  placeholder="Guest Phone"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
+                  required
                   className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 
