@@ -25,12 +25,11 @@ export async function GET(request: NextRequest) {
 
     const guestPassPrice = settings?.guest_pass_price || 5.00
 
-    // Get all guest passes for this property
+    // Get all visitor passes for this property
     const { data: guestPasses, error } = await adminClient
-      .from('guest_passes')
-      .select('id, created_at, status, expires_at, purchaser_id')
+      .from('visitor_passes')
+      .select('id, created_at, status, expires_at, purchased_by')
       .eq('property_id', propertyId)
-      .eq('pass_type', 'VISITOR')
       .order('created_at', { ascending: false })
 
     if (error) {

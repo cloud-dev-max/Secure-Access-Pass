@@ -14,7 +14,7 @@ export async function GET(
     const { id } = await params
 
     const { data, error } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select(`
         *,
         purchaser:purchased_by(name, unit)

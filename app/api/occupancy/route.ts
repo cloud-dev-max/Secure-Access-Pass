@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     todayStart.setHours(0, 0, 0, 0)
     
     const { count: visitorPassesCount } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
       .eq('status', 'used')

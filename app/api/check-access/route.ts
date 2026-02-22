@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // STEP 1: Check if QR Code is a Visitor Pass
     // ========================================================================
     const { data: visitorPass, error: visitorError } = await supabase
-      .from('guest_passes')
+      .from('visitor_passes')
       .select(`
         *,
         property:property_id(id, name, operating_hours_start, operating_hours_end, is_maintenance_mode, maintenance_reason, max_capacity),
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       // Grant visitor pass access
       if (scan_type === 'ENTRY') {
         await supabase
-          .from('guest_passes')
+          .from('visitor_passes')
           .update({ status: 'used', used_at: new Date().toISOString() })
           .eq('id', visitorPass.id)
       }

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Count visitor passes used today
     const today = new Date().toISOString().split('T')[0]
     const { count: visitorPassesCount, error: visitorError } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
       .eq('status', 'used')

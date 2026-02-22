@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { data, error } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('*')
       .eq('purchased_by', residentId)
       .order('created_at', { ascending: false })
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // V7.5 Issue #3: Free Tier - Automatically mark as paid
     const { data, error } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .insert({
         property_id: propertyId,
         purchased_by,

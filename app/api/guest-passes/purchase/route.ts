@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Check current active visitor passes for this resident
     const { data: activePasses, error: activePassesError } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('id')
       .eq('purchased_by', resident_id)
       .eq('property_id', propertyIdToUse)
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Create the visitor pass
     const { data: newPass, error: createError } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .insert({
         qr_code: qrCode,
         purchased_by: resident_id,
