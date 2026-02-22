@@ -212,10 +212,13 @@ export default function ResidentPortalPage() {
   }
 
   const handleLogout = () => {
+    // V7.4 Issue #3: Clear all session storage
     localStorage.removeItem('resident_profile')
+    sessionStorage.clear() // Clear any session data
     setResident(null)
     setIsLoggedIn(false)
     setEmail('')
+    setPin('') // Also clear PIN
   }
 
   const downloadQR = () => {
@@ -349,10 +352,14 @@ export default function ResidentPortalPage() {
       })
 
       if (!response.ok) {
-        // V7.3: Parse the actual error from API instead of generic message
-        const errorData = await response.json()
-        const errorMessage = errorData.error || errorData.details || 'Failed to create guest pass'
-        setGuestPassError(errorMessage)
+        // V7.4 Issue #8: Better error parsing with specific server messages
+        try {
+          const errorData = await response.json()
+          const errorMessage = errorData.error || errorData.details || errorData.message || 'Failed to create guest pass'
+          setGuestPassError(errorMessage)
+        } catch {
+          setGuestPassError(`Failed to create guest pass (HTTP ${response.status})`)
+        }
         return
       }
 
@@ -626,7 +633,7 @@ export default function ResidentPortalPage() {
               )}
               
               <div className="space-y-3">
-                {/* V7.3 Bug Fix #4: Removed (optional) and added required */}
+                {/* V7.4 Issue #7: Name required, Email/Phone optional */}
                 <input
                   type="text"
                   placeholder="Guest Name"
@@ -637,18 +644,16 @@ export default function ResidentPortalPage() {
                 />
                 <input
                   type="email"
-                  placeholder="Guest Email"
+                  placeholder="Guest Email (optional)"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  required
                   className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 <input
                   type="tel"
-                  placeholder="Guest Phone"
+                  placeholder="Guest Phone (optional)"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
-                  required
                   className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
                 

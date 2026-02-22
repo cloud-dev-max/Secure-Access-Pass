@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { Camera, X, CheckCircle2, XCircle, Loader2, Home, Users } from 'lucide-react'
+import { Camera, X, CheckCircle2, XCircle, Loader2, Home, Users, AlertTriangle, MessageSquare, LogOut, Shield } from 'lucide-react'
 
 type ScanMode = 'ENTRY' | 'EXIT'
 type ScanResult = 'idle' | 'scanning' | 'success' | 'denied' | 'error' | 'group_prompt'
@@ -28,6 +28,16 @@ export default function ScannerPage() {
   const [showGroupModal, setShowGroupModal] = useState(false)
   const [scannedQR, setScannedQR] = useState<string>('')
   const [processingGroup, setProcessingGroup] = useState(false)
+  
+  // V7.4: Staff Mode features
+  const [showOccupancyPanel, setShowOccupancyPanel] = useState(false)
+  const [insideResidents, setInsideResidents] = useState<any[]>([])
+  const [loadingOccupancy, setLoadingOccupancy] = useState(false)
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+  const [broadcastMessage, setBroadcastMessage] = useState('')
+  const [sendingBroadcast, setSendingBroadcast] = useState(false)
+  const [isPoolOpen, setIsPoolOpen] = useState(true)
+  const [closingPool, setClosingPool] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -356,10 +366,107 @@ export default function ScannerPage() {
 
     return null
   }
+  
+  // V7.4: Staff Mode functions
+  const loadOccupancy = async () => {
+    setLoadingOccupancy(true)
+    try {
+      const response = await fetch('/api/residents')
+      if (response.ok) {
+        const data = await response.json()
+        const inside = data.filter((r: any) => r.current_location === 'INSIDE')
+        setInsideResidents(inside)
+      }
+    } catch (error) {
+      console.error('Error loading occupancy:', error)
+    } finally {
+      setLoadingOccupancy(false)
+    }
+  }
+  
+  const forceExit = async (residentId: string) => {
+    if (!confirm('Force exit this person?')) return
+    
+    try {
+      const response = await fetch('/api/residents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: residentId,
+          current_location: 'OUTSIDE',
+          active_guests: 0,
+        }),
+      })
+      
+      if (response.ok) {
+        await loadOccupancy()
+      }
+    } catch (error) {
+      console.error('Error forcing exit:', error)
+      alert('Failed to force exit')
+    }
+  }
+  
+  const sendBroadcast = async () => {
+    if (!broadcastMessage.trim()) return
+    
+    setSendingBroadcast(true)
+    try {
+      const response = await fetch('/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: broadcastMessage,
+          target: 'INSIDE',
+        }),
+      })
+      
+      if (response.ok) {
+        alert('Alert sent successfully!')
+        setBroadcastMessage('')
+        setShowBroadcastModal(false)
+      } else {
+        alert('Failed to send alert')
+      }
+    } catch (error) {
+      console.error('Error sending broadcast:', error)
+      alert('Network error')
+    } finally {
+      setSendingBroadcast(false)
+    }
+  }
+  
+  const togglePoolStatus = async () => {
+    if (!confirm(`Are you sure you want to ${isPoolOpen ? 'CLOSE' : 'OPEN'} the pool?`)) return
+    
+    setClosingPool(true)
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_maintenance_mode: !isPoolOpen,
+          maintenance_reason: isPoolOpen ? 'Emergency Closure' : '',
+        }),
+      })
+      
+      if (response.ok) {
+        setIsPoolOpen(!isPoolOpen)
+        alert(`Pool ${isPoolOpen ? 'CLOSED' : 'OPENED'} successfully!`)
+      } else {
+        alert('Failed to update pool status')
+      }
+    } catch (error) {
+      console.error('Error toggling pool:', error)
+      alert('Network error')
+    } finally {
+      setClosingPool(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 text-white">
-      {/* Header */}
+      {/* Header - V7.4: Staff Mode (Dashboard link removed per Issue #1) */}
       <div className="bg-navy-800/50 backdrop-blur-sm border-b border-navy-700 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -367,19 +474,40 @@ export default function ScannerPage() {
               <Camera className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Secure Access Pass</h1>
-              <p className="text-sm text-white/70">Pool Access Scanner</p>
+              <h1 className="text-xl font-bold">Secure Access Scanner</h1>
+              <p className="text-sm text-white/70">Staff Mode</p>
             </div>
           </div>
 
-          {/* V5: Home button instead of X */}
-          <a
-            href="/dashboard"
-            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-lg font-semibold transition-all flex items-center gap-2"
-          >
-            <Home className="w-5 h-5" />
-            Dashboard
-          </a>
+          {/* V7.4: Staff Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowOccupancyPanel(!showOccupancyPanel); if (!showOccupancyPanel) loadOccupancy(); }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all flex items-center gap-2"
+            >
+              <Users className="w-5 h-5" />
+              Occupancy
+            </button>
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition-all flex items-center gap-2"
+            >
+              <MessageSquare className="w-5 h-5" />
+              Alert
+            </button>
+            <button
+              onClick={togglePoolStatus}
+              disabled={closingPool}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                isPoolOpen 
+                  ? 'bg-red-600 hover:bg-red-700' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              <Shield className="w-5 h-5" />
+              {closingPool ? 'Updating...' : (isPoolOpen ? 'Close Pool' : 'Open Pool')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -481,6 +609,127 @@ export default function ScannerPage() {
 
       {/* V6: Group Entry/Exit Modal */}
       {renderGroupModal()}
+      
+      {/* V7.4: Occupancy Panel */}
+      {showOccupancyPanel && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-teal-600 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">People Currently Inside</h2>
+              <button
+                onClick={() => setShowOccupancyPanel(false)}
+                className="text-white hover:bg-white/20 rounded-lg p-2"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+              {loadingOccupancy ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                </div>
+              ) : insideResidents.length === 0 ? (
+                <p className="text-center text-gray-500 py-12">No one is currently inside</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-navy-800 text-white">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Name</th>
+                        <th className="px-4 py-3 text-left">Unit</th>
+                        <th className="px-4 py-3 text-center">Guests</th>
+                        <th className="px-4 py-3 text-center">Total People</th>
+                        <th className="px-4 py-3 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {insideResidents.map((resident: any) => {
+                        const totalPeople = 1 + (resident.active_guests || 0)
+                        return (
+                          <tr key={resident.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900 font-semibold">{resident.name}</td>
+                            <td className="px-4 py-3 text-gray-700">{resident.unit}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                                +{resident.active_guests || 0}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-900 font-bold">{totalPeople}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => forceExit(resident.id)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
+                              >
+                                Force Exit
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={loadOccupancy}
+                  disabled={loadingOccupancy}
+                  className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                >
+                  {loadingOccupancy ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* V7.4: Broadcast Alert Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Send Alert</h2>
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="text-gray-500 hover:bg-gray-100 rounded-lg p-2"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Send emergency or informational messages to residents currently inside
+            </p>
+            
+            <textarea
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              placeholder="Enter your message..."
+              rows={4}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+            />
+            
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendBroadcast}
+                disabled={sendingBroadcast || !broadcastMessage.trim()}
+                className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold disabled:opacity-50"
+              >
+                {sendingBroadcast ? 'Sending...' : 'Send Alert'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

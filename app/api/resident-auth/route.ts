@@ -19,14 +19,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[V7.3] Looking up resident with email:', email)
+    console.log('[V7.4] Looking up resident with email:', email)
 
-    // V7.3 Bug Fix: Enhanced logging for debugging
+    // V7.4 Issue #9: Use ilike for case-insensitive email matching
     // Find resident by email and PIN
     const { data: profile, error } = await adminClient
       .from('profiles')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', email.trim())
       .eq('access_pin', pin.trim())
       .eq('role', 'resident')
       .eq('is_active', true)

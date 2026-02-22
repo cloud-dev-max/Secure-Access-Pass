@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [newResidentEmail, setNewResidentEmail] = useState('')
   const [newResidentUnit, setNewResidentUnit] = useState('')
   const [newResidentPhone, setNewResidentPhone] = useState('')
+  const [newResidentGuestLimit, setNewResidentGuestLimit] = useState('') // V7.4: Per-resident guest limit
   const [isAddingResident, setIsAddingResident] = useState(false)
   
   // New Rule Form
@@ -479,6 +480,9 @@ export default function DashboardPage() {
     setIsAddingResident(true)
     
     try {
+      // V7.4: Parse guest limit (empty = use default)
+      const guestLimit = newResidentGuestLimit.trim() === '' ? null : parseInt(newResidentGuestLimit)
+      
       const response = await fetch('/api/residents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -487,6 +491,7 @@ export default function DashboardPage() {
           email: newResidentEmail,
           unit: newResidentUnit,
           phone: newResidentPhone,
+          personal_guest_limit: guestLimit, // V7.4: Send personal limit
         }),
       })
       
@@ -502,6 +507,7 @@ export default function DashboardPage() {
       setNewResidentEmail('')
       setNewResidentUnit('')
       setNewResidentPhone('')
+      setNewResidentGuestLimit('') // V7.4: Reset guest limit
       
       // Reload data
       await loadData()
@@ -1050,28 +1056,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-gradient-to-r from-teal-500 to-navy-600 rounded-xl p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => setActiveTab('residents')}
-                  className="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 text-left transition-all"
-                >
-                  <Users className="w-6 h-6 mb-2" />
-                  <h4 className="font-semibold">Manage Residents</h4>
-                  <p className="text-sm text-white/80">Add, view, or edit resident information</p>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 text-left transition-all"
-                >
-                  <Settings className="w-6 h-6 mb-2" />
-                  <h4 className="font-semibold">Configure Rules</h4>
-                  <p className="text-sm text-white/80">Create and manage access rules</p>
-                </button>
-              </div>
-            </div>
+            {/* V7.4: Quick Actions section removed per requirement #5 */}
           </div>
         )}
 
@@ -1115,6 +1100,17 @@ export default function DashboardPage() {
                   value={newResidentPhone}
                   onChange={(e) => setNewResidentPhone(e.target.value)}
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                />
+                {/* V7.4: Per-Resident Guest Limit */}
+                <input
+                  type="number"
+                  placeholder="Guest Limit (default)"
+                  value={newResidentGuestLimit}
+                  onChange={(e) => setNewResidentGuestLimit(e.target.value)}
+                  min="0"
+                  max="10"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                  title="Leave blank to use facility default"
                 />
                 <button
                   type="submit"
@@ -1612,26 +1608,38 @@ export default function DashboardPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-lg p-4 border-2 border-teal-200">
-                  <p className="text-sm font-semibold text-navy-600 mb-1">Total</p>
-                  <p className="text-3xl font-bold text-teal-600">{stats.currentOccupancy}</p>
-                  <p className="text-xs text-navy-500 mt-1">People inside</p>
-                </div>
-                
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <p className="text-sm font-semibold text-navy-600 mb-1">Residents</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.occupancyBreakdown?.residents || 0}</p>
-                </div>
-                
-                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                  <p className="text-sm font-semibold text-navy-600 mb-1">Guests</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.occupancyBreakdown?.accompanying_guests || 0}</p>
-                </div>
-                
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                  <p className="text-sm font-semibold text-navy-600 mb-1">Visitor Passes</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.occupancyBreakdown?.visitor_passes || 0}</p>
-                </div>
+                {/* V7.4 Issue #6: Dynamic calculation from insideResidents */}
+                {(() => {
+                  const residentCount = insideResidents.length
+                  const guestCount = insideResidents.reduce((sum, r) => sum + (r.active_guests || 0), 0)
+                  const visitorPasses = stats.occupancyBreakdown?.visitor_passes || 0
+                  const totalOccupancy = residentCount + guestCount + visitorPasses
+                  
+                  return (
+                    <>
+                      <div className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-lg p-4 border-2 border-teal-200">
+                        <p className="text-sm font-semibold text-navy-600 mb-1">Total</p>
+                        <p className="text-3xl font-bold text-teal-600">{totalOccupancy}</p>
+                        <p className="text-xs text-navy-500 mt-1">People inside</p>
+                      </div>
+                      
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <p className="text-sm font-semibold text-navy-600 mb-1">Residents</p>
+                        <p className="text-2xl font-bold text-blue-600">{residentCount}</p>
+                      </div>
+                      
+                      <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                        <p className="text-sm font-semibold text-navy-600 mb-1">Guests</p>
+                        <p className="text-2xl font-bold text-purple-600">{guestCount}</p>
+                      </div>
+                      
+                      <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                        <p className="text-sm font-semibold text-navy-600 mb-1">Visitor Passes</p>
+                        <p className="text-2xl font-bold text-green-600">{visitorPasses}</p>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
 
               <button

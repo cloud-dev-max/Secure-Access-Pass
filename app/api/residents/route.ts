@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient()
     const body = await request.json()
     
-    const { name, email, unit, phone, property_id } = body
+    const { name, email, unit, phone, property_id, personal_guest_limit } = body
 
     // Validate required fields
     if (!name || !email || !unit) {
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
         property_id: finalPropertyId,
         role: 'resident',
         is_active: true,
+        personal_guest_limit: personal_guest_limit !== null && personal_guest_limit !== undefined ? personal_guest_limit : null, // V7.4: Per-resident limit
       })
       .select()
       .single()
