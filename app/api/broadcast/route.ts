@@ -34,27 +34,28 @@ export async function POST(request: NextRequest) {
       // Residents currently inside
       const { data } = await adminClient
         .from('profiles')
-        .select('id, qr_code, name')
+        .select('id, qr_code, name, email')
         .eq('property_id', propertyId)
         .eq('current_location', 'INSIDE')
         .eq('role', 'resident')
         .eq('is_active', true)
       targetResidents = data || []
     } else if (target_filter === 'ALL') {
-      // All active residents
+      // V7.6 Fix #4: All active residents with email addresses for facility-wide reach
       const { data } = await adminClient
         .from('profiles')
-        .select('id, qr_code, name')
+        .select('id, qr_code, name, email')
         .eq('property_id', propertyId)
         .eq('role', 'resident')
         .eq('is_active', true)
       targetResidents = data || []
+      console.log(`All Residents broadcast: ${targetResidents.length} emails found`)
     } else if (target_filter === 'RECENT') {
       // Residents who visited in last 4 hours
       const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
       const { data } = await adminClient
         .from('profiles')
-        .select('id, qr_code, name')
+        .select('id, qr_code, name, email')
         .eq('property_id', propertyId)
         .eq('role', 'resident')
         .eq('is_active', true)

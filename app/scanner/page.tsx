@@ -49,6 +49,33 @@ export default function ScannerPage() {
     }
   }, [])
 
+  // V7.6 Fix #3: Realtime listener for pool status sync
+  useEffect(() => {
+    // Load initial pool status
+    const loadPoolStatus = async () => {
+      try {
+        const response = await fetch('/api/settings')
+        if (response.ok) {
+          const data = await response.json()
+          // V7.6: Correct interpretation - maintenance_mode TRUE = CLOSED
+          setIsPoolOpen(!data.is_maintenance_mode)
+          if (data.maintenance_reason) {
+            setCloseReason(data.maintenance_reason)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading pool status:', error)
+      }
+    }
+
+    loadPoolStatus()
+
+    // Poll for status updates every 10 seconds (simpler than Realtime for now)
+    const interval = setInterval(loadPoolStatus, 10000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   const startScanner = async () => {
     try {
       setCameraError(null)
@@ -459,11 +486,14 @@ export default function ScannerPage() {
     
     setClosingPool(true)
     try {
+      // V7.6 Fix #2: Correct logic - maintenance_mode TRUE = CLOSED, FALSE = OPEN
+      // When isPoolOpen=true (currently open), we want to CLOSE it, so send TRUE
+      // When isPoolOpen=false (currently closed), we want to OPEN it, so send FALSE
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          is_maintenance_mode: !isPoolOpen,
+          is_maintenance_mode: isPoolOpen, // When pool is open and we click, we want to close it (set TRUE)
           maintenance_reason: isPoolOpen ? reason : '',
         }),
       })

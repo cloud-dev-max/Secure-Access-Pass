@@ -114,6 +114,15 @@ export default function DashboardPage() {
     }
   }, [activeTab])
 
+  // V7.6 Fix #3: Poll for maintenance status updates every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadMaintenanceStatus()
+    }, 10000) // Poll every 10 seconds
+
+    return () => clearInterval(interval)
+  }, [])
+
   const loadMaintenanceStatus = async () => {
     try {
       const response = await fetch('/api/settings')

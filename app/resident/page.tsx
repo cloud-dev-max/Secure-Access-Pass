@@ -78,6 +78,17 @@ export default function ResidentPortalPage() {
     }
   }, [])
 
+  // V7.6 Fix #3: Poll for facility status updates every 10 seconds
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    const interval = setInterval(() => {
+      loadFacilityStatus()
+    }, 10000) // Poll every 10 seconds
+
+    return () => clearInterval(interval)
+  }, [isLoggedIn])
+
   const loadFacilityStatus = async () => {
     try {
       const response = await fetch('/api/facility-status')

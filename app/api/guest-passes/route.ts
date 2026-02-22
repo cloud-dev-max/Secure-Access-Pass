@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating guest pass:', { purchased_by, qrCode, expiresAt: expiresAt.toISOString() })
 
-    // V7.5 Issue #3: Free Tier - Automatically mark as paid
+    // V7.6 Fix #1: Remove is_paid field (PGRST204) - column doesn't exist yet
     const { data, error } = await adminClient
       .from('visitor_passes')
       .insert({
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         qr_code: qrCode,
         price_paid: property.guest_pass_price,
         status: 'active',
-        is_paid: true, // V7.5: Auto-approve for free tier
+        // is_paid removed - payment integration pending
         expires_at: expiresAt.toISOString(),
         notes: notes || null,
         ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
