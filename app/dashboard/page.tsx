@@ -21,7 +21,8 @@ import {
   Download,
   Share2,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Trash2 // V7.5: For delete rule button
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import type { Profile, AccessRule, UserRuleStatus } from '@/lib/types/database'
@@ -552,6 +553,34 @@ export default function DashboardPage() {
     }
   }
 
+  // V7.5 Issue #7: Delete access rule
+  const deleteRule = async (ruleId: string, ruleName: string) => {
+    if (!confirm(`Are you sure you want to delete the rule "${ruleName}"? This will remove it from all residents.`)) {
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/rules', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ruleId }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Failed to delete rule:', errorData)
+        alert(`Failed to delete rule: ${errorData.error || 'Unknown error'}`)
+        return
+      }
+      
+      // Reload data
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting rule:', error)
+      alert('Network error. Please check your connection and try again.')
+    }
+  }
+
   const getRuleStatus = (resident: ProfileWithRules, ruleId: string): boolean => {
     const ruleStatus = resident.rule_statuses?.find(
       (rs) => rs.rule_id === ruleId
@@ -1007,12 +1036,19 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {stats.recentActivity.map((log, idx) => {
+                    // V7.5 Issue #6: Handle SYSTEM_BROADCAST
+                    const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (!log.user && log.denial_reason?.includes('BROADCAST'))
+                    
                     // V7.1: Color code by event type
                     let bgColor = 'bg-gray-50'
                     let borderColor = 'border-gray-200'
                     let iconColor = 'text-gray-600'
                     
-                    if (log.result === 'DENIED') {
+                    if (isSystemBroadcast) {
+                      bgColor = 'bg-orange-50'
+                      borderColor = 'border-orange-200'
+                      iconColor = 'text-orange-600'
+                    } else if (log.result === 'DENIED') {
                       bgColor = 'bg-red-50'
                       borderColor = 'border-red-200'
                       iconColor = 'text-red-600'
@@ -1032,17 +1068,19 @@ export default function DashboardPage() {
                         className={`flex items-center justify-between p-4 rounded-lg border ${bgColor} ${borderColor}`}
                       >
                         <div className="flex items-center gap-4">
-                          {log.scan_type === 'ENTRY' ? (
+                          {isSystemBroadcast ? (
+                            <MessageSquare className={`w-5 h-5 ${iconColor}`} />
+                          ) : log.scan_type === 'ENTRY' ? (
                             <LogIn className={`w-5 h-5 ${iconColor}`} />
                           ) : (
                             <LogOut className={`w-5 h-5 ${iconColor}`} />
                           )}
                         <div>
                           <p className="font-semibold text-navy-900">
-                            {log.user?.name || 'Unknown'} - Unit {log.user?.unit || 'N/A'}
+                            {isSystemBroadcast ? 'System Broadcast' : `${log.user?.name || 'Unknown'} - Unit ${log.user?.unit || 'N/A'}`}
                           </p>
                           <p className="text-sm text-navy-600">
-                            {log.scan_type} • {log.result}
+                            {isSystemBroadcast ? `${log.guest_count || 0} recipients` : `${log.scan_type} • ${log.result}`}
                             {log.denial_reason && ` • ${log.denial_reason}`}
                           </p>
                         </div>
@@ -1123,13 +1161,13 @@ export default function DashboardPage() {
               </form>
             </div>
 
-            {/* Residents Table */}
+            {/* Residents Table - V7.5 Issue #4: Sticky first column + scrollable */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-navy-200">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] relative">
                 <table className="w-full">
-                  <thead className="bg-navy-800 text-white">
+                  <thead className="bg-navy-800 text-white sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold">Resident</th>
+                      <th className="px-6 py-4 text-left text-sm font-bold sticky left-0 bg-navy-800 z-20">Resident</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Unit</th>
                       <th className="px-6 py-4 text-left text-sm font-bold">Location</th>
                       <th className="px-6 py-4 text-center text-sm font-bold">Access PIN</th>
@@ -1159,7 +1197,8 @@ export default function DashboardPage() {
                           key={resident.id}
                           className={idx % 2 === 0 ? 'bg-white' : 'bg-navy-50'}
                         >
-                          <td className="px-6 py-4">
+                          {/* V7.5 Issue #4: Sticky first column */}
+                          <td className={`px-6 py-4 sticky left-0 z-10 ${idx % 2 === 0 ? 'bg-white' : 'bg-navy-50'}`}>
                             <div>
                               <div className="font-semibold text-navy-900">{resident.name}</div>
                               <div className="text-sm text-navy-600">{resident.email}</div>
@@ -1322,6 +1361,14 @@ export default function DashboardPage() {
                       <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
                         Active
                       </span>
+                      {/* V7.5 Issue #7: Delete Rule Button */}
+                      <button
+                        onClick={() => deleteRule(rule.id, rule.rule_name)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Rule"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1588,11 +1635,69 @@ export default function DashboardPage() {
                 </div>
               </>
             ) : (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                <DollarSign className="w-16 h-16 text-navy-300 mx-auto mb-4" />
-                <p className="text-xl font-semibold text-navy-600 mb-2">No revenue data available</p>
-                <p className="text-sm text-navy-500">Revenue will appear once guest passes are purchased</p>
-              </div>
+              /* V7.5 Issue #1: Show placeholder data with 0 values instead of blank state */
+              <>
+                {/* Summary Cards - Placeholders */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                      <span className="text-2xl font-bold text-green-600">$0.00</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Total Revenue</h3>
+                    <p className="text-xs text-navy-600">0 passes sold</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <TrendingUp className="w-6 h-6 text-blue-600" />
+                      <span className="text-2xl font-bold text-blue-600">$0.00</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">This Month</h3>
+                    <p className="text-xs text-navy-600">0 passes</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Clock className="w-6 h-6 text-purple-600" />
+                      <span className="text-2xl font-bold text-purple-600">$0.00</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Last 7 Days</h3>
+                    <p className="text-xs text-navy-600">0 passes</p>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Users className="w-6 h-6 text-teal-600" />
+                      <span className="text-2xl font-bold text-teal-600">0</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">Active Passes</h3>
+                    <p className="text-xs text-navy-600">$5.00/pass</p>
+                  </div>
+                </div>
+
+                {/* Daily Revenue Chart - Empty */}
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-6 h-6 text-teal-600" />
+                    Daily Revenue (Last 7 Days)
+                  </h3>
+                  <div className="text-center py-8 text-navy-500">
+                    <p className="text-sm">No sales data yet. Daily revenue will appear here once guest passes are purchased.</p>
+                  </div>
+                </div>
+
+                {/* Monthly Summary - Empty */}
+                <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                    <DollarSign className="w-6 h-6 text-green-600" />
+                    Monthly Revenue
+                  </h3>
+                  <div className="text-center py-8 text-navy-500">
+                    <p className="text-sm">Monthly revenue trends will appear here once guest passes are purchased.</p>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}

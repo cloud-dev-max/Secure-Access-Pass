@@ -88,27 +88,28 @@ export async function POST(request: NextRequest) {
       console.warn('broadcast_alerts table not found - continuing without storing alert:', tableError.message)
     }
 
-    // Log broadcast event in access_logs for each target resident
+    // V7.5 Issue #6: Log as SYSTEM_BROADCAST with null user_id (no resident attribution)
+    // Create a single system broadcast log entry instead of per-resident
     if (targetResidents.length > 0) {
-      const logEntries = targetResidents.map(resident => ({
-        user_id: resident.id,
+      const logEntry = {
+        user_id: null, // V7.5: NULL user_id for system broadcasts
         property_id: propertyId,
-        qr_code: resident.qr_code,
-        scan_type: 'ENTRY',  // Use ENTRY as fallback since BROADCAST might not be in enum
+        qr_code: 'SYSTEM_BROADCAST',
+        scan_type: 'ENTRY', // Will be displayed as BROADCAST in UI
         result: 'GRANTED',
-        denial_reason: `BROADCAST: ${message.trim().substring(0, 50)}`,
+        denial_reason: `📢 BROADCAST (${target_filter}): ${message.trim().substring(0, 100)}`,
         location_before: null,
         location_after: null,
-        guest_count: 0,
+        guest_count: recipientsCount, // Store recipient count in guest_count field
         ip_address: ip,
         user_agent: userAgent
-      }))
+      }
 
-      const { error: logError } = await adminClient.from('access_logs').insert(logEntries)
+      const { error: logError } = await adminClient.from('access_logs').insert(logEntry)
       if (logError) {
         console.error('Error logging broadcast:', logError)
       } else {
-        console.log(`✓ Broadcast logged for ${targetResidents.length} residents`)
+        console.log(`✓ System broadcast logged for ${recipientsCount} recipients`)
       }
     }
 

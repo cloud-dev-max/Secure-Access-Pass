@@ -119,14 +119,14 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * DELETE /api/rules/:id
- * Soft delete a rule (set is_active to false)
+ * DELETE /api/rules
+ * V7.5 Issue #7: Soft delete a rule (set is_active to false)
  */
 export async function DELETE(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const { searchParams } = new URL(request.url)
-    const ruleId = searchParams.get('id')
+    const body = await request.json()
+    const ruleId = body.id
 
     if (!ruleId) {
       return NextResponse.json(

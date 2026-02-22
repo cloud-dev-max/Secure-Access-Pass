@@ -291,9 +291,9 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // V5: Log FORCE_EXIT event if location changed from INSIDE to OUTSIDE
+    // V7.5 Issue #5: Log EXIT (not FORCE_EXIT) with proper type for red label
     if (resident && current_location === 'OUTSIDE' && resident.current_location === 'INSIDE') {
-      console.log(`📝 Logging FORCE_EXIT for ${resident.name}`)
+      console.log(`📝 Logging EXIT (Force) for ${resident.name}`)
       const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
       const userAgent = request.headers.get('user-agent') || 'unknown'
       
@@ -303,9 +303,9 @@ export async function PATCH(request: NextRequest) {
           user_id: resident.id,
           property_id: resident.property_id,
           qr_code: resident.qr_code,
-          scan_type: 'FORCE_EXIT',
+          scan_type: 'EXIT', // V7.5: Use EXIT for red label
           result: 'GRANTED',
-          denial_reason: null,
+          denial_reason: 'Force exit by staff',
           location_before: 'INSIDE',
           location_after: 'OUTSIDE',
           ip_address: ip,

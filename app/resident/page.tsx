@@ -212,13 +212,31 @@ export default function ResidentPortalPage() {
   }
 
   const handleLogout = () => {
-    // V7.4 Issue #3: Clear all session storage
-    localStorage.removeItem('resident_profile')
-    sessionStorage.clear() // Clear any session data
+    // V7.5 Issue #2: Deep clean - Clear ALL storage AND reset ALL form states
+    localStorage.clear() // Clear ALL localStorage
+    sessionStorage.clear() // Clear ALL sessionStorage
+    
+    // Reset ALL resident state
     setResident(null)
     setIsLoggedIn(false)
+    
+    // Reset ALL form states
     setEmail('')
-    setPin('') // Also clear PIN
+    setPin('')
+    setCurrentPin('')
+    setNewPin('')
+    setConfirmPin('')
+    
+    // Reset ALL guest pass form states
+    setGuestName('')
+    setGuestEmail('')
+    setGuestPhone('')
+    setGuestPassError('')
+    setShowGuestPassForm(false)
+    setShowChangePinForm(false)
+    
+    // Clear guest passes
+    setGuestPasses([])
   }
 
   const downloadQR = () => {

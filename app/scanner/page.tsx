@@ -35,9 +35,11 @@ export default function ScannerPage() {
   const [loadingOccupancy, setLoadingOccupancy] = useState(false)
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
   const [broadcastMessage, setBroadcastMessage] = useState('')
+  const [broadcastTarget, setBroadcastTarget] = useState<'INSIDE' | 'RECENT' | 'ALL'>('INSIDE') // V7.5: Target options
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
   const [isPoolOpen, setIsPoolOpen] = useState(true)
   const [closingPool, setClosingPool] = useState(false)
+  const [closeReason, setCloseReason] = useState('') // V7.5: Reason for closing
 
   useEffect(() => {
     return () => {
@@ -407,6 +409,7 @@ export default function ScannerPage() {
     }
   }
   
+  // V7.5 Issue #9: Expanded broadcast with target options
   const sendBroadcast = async () => {
     if (!broadcastMessage.trim()) return
     
@@ -417,13 +420,15 @@ export default function ScannerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: broadcastMessage,
-          target: 'INSIDE',
+          target_filter: broadcastTarget, // V7.5: Use selected target
         }),
       })
       
       if (response.ok) {
-        alert('Alert sent successfully!')
+        const data = await response.json()
+        alert(`Alert sent to ${data.recipients_count} recipient(s)!`)
         setBroadcastMessage('')
+        setBroadcastTarget('INSIDE')
         setShowBroadcastModal(false)
       } else {
         alert('Failed to send alert')
@@ -436,7 +441,20 @@ export default function ScannerPage() {
     }
   }
   
+  // V7.5 Issue #9: Prompt for reason when closing pool
   const togglePoolStatus = async () => {
+    let reason = ''
+    
+    // V7.5: Prompt for reason when closing
+    if (isPoolOpen) {
+      reason = prompt('Please enter a reason for closing the pool:')
+      if (reason === null) return // User cancelled
+      if (!reason.trim()) {
+        alert('Reason is required to close the pool')
+        return
+      }
+    }
+    
     if (!confirm(`Are you sure you want to ${isPoolOpen ? 'CLOSE' : 'OPEN'} the pool?`)) return
     
     setClosingPool(true)
@@ -446,12 +464,13 @@ export default function ScannerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           is_maintenance_mode: !isPoolOpen,
-          maintenance_reason: isPoolOpen ? 'Emergency Closure' : '',
+          maintenance_reason: isPoolOpen ? reason : '',
         }),
       })
       
       if (response.ok) {
         setIsPoolOpen(!isPoolOpen)
+        setCloseReason(isPoolOpen ? reason : '')
         alert(`Pool ${isPoolOpen ? 'CLOSED' : 'OPENED'} successfully!`)
       } else {
         alert('Failed to update pool status')
@@ -701,8 +720,47 @@ export default function ScannerPage() {
             </div>
             
             <p className="text-sm text-gray-600 mb-4">
-              Send emergency or informational messages to residents currently inside
+              Send emergency or informational messages to residents
             </p>
+            
+            {/* V7.5 Issue #9: Target selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                Send To:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setBroadcastTarget('INSIDE')}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    broadcastTarget === 'INSIDE'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Inside Now
+                </button>
+                <button
+                  onClick={() => setBroadcastTarget('RECENT')}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    broadcastTarget === 'RECENT'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Last 4 Hours
+                </button>
+                <button
+                  onClick={() => setBroadcastTarget('ALL')}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    broadcastTarget === 'ALL'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All Today
+                </button>
+              </div>
+            </div>
             
             <textarea
               value={broadcastMessage}
