@@ -13,8 +13,8 @@ interface Log {
   guest_count: number
   scanned_at: string
   profile?: {
-    full_name: string
-    unit_number: string
+    name: string
+    unit: string
   } | null
 }
 
@@ -114,8 +114,8 @@ export default function LogsPage() {
     if (log.profile) {
       return (
         <>
-          <span className="font-semibold text-navy-900">{log.profile.full_name}</span>
-          <span className="text-navy-600"> • Unit {log.profile.unit_number}</span>
+          <span className="font-semibold text-navy-900">{log.profile.name}</span>
+          <span className="text-navy-600"> • Unit {log.profile.unit}</span>
         </>
       )
     }

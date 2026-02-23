@@ -1241,7 +1241,7 @@ export default function DashboardPage() {
                   onChange={(e) => setNewResidentPhone(e.target.value)}
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
-                {/* V8.1 Feature #6: Pre-fill with property default guest limit */}
+                {/* V8.2 Fix #3: Guest Limit shows property default dynamically */}
                 <input
                   type="number"
                   placeholder={`Guest Limit (default: ${maxGuestsPerResident})`}
@@ -1249,7 +1249,7 @@ export default function DashboardPage() {
                   onChange={(e) => setNewResidentGuestLimit(e.target.value)}
                   min="0"
                   max="10"
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                   title={`Leave blank to use facility default (${maxGuestsPerResident})`}
                 />
                 <button

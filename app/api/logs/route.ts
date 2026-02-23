@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * GET /api/logs
- * V8.1 Feature #3: Full historical activity log with pagination
+ * V8.2 Fix #2: Full historical activity log with pagination
  * 
  * Query params:
  * - page: number (default 1)
@@ -14,6 +14,8 @@ import { NextRequest, NextResponse } from 'next/server'
  * - total: total count
  * - page: current page
  * - totalPages: total pages
+ * 
+ * FIXED: Changed full_name to name and unit_number to unit to match profiles table schema
  */
 export async function GET(request: NextRequest) {
   try {
@@ -31,15 +33,15 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('property_id', propertyId)
 
-    // Get paginated logs with user profile data
+    // V8.2 Fix #2: Get paginated logs with correct column names (name, unit)
     const { data: logs, error } = await adminClient
       .from('access_logs')
       .select(`
         *,
         profile:user_id(
           id,
-          full_name,
-          unit_number
+          name,
+          unit
         )
       `)
       .eq('property_id', propertyId)

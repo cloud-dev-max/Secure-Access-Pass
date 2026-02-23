@@ -3,16 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * POST /api/check-access
- * V6: Real World Logic - Group Entry/Exit Support
+ * V8.2: Enhanced Visitor Pass & Activity Logging
  * 
  * CRITICAL: Uses Service Role Key to bypass RLS
  * 
- * V6 Changes:
- * - Supports group entry/exit with guest_count parameter
- * - Tracks active_guests per resident
- * - Personal guest limits override property defaults
- * - Enhanced logging with guest counts
- * - Check-only mode for scanner UI
+ * V8.2 Changes:
+ * - Properly logs all visitor pass scans to access_logs table
+ * - Updates visitor_passes.is_inside and used_at timestamps
+ * - Supports re-entry with "WELCOME BACK" messaging
+ * - Tracks occupancy for visitor passes
+ * - Group entry/exit support for residents with guest_count
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`\n=== V6 Access Check ===`)
+    console.log(`\n=== V8.2 Access Check ===`)
     console.log(`QR: ${qr_code}, Type: ${scan_type}, Guests: ${guest_count}, CheckOnly: ${check_only}`)
 
     // ========================================================================
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // V7.9 Fix #1: Grant visitor pass access with proper status tracking
+      // V8.2 Fix #1: Update visitor_passes table with is_inside and used_at
       if (scan_type === 'ENTRY') {
         // Set is_inside=TRUE, mark as used (but only set used_at if first entry)
         const updateData: any = { 
@@ -145,35 +145,55 @@ export async function POST(request: NextRequest) {
         // Only set used_at on first entry (for revenue tracking)
         if (!visitorPass.used_at) {
           updateData.used_at = new Date().toISOString()
+          console.log('✓ First entry - setting used_at timestamp')
+        } else {
+          console.log('✓ Re-entry detected - keeping original used_at')
         }
-        await supabase
+        const { error: updateError } = await supabase
           .from('visitor_passes')
           .update(updateData)
           .eq('id', visitorPass.id)
+        if (updateError) {
+          console.error('❌ Failed to update visitor_passes:', updateError)
+        } else {
+          console.log('✓ Visitor pass updated: is_inside=true, status=used')
+        }
       } else if (scan_type === 'EXIT') {
         // Set is_inside=FALSE on exit
-        await supabase
+        const { error: updateError } = await supabase
           .from('visitor_passes')
           .update({ is_inside: false })
           .eq('id', visitorPass.id)
+        if (updateError) {
+          console.error('❌ Failed to update visitor_passes:', updateError)
+        } else {
+          console.log('✓ Visitor pass updated: is_inside=false')
+        }
       }
 
+      // V8.2 Fix #1: Log visitor pass scan to access_logs
       const ip = request.headers.get('x-forwarded-for') || 'unknown'
       const userAgent = request.headers.get('user-agent') || 'unknown'
-      await supabase.from('access_logs').insert({
+      const logEntry = {
         user_id: visitorPass.purchased_by,
         property_id: visitorPass.property_id,
         qr_code,
         scan_type,
         result: 'GRANTED',
         denial_reason: null,
-        location_before: 'OUTSIDE',
+        location_before: scan_type === 'ENTRY' ? 'OUTSIDE' : 'INSIDE',
         location_after: scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE',
         guest_count: 0,
         event_type: 'SCAN',
         ip_address: ip,
         user_agent: userAgent
-      })
+      }
+      const { error: logError } = await supabase.from('access_logs').insert(logEntry)
+      if (logError) {
+        console.error('❌ Failed to log visitor pass scan:', logError)
+      } else {
+        console.log('✓ Visitor pass scan logged to access_logs')
+      }
 
       // V7.9 Fix #1: Return with re-entry indicator
       return NextResponse.json({
