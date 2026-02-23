@@ -328,6 +328,10 @@ export default function DashboardPage() {
         throw new Error('Failed to toggle maintenance mode')
       }
       
+      // V7.8 Feature #3: Log status change to activity log
+      const newStatus = newMode ? 'CLOSED' : 'OPENED'
+      await logStatusChange(newStatus, 'Manager Dashboard', newMode ? maintenanceReason : '')
+      
       // Reload stats to reflect changes
       await loadMaintenanceStatus()
     } catch (error) {
@@ -337,6 +341,23 @@ export default function DashboardPage() {
       alert('Failed to toggle maintenance mode')
     } finally {
       setTogglingMaintenance(false)
+    }
+  }
+
+  // V7.8 Feature #3: Log pool status changes to activity log
+  const logStatusChange = async (newStatus: string, source: string, reason: string) => {
+    try {
+      await fetch('/api/log-status-change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_status: newStatus,
+          source,
+          reason
+        }),
+      })
+    } catch (error) {
+      console.error('Error logging status change:', error)
     }
   }
 
@@ -1097,15 +1118,21 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {stats.recentActivity.map((log, idx) => {
-                    // V7.5 Issue #6: Handle SYSTEM_BROADCAST
+                    // V7.8 Feature #3: Handle STATUS_CHANGE and V7.5: Handle SYSTEM_BROADCAST
                     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (!log.user && log.denial_reason?.includes('BROADCAST'))
+                    const isStatusChange = log.qr_code === 'STATUS_CHANGE' || log.denial_reason?.includes('Status changed from')
                     
                     // V7.1: Color code by event type
                     let bgColor = 'bg-gray-50'
                     let borderColor = 'border-gray-200'
                     let iconColor = 'text-gray-600'
                     
-                    if (isSystemBroadcast) {
+                    if (isStatusChange) {
+                      // V7.8: Purple/indigo for status changes
+                      bgColor = 'bg-indigo-50'
+                      borderColor = 'border-indigo-200'
+                      iconColor = 'text-indigo-600'
+                    } else if (isSystemBroadcast) {
                       bgColor = 'bg-orange-50'
                       borderColor = 'border-orange-200'
                       iconColor = 'text-orange-600'
@@ -1129,7 +1156,9 @@ export default function DashboardPage() {
                         className={`flex items-center justify-between p-4 rounded-lg border ${bgColor} ${borderColor}`}
                       >
                         <div className="flex items-center gap-4">
-                          {isSystemBroadcast ? (
+                          {isStatusChange ? (
+                            <Shield className={`w-5 h-5 ${iconColor}`} />
+                          ) : isSystemBroadcast ? (
                             <MessageSquare className={`w-5 h-5 ${iconColor}`} />
                           ) : log.scan_type === 'ENTRY' ? (
                             <LogIn className={`w-5 h-5 ${iconColor}`} />
@@ -1138,11 +1167,11 @@ export default function DashboardPage() {
                           )}
                         <div>
                           <p className="font-semibold text-navy-900">
-                            {isSystemBroadcast ? 'System Broadcast' : `${log.user?.name || 'Unknown'} - Unit ${log.user?.unit || 'N/A'}`}
+                            {isStatusChange ? 'Pool Status Change' : isSystemBroadcast ? 'System Broadcast' : `${log.user?.name || 'Unknown'} - Unit ${log.user?.unit || 'N/A'}`}
                           </p>
                           <p className="text-sm text-navy-600">
-                            {isSystemBroadcast ? `${log.guest_count || 0} recipients` : `${log.scan_type} • ${log.result}`}
-                            {log.denial_reason && ` • ${log.denial_reason}`}
+                            {isStatusChange ? log.denial_reason : isSystemBroadcast ? `${log.guest_count || 0} recipients` : `${log.scan_type} • ${log.result}`}
+                            {!isStatusChange && log.denial_reason && ` • ${log.denial_reason}`}
                           </p>
                         </div>
                       </div>

@@ -13,6 +13,7 @@ type UserInfo = {
   active_guests: number
   personal_guest_limit: number | null
   property_max_guests: number
+  user_type?: 'resident' | 'visitor_pass' // V7.8: Track user type
 }
 
 export default function ScannerPage() {
@@ -40,6 +41,10 @@ export default function ScannerPage() {
   const [isPoolOpen, setIsPoolOpen] = useState(true)
   const [closingPool, setClosingPool] = useState(false)
   const [closeReason, setCloseReason] = useState('') // V7.5: Reason for closing
+  
+  // V7.8: Real-time occupancy counter
+  const [currentOccupancy, setCurrentOccupancy] = useState(0)
+  const [maxCapacity, setMaxCapacity] = useState(50)
 
   useEffect(() => {
     return () => {
@@ -62,6 +67,8 @@ export default function ScannerPage() {
           if (data.maintenance_reason) {
             setCloseReason(data.maintenance_reason)
           }
+          // V7.8: Load max capacity
+          setMaxCapacity(data.max_capacity || 50)
         }
       } catch (error) {
         console.error('Error loading pool status:', error)
@@ -72,6 +79,28 @@ export default function ScannerPage() {
 
     // Poll for status updates every 10 seconds (simpler than Realtime for now)
     const interval = setInterval(loadPoolStatus, 10000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // V7.8 Feature #1: Load real-time occupancy counter
+  useEffect(() => {
+    const loadOccupancyCounter = async () => {
+      try {
+        const response = await fetch('/api/occupancy')
+        if (response.ok) {
+          const data = await response.json()
+          setCurrentOccupancy(data.total || 0)
+        }
+      } catch (error) {
+        console.error('Error loading occupancy counter:', error)
+      }
+    }
+
+    loadOccupancyCounter()
+
+    // Poll for occupancy updates every 5 seconds
+    const interval = setInterval(loadOccupancyCounter, 5000)
 
     return () => clearInterval(interval)
   }, [])
@@ -182,7 +211,7 @@ export default function ScannerPage() {
             await processGroupAccess(0)
           }
         } else {
-          // Visitor pass: Simple grant
+          // V7.8 Feature #2: Visitor pass - show special warning
           setScanResult('success')
           setUserInfo({ 
             name: data.user_name, 
@@ -190,7 +219,8 @@ export default function ScannerPage() {
             current_location: 'OUTSIDE',
             active_guests: 0,
             personal_guest_limit: null,
-            property_max_guests: 0
+            property_max_guests: 0,
+            user_type: 'visitor_pass' // V7.8: Mark as visitor pass
           })
           setMessage('Access Granted')
           setTimeout(resetScanner, 3000)
@@ -468,6 +498,23 @@ export default function ScannerPage() {
     }
   }
   
+  // V7.8 Feature #3: Log pool status changes to activity log
+  const logStatusChange = async (newStatus: string, source: string, reason: string) => {
+    try {
+      await fetch('/api/log-status-change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_status: newStatus,
+          source,
+          reason
+        }),
+      })
+    } catch (error) {
+      console.error('Error logging status change:', error)
+    }
+  }
+
   // V7.5 Issue #9: Prompt for reason when closing pool
   const togglePoolStatus = async () => {
     let reason = ''
@@ -499,9 +546,14 @@ export default function ScannerPage() {
       })
       
       if (response.ok) {
+        const newStatus = isPoolOpen ? 'CLOSED' : 'OPENED'
         setIsPoolOpen(!isPoolOpen)
         setCloseReason(isPoolOpen ? reason : '')
-        alert(`Pool ${isPoolOpen ? 'CLOSED' : 'OPENED'} successfully!`)
+        
+        // V7.8 Feature #3: Log status change to activity log
+        await logStatusChange(newStatus, 'Scanner', reason)
+        
+        alert(`Pool ${newStatus} successfully!`)
       } else {
         alert('Failed to update pool status')
       }
@@ -517,19 +569,21 @@ export default function ScannerPage() {
     <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 text-white">
       {/* Header - V7.4: Staff Mode (Dashboard link removed per Issue #1) */}
       <div className="bg-navy-800/50 backdrop-blur-sm border-b border-navy-700 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center">
-              <Camera className="w-7 h-7 text-white" />
+        <div className="max-w-7xl mx-auto">
+          {/* Top Row: Logo & Controls */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center">
+                <Camera className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Secure Access Scanner</h1>
+                <p className="text-sm text-white/70">Staff Mode</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold">Secure Access Scanner</h1>
-              <p className="text-sm text-white/70">Staff Mode</p>
-            </div>
-          </div>
 
-          {/* V7.4: Staff Controls */}
-          <div className="flex items-center gap-2">
+            {/* V7.4: Staff Controls */}
+            <div className="flex items-center gap-2">
             <button
               onClick={() => { setShowOccupancyPanel(!showOccupancyPanel); if (!showOccupancyPanel) loadOccupancy(); }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all flex items-center gap-2"
@@ -556,6 +610,22 @@ export default function ScannerPage() {
               <Shield className="w-5 h-5" />
               {closingPool ? 'Updating...' : (isPoolOpen ? 'Close Pool' : 'Open Pool')}
             </button>
+          </div>
+          </div>
+          
+          {/* V7.8 Feature #1: High-Visibility Occupancy Counter */}
+          <div className="bg-gradient-to-r from-teal-600/20 to-blue-600/20 border border-teal-500/30 rounded-lg px-6 py-3 flex items-center justify-center gap-3">
+            <Users className="w-6 h-6 text-teal-400" />
+            <div className="text-center">
+              <p className="text-sm text-white/70 font-medium">Pool Occupancy</p>
+              <p className="text-2xl font-bold">
+                <span className={currentOccupancy >= maxCapacity ? 'text-red-400' : 'text-teal-400'}>
+                  {currentOccupancy}
+                </span>
+                <span className="text-white/50"> / </span>
+                <span className="text-white">{maxCapacity}</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -636,6 +706,17 @@ export default function ScannerPage() {
             <CheckCircle2 className="w-20 h-20 mx-auto mb-4" />
             <h2 className="text-3xl font-bold mb-2">Access Granted</h2>
             <p className="text-xl">{message || userInfo?.name}</p>
+            
+            {/* V7.8 Feature #2: Visitor Pass Warning */}
+            {userInfo?.user_type === 'visitor_pass' && (
+              <div className="mt-6 pt-6 border-t-2 border-white/30">
+                <div className="bg-yellow-500/20 border-2 border-yellow-300 rounded-xl p-4 mb-3">
+                  <p className="text-sm font-bold text-yellow-100 mb-1">TYPE: VISITOR PASS</p>
+                  <p className="text-xs text-yellow-200">⚠️ VALID FOR 1 PERSON ONLY</p>
+                </div>
+                <p className="text-sm text-white/80">This pass grants entry for a single visitor.</p>
+              </div>
+            )}
           </div>
         )}
 
