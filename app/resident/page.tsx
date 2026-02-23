@@ -355,11 +355,11 @@ export default function ResidentPortalPage() {
 
     setGuestPassError('') // Clear previous errors
 
-    // V7.1: Check guest pass limit - only count ACTIVE and NOT EXPIRED
+    // V7.9 Fix #3: Check guest pass limit - count 'active' OR 'used' if not expired
     const activeGuestPasses = guestPasses.filter(p => {
-      const isActive = p.status === 'active'
       const notExpired = new Date(p.expires_at) > new Date()
-      return isActive && notExpired
+      const isValidStatus = p.status === 'active' || p.status === 'used'
+      return notExpired && isValidStatus
     })
     if (activeGuestPasses.length >= maxGuestsAllowed) {
       setGuestPassError(`You have reached the maximum of ${maxGuestsAllowed} active guest passes. Please wait for existing passes to expire or be used.`)
@@ -638,12 +638,12 @@ export default function ResidentPortalPage() {
             )}
           </div>
 
-          {/* V7.1: Display guest pass limit - Only count ACTIVE and NOT EXPIRED */}
+          {/* V7.9 Fix #3: Display guest pass limit - Count 'active' OR 'used' if not expired */}
           <p className="text-sm text-navy-600 mb-4">
             Active passes: {guestPasses.filter(p => {
-              const isActive = p.status === 'active'
               const notExpired = new Date(p.expires_at) > new Date()
-              return isActive && notExpired
+              const isValidStatus = p.status === 'active' || p.status === 'used'
+              return notExpired && isValidStatus
             }).length} / {maxGuestsAllowed} allowed
           </p>
 
@@ -724,23 +724,24 @@ export default function ResidentPortalPage() {
               </p>
             ) : (
               guestPasses.filter((pass) => {
-                // V7.1: Filter out old passes unless showing history
+                // V7.9 Fix #3: Filter based on 11:59 PM expiration logic
                 if (showPassHistory) return true
                 const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
-                const isUsed = pass.status === 'used'
-                return !isExpired && !isUsed
+                // V7.9: 'used' passes are still valid until expiration (11:59 PM same day)
+                return !isExpired
               }).map((pass) => {
+                // V7.9 Fix #3: Check if expired (not just used)
                 const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
-                const isUsed = pass.status === 'used'
+                const wasUsed = pass.status === 'used' && pass.used_at // V7.9: Track if pass was scanned
                 
                 return (
                   <div
                     key={pass.id}
                     className={`p-4 rounded-lg border-2 ${
-                      isUsed 
-                        ? 'bg-gray-50 border-gray-300' 
-                        : isExpired
+                      isExpired
                         ? 'bg-red-50 border-red-300'
+                        : wasUsed
+                        ? 'bg-blue-50 border-blue-300'
                         : 'bg-green-50 border-green-300'
                     }`}
                   >
@@ -750,26 +751,26 @@ export default function ResidentPortalPage() {
                           {pass.guest_name || 'Guest Pass'}
                         </div>
                         <div className="text-sm text-navy-600">
-                          {isUsed ? (
-                            <span className="flex items-center gap-1">
-                              <XCircle className="w-4 h-4 text-red-600" />
-                              Used on {new Date(pass.used_at!).toLocaleString()}
-                            </span>
-                          ) : isExpired ? (
+                          {isExpired ? (
                             <span className="flex items-center gap-1">
                               <XCircle className="w-4 h-4 text-red-600" />
                               Expired
                             </span>
+                          ) : wasUsed ? (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                              In Use - Valid until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            </span>
                           ) : (
                             <span className="flex items-center gap-1">
                               <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              Valid for multiple entries until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              Active - Valid until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                             </span>
                           )}
                         </div>
                       </div>
                       
-                      {!isUsed && !isExpired && (
+                      {!isExpired && (
                         <button
                           onClick={() => shareGuestPass(pass.id)}
                           className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"

@@ -45,6 +45,9 @@ export default function ScannerPage() {
   // V7.8: Real-time occupancy counter
   const [currentOccupancy, setCurrentOccupancy] = useState(0)
   const [maxCapacity, setMaxCapacity] = useState(50)
+  
+  // V7.9 Fix #2: Trigger for occupancy refresh
+  const [occupancyRefreshTrigger, setOccupancyRefreshTrigger] = useState(0)
 
   useEffect(() => {
     return () => {
@@ -84,6 +87,7 @@ export default function ScannerPage() {
   }, [])
 
   // V7.8 Feature #1: Load real-time occupancy counter
+  // V7.9 Fix #2: Refresh when trigger changes
   useEffect(() => {
     const loadOccupancyCounter = async () => {
       try {
@@ -103,7 +107,23 @@ export default function ScannerPage() {
     const interval = setInterval(loadOccupancyCounter, 5000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [occupancyRefreshTrigger])
+
+  // V7.9 Fix #2: Auto-refresh 'People Currently Inside' modal
+  useEffect(() => {
+    // Only refresh if modal is open
+    if (showOccupancyPanel) {
+      loadOccupancy()
+    }
+    
+    // Set up interval to refresh every 5 seconds when modal is open
+    if (showOccupancyPanel) {
+      const interval = setInterval(() => {
+        loadOccupancy()
+      }, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [showOccupancyPanel, occupancyRefreshTrigger])
 
   const startScanner = async () => {
     try {
@@ -212,6 +232,7 @@ export default function ScannerPage() {
           }
         } else {
           // V7.8 Feature #2: Visitor pass - show special warning
+          // V7.9 Fix #1: Show 'WELCOME BACK' for re-entry
           setScanResult('success')
           setUserInfo({ 
             name: data.user_name, 
@@ -222,7 +243,12 @@ export default function ScannerPage() {
             property_max_guests: 0,
             user_type: 'visitor_pass' // V7.8: Mark as visitor pass
           })
-          setMessage('Access Granted')
+          // V7.9 Fix #1: Different message for re-entry
+          setMessage(data.is_re_entry ? 'WELCOME BACK' : 'Access Granted')
+          
+          // V7.9 Fix #2: Trigger occupancy refresh after visitor pass scan
+          setOccupancyRefreshTrigger(prev => prev + 1)
+          
           setTimeout(resetScanner, 3000)
         }
       } else {
@@ -259,6 +285,9 @@ export default function ScannerPage() {
         setScanResult('success')
         // V7.1: Use API-formatted message directly (already includes guest count)
         setMessage(data.user_name)
+        
+        // V7.9 Fix #2: Trigger occupancy refresh after successful scan
+        setOccupancyRefreshTrigger(prev => prev + 1)
       } else {
         setScanResult('denied')
         // V7.1: Use specific denial reason from API

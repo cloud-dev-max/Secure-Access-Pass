@@ -67,20 +67,36 @@ export async function POST(request: NextRequest) {
       const now = new Date()
       const expiresAt = new Date(visitorPass.expires_at)
 
-      if (visitorPass.status === 'used') {
-        console.log('❌ DENIED: Visitor pass already used')
-        return NextResponse.json({
-          can_access: false,
-          denial_reason: 'This visitor pass has already been used (one-time entry)',
-          user_name: visitorPass.guest_name || 'Visitor'
-        })
-      }
-
+      // V7.9 Fix #1: Check expiration first (passes expire at 11:59 PM same day)
       if (visitorPass.status === 'expired' || now > expiresAt) {
         console.log('❌ DENIED: Visitor pass expired')
         return NextResponse.json({
           can_access: false,
           denial_reason: 'This visitor pass has expired',
+          user_name: visitorPass.guest_name || 'Visitor'
+        })
+      }
+
+      // V7.9 Fix #1: Check if re-entry (pass was used but still valid today)
+      const isReEntry = (visitorPass.status === 'used' || visitorPass.status === 'active') && visitorPass.used_at
+      const isCurrentlyInside = visitorPass.is_inside === true
+
+      // V7.9 Fix #1: Block if trying to enter when already inside
+      if (scan_type === 'ENTRY' && isCurrentlyInside) {
+        console.log('❌ DENIED: Visitor already inside')
+        return NextResponse.json({
+          can_access: false,
+          denial_reason: 'This visitor is already inside the facility',
+          user_name: visitorPass.guest_name || 'Visitor'
+        })
+      }
+
+      // V7.9 Fix #1: Block if trying to exit when already outside
+      if (scan_type === 'EXIT' && !isCurrentlyInside) {
+        console.log('❌ DENIED: Visitor already outside')
+        return NextResponse.json({
+          can_access: false,
+          denial_reason: 'This visitor is not currently inside',
           user_name: visitorPass.guest_name || 'Visitor'
         })
       }
@@ -119,11 +135,26 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Grant visitor pass access
+      // V7.9 Fix #1: Grant visitor pass access with proper status tracking
       if (scan_type === 'ENTRY') {
+        // Set is_inside=TRUE, mark as used (but only set used_at if first entry)
+        const updateData: any = { 
+          is_inside: true,
+          status: 'used'
+        }
+        // Only set used_at on first entry (for revenue tracking)
+        if (!visitorPass.used_at) {
+          updateData.used_at = new Date().toISOString()
+        }
         await supabase
           .from('visitor_passes')
-          .update({ status: 'used', used_at: new Date().toISOString() })
+          .update(updateData)
+          .eq('id', visitorPass.id)
+      } else if (scan_type === 'EXIT') {
+        // Set is_inside=FALSE on exit
+        await supabase
+          .from('visitor_passes')
+          .update({ is_inside: false })
           .eq('id', visitorPass.id)
       }
 
@@ -144,11 +175,14 @@ export async function POST(request: NextRequest) {
         user_agent: userAgent
       })
 
+      // V7.9 Fix #1: Return with re-entry indicator
       return NextResponse.json({
         can_access: true,
         user_name: visitorPass.guest_name || 'Visitor',
         user_id: null,
-        current_location: scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE'
+        user_type: 'visitor_pass',
+        current_location: scan_type === 'ENTRY' ? 'INSIDE' : 'OUTSIDE',
+        is_re_entry: isReEntry && scan_type === 'ENTRY' // V7.9: Flag for UI to show 'WELCOME BACK'
       })
     }
 
