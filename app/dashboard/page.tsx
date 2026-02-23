@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { 
   Users, 
   Settings, 
@@ -1090,7 +1091,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-navy-900 mb-1">Health & Safety Alerts</h3>
-                  <p className="text-sm text-navy-600">Broadcast message to all residents currently inside</p>
+                  <p className="text-sm text-navy-600">Send instant notifications to targeted resident groups.</p>
                 </div>
                 <button
                   onClick={() => setShowBroadcastModal(true)}
@@ -1182,6 +1183,17 @@ export default function DashboardPage() {
                   )})}
                 </div>
               )}
+              
+              {/* V8.1 Feature #3: View All Activity Button */}
+              <div className="mt-6 text-center">
+                <Link
+                  href="/logs"
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition-colors font-medium"
+                >
+                  <Clock className="w-5 h-5" />
+                  <span>View All Activity</span>
+                </Link>
+              </div>
             </div>
 
             {/* V7.4: Quick Actions section removed per requirement #5 */}
@@ -1229,16 +1241,16 @@ export default function DashboardPage() {
                   onChange={(e) => setNewResidentPhone(e.target.value)}
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
-                {/* V7.4: Per-Resident Guest Limit */}
+                {/* V8.1 Feature #6: Pre-fill with property default guest limit */}
                 <input
                   type="number"
-                  placeholder="Guest Limit (default)"
+                  placeholder={`Guest Limit (default: ${maxGuestsPerResident})`}
                   value={newResidentGuestLimit}
                   onChange={(e) => setNewResidentGuestLimit(e.target.value)}
                   min="0"
                   max="10"
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                  title="Leave blank to use facility default"
+                  title={`Leave blank to use facility default (${maxGuestsPerResident})`}
                 />
                 <button
                   type="submit"

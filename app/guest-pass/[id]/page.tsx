@@ -102,9 +102,9 @@ export default function GuestPassPage() {
           <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-10 h-10 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-navy-900 mb-2">Guest Pass Not Found</h1>
+          <h1 className="text-2xl font-bold text-navy-900 mb-2">Visitor Pass Not Found</h1>
           <p className="text-navy-600">
-            {error || 'This guest pass does not exist or has been deleted.'}
+            {error || 'This visitor pass does not exist or has been deleted.'}
           </p>
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function GuestPassPage() {
                 : 'text-red-600'
             }`} />
           </div>
-          <h1 className="text-3xl font-bold text-navy-900 mb-2">Pool Guest Pass</h1>
+          <h1 className="text-3xl font-bold text-navy-900 mb-2">Pool Visitor Pass</h1>
           <p className="text-navy-600">
             {guestPass.guest_name ? `For ${guestPass.guest_name}` : 'Single-Use Access'}
           </p>
@@ -231,16 +231,10 @@ export default function GuestPassPage() {
           )}
         </div>
 
-        {/* Important Information */}
+        {/* V8.1 Feature #4: Updated terminology and simplified text */}
         {isValid && (
-          <div className="bg-navy-50 border border-navy-200 rounded-lg p-4">
-            <h3 className="font-semibold text-navy-900 mb-2">Important:</h3>
-            <ul className="text-sm text-navy-700 space-y-1">
-              <li>• This is a <strong>one-time use</strong> pass</li>
-              <li>• Valid for <strong>24 hours</strong> from purchase</li>
-              <li>• Must be scanned at pool entrance</li>
-              <li>• Once used, it cannot be used again</li>
-            </ul>
+          <div className="text-center text-navy-700">
+            <p className="italic">Valid for multiple entries until 11:59 PM today.</p>
           </div>
         )}
 
