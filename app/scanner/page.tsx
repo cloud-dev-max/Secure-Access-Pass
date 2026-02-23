@@ -231,9 +231,8 @@ export default function ScannerPage() {
             await processGroupAccess(0)
           }
         } else {
-          // V7.8 Feature #2: Visitor pass - show special warning
-          // V7.9 Fix #1: Show 'WELCOME BACK' for re-entry
-          setScanResult('success')
+          // V8.3 Fix #1: Visitor pass - auto-commit after successful check_only
+          // Store visitor pass info for display
           setUserInfo({ 
             name: data.user_name, 
             id: data.user_id,
@@ -243,13 +242,9 @@ export default function ScannerPage() {
             property_max_guests: 0,
             user_type: 'visitor_pass' // V7.8: Mark as visitor pass
           })
-          // V7.9 Fix #1: Different message for re-entry
-          setMessage(data.is_re_entry ? 'WELCOME BACK' : 'Access Granted')
           
-          // V7.9 Fix #2: Trigger occupancy refresh after visitor pass scan
-          setOccupancyRefreshTrigger(prev => prev + 1)
-          
-          setTimeout(resetScanner, 3000)
+          // V8.3 CRITICAL FIX: Immediately fire check_only:false to commit the scan
+          await commitVisitorPassScan(decodedText, data.user_name, data.is_re_entry)
         }
       } else {
         setScanResult('denied')
@@ -304,6 +299,45 @@ export default function ScannerPage() {
       setTimeout(resetScanner, 3000)
     } finally {
       setProcessingGroup(false)
+    }
+  }
+
+  // V8.3 Fix #1: Commit visitor pass scan after check_only validation
+  const commitVisitorPassScan = async (qrCode: string, userName: string, isReEntry: boolean) => {
+    try {
+      // Fire the actual scan with check_only:false (default)
+      const response = await fetch('/api/check-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qr_code: qrCode,
+          scan_type: mode,
+          guest_count: 0 // Visitor passes always 0 guests
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.can_access) {
+        setScanResult('success')
+        // V7.9 Fix #1: Different message for re-entry
+        setMessage(isReEntry ? 'WELCOME BACK' : 'Access Granted')
+        
+        // V7.9 Fix #2: Trigger occupancy refresh after visitor pass scan
+        setOccupancyRefreshTrigger(prev => prev + 1)
+        
+        console.log('✓ Visitor pass scan committed to database')
+      } else {
+        setScanResult('denied')
+        setMessage(data.denial_reason || 'Access Denied')
+      }
+      
+      setTimeout(resetScanner, 3000)
+    } catch (error) {
+      console.error('Visitor pass commit error:', error)
+      setScanResult('error')
+      setMessage('System Error')
+      setTimeout(resetScanner, 3000)
     }
   }
 

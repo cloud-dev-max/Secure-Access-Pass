@@ -78,8 +78,8 @@ export async function GET() {
       console.error('Exception fetching rules count:', error)
     }
 
-    // Get recent activity (last 10 access logs)
-    // This is optional - if access_logs doesn't exist or is empty, just return empty array
+    // V8.3 Fix #2: Get recent activity (last 10 access logs)
+    // IMPORTANT: Use LEFT JOIN to include system events (broadcasts, status changes) with null user_id
     try {
       const { data, error: activityError } = await adminClient
         .from('access_logs')
@@ -91,10 +91,11 @@ export async function GET() {
           scan_type,
           result,
           denial_reason,
+          guest_count,
           location_before,
           location_after,
           scanned_at,
-          profiles!inner(name, unit)
+          profiles(name, unit)
         `)
         .order('scanned_at', { ascending: false })
         .limit(10)
@@ -104,7 +105,7 @@ export async function GET() {
         // If access_logs table doesn't exist or has issues, just use empty array
         recentActivity = []
       } else {
-        // Transform the data to match expected format
+        // V8.3 Fix #2: Transform data - handle null profiles for system events
         recentActivity = (data || []).map(log => ({
           id: log.id,
           user_id: log.user_id,
@@ -113,13 +114,14 @@ export async function GET() {
           scan_type: log.scan_type,
           result: log.result,
           denial_reason: log.denial_reason,
+          guest_count: log.guest_count || 0,
           location_before: log.location_before,
           location_after: log.location_after,
           scanned_at: log.scanned_at,
           user: log.profiles ? {
             name: log.profiles.name,
             unit: log.profiles.unit,
-          } : null,
+          } : null, // null for system events (broadcasts, status changes)
         }))
       }
     } catch (error) {

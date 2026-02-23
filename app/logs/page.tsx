@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X } from 'lucide-react'
 
 interface Log {
   id: string
@@ -32,15 +32,21 @@ export default function LogsPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [selectedDate, setSelectedDate] = useState<string>('') // V8.3 Fix #3: Date filter
 
   useEffect(() => {
     loadLogs(page)
-  }, [page])
+  }, [page, selectedDate]) // V8.3: Reload when date filter changes
 
   const loadLogs = async (pageNum: number) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/logs?page=${pageNum}&limit=50`)
+      // V8.3 Fix #3: Add date parameter if filter is set
+      let url = `/api/logs?page=${pageNum}&limit=50`
+      if (selectedDate) {
+        url += `&date=${selectedDate}`
+      }
+      const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch logs')
       
       const data: LogsResponse = await response.json()
@@ -53,6 +59,12 @@ export default function LogsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // V8.3 Fix #3: Clear date filter and reload
+  const clearDateFilter = () => {
+    setSelectedDate('')
+    setPage(1) // Reset to first page
   }
 
   const formatDate = (dateString: string) => {
@@ -169,12 +181,46 @@ export default function LogsPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* V8.3 Fix #3: Date Filter */}
+        <div className="bg-white rounded-lg border border-navy-200 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Calendar className="w-5 h-5 text-navy-600" />
+              <span className="text-sm font-semibold text-navy-900">Filter by Date:</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value)
+                  setPage(1) // Reset to first page when filter changes
+                }}
+                className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+              {selectedDate && (
+                <button
+                  onClick={clearDateFilter}
+                  className="flex items-center space-x-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="text-sm font-medium">Clear Date</span>
+                </button>
+              )}
+            </div>
+            {selectedDate && (
+              <div className="text-sm text-navy-600">
+                Showing logs for: <span className="font-semibold text-navy-900">{new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Stats Bar */}
         <div className="bg-white rounded-lg border border-navy-200 p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-navy-600">
               Showing <span className="font-semibold text-navy-900">{logs.length}</span> of{' '}
               <span className="font-semibold text-navy-900">{total}</span> total logs
+              {selectedDate && <span className="ml-1">(filtered)</span>}
             </div>
             <div className="text-sm text-navy-600">
               Page <span className="font-semibold text-navy-900">{page}</span> of{' '}

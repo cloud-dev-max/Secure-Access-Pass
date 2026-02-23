@@ -117,6 +117,13 @@ export default function DashboardPage() {
     }
   }, [activeTab])
 
+  // V8.3 Fix #4: Pre-fill Guest Limit with property default when settings load
+  useEffect(() => {
+    if (maxGuestsPerResident && newResidentGuestLimit === '') {
+      setNewResidentGuestLimit(maxGuestsPerResident.toString())
+    }
+  }, [maxGuestsPerResident])
+
   // V7.6 Fix #3: Poll for maintenance status updates every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
