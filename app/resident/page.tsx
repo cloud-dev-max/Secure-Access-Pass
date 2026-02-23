@@ -763,7 +763,7 @@ export default function ResidentPortalPage() {
                           ) : (
                             <span className="flex items-center gap-1">
                               <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              Valid until {new Date(pass.expires_at).toLocaleString()}
+                              Valid for multiple entries until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                             </span>
                           )}
                         </div>

@@ -127,9 +127,15 @@ export async function GET(request: NextRequest) {
     })
     const last7DaysRevenue = last7Days.length * guestPassPrice
 
-    // Active vs expired passes
-    const activePasses = passes.filter(p => p.status === 'active').length
-    const expiredPasses = passes.filter(p => p.status === 'expired' || p.status === 'used').length
+    // V7.7 Fix #2: Active passes - only count where is_inside=TRUE and not expired
+    const now = new Date()
+    const activePasses = passes.filter(p => {
+      const isActive = p.status === 'active'
+      const notExpired = new Date(p.expires_at) > now
+      const isInside = p.is_inside === true
+      return isActive && notExpired && isInside
+    }).length
+    const expiredPasses = passes.filter(p => p.status === 'expired' || p.status === 'used' || new Date(p.expires_at) <= now).length
 
     return NextResponse.json({
       success: true,

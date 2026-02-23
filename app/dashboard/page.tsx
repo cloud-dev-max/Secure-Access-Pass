@@ -27,6 +27,7 @@ import {
 import { QRCodeCanvas } from 'qrcode.react'
 import type { Profile, AccessRule, UserRuleStatus } from '@/lib/types/database'
 import CsvUploader from '@/components/CsvUploader'
+import { createClient } from '@/lib/supabase/client' // V7.7: For Realtime
 
 type ProfileWithRules = Profile & {
   rule_statuses: (UserRuleStatus & { rule: AccessRule })[]
@@ -83,7 +84,8 @@ export default function DashboardPage() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
   const [broadcastMessage, setBroadcastMessage] = useState('')
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
-  const [broadcastTargetFilter, setBroadcastTargetFilter] = useState<'INSIDE' | 'ALL' | 'RECENT'>('INSIDE')
+  const [broadcastTargetFilter, setBroadcastTargetFilter] = useState<'INSIDE' | 'ALL' | 'RECENT' | 'DATE'>('INSIDE')
+  const [broadcastDate, setBroadcastDate] = useState('') // V7.7: Date for historical broadcast
 
   // V7: Facility Settings
   const [propertyName, setPropertyName] = useState('')
@@ -121,6 +123,56 @@ export default function DashboardPage() {
     }, 10000) // Poll every 10 seconds
 
     return () => clearInterval(interval)
+  }, [])
+
+  // V7.7 Fix #1: Supabase Realtime listener for instant activity updates
+  useEffect(() => {
+    const supabase = createClient()
+    
+    // Subscribe to access_logs changes for Recent Activity
+    const accessLogsChannel = supabase
+      .channel('access_logs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'access_logs'
+        },
+        (payload) => {
+          console.log('[Realtime] Access log change:', payload)
+          // Reload stats and occupancy when activity happens
+          loadData()
+          loadOccupancyBreakdown()
+          loadInsideResidents()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to profiles changes for occupancy updates
+    const profilesChannel = supabase
+      .channel('profiles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: 'role=eq.resident'
+        },
+        (payload) => {
+          console.log('[Realtime] Profile updated:', payload)
+          // Reload occupancy when resident location changes
+          loadOccupancyBreakdown()
+          loadInsideResidents()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(accessLogsChannel)
+      supabase.removeChannel(profilesChannel)
+    }
   }, [])
 
   const loadMaintenanceStatus = async () => {
@@ -1946,8 +1998,9 @@ export default function DashboardPage() {
               <AlertCircle className="w-7 h-7 text-red-600" />
               Broadcast Health Alert
             </h2>
+            {/* V7.7 Fix #3: Updated description for historical & facility-wide reach */}
             <p className="text-navy-600 mb-6">
-              Send emergency or informational messages to residents
+              Send urgent notifications to residents based on visit history or facility-wide
             </p>
             
             {/* Target Filter Dropdown */}
@@ -1957,19 +2010,37 @@ export default function DashboardPage() {
               </label>
               <select
                 value={broadcastTargetFilter}
-                onChange={(e) => setBroadcastTargetFilter(e.target.value as 'INSIDE' | 'ALL' | 'RECENT')}
+                onChange={(e) => setBroadcastTargetFilter(e.target.value as 'INSIDE' | 'ALL' | 'RECENT' | 'DATE')}
                 className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-gray-900"
               >
                 <option value="INSIDE" className="bg-white text-gray-900">Currently Inside Only</option>
                 <option value="RECENT" className="bg-white text-gray-900">Visited in Last 4 Hours</option>
                 <option value="ALL" className="bg-white text-gray-900">All Active Residents</option>
+                <option value="DATE" className="bg-white text-gray-900">Present on Specific Date</option>
               </select>
               <p className="text-xs text-navy-500 mt-1">
                 {broadcastTargetFilter === 'INSIDE' && 'Send to residents currently at the facility'}
                 {broadcastTargetFilter === 'RECENT' && 'Send to residents who visited within the last 4 hours'}
                 {broadcastTargetFilter === 'ALL' && 'Send to all active residents regardless of location'}
+                {broadcastTargetFilter === 'DATE' && 'Send to residents who were present on a specific date'}
               </p>
             </div>
+
+            {/* V7.7 Fix #3: Date Selector for Historical Broadcasts */}
+            {broadcastTargetFilter === 'DATE' && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-navy-900 mb-2">
+                  Select Date
+                </label>
+                <input
+                  type="date"
+                  value={broadcastDate}
+                  onChange={(e) => setBroadcastDate(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-gray-900"
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            )}
 
             <textarea
               value={broadcastMessage}

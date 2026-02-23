@@ -86,11 +86,11 @@ export async function POST(request: NextRequest) {
     // Generate unique QR code for guest pass
     const qrCode = `GUEST-${Date.now()}-${uuidv4().substring(0, 8).toUpperCase()}`
 
-    // Guest pass expires in 24 hours
+    // V7.7 Fix #5: Visitor pass expires at 11:59 PM on purchase day (unlimited entries)
     const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + 24)
+    expiresAt.setHours(23, 59, 59, 999) // Set to 11:59:59 PM today
 
-    console.log('Creating guest pass:', { purchased_by, qrCode, expiresAt: expiresAt.toISOString() })
+    console.log('Creating visitor pass:', { purchased_by, qrCode, expiresAt: expiresAt.toISOString(), validUntil: '11:59 PM today' })
 
     // V7.6 Fix #1: Remove is_paid field (PGRST204) - column doesn't exist yet
     const { data, error } = await adminClient
