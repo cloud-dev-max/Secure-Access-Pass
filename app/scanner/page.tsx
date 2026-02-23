@@ -455,15 +455,14 @@ export default function ScannerPage() {
     return null
   }
   
-  // V7.4: Staff Mode functions
+  // V8.0 Requirement #1: Load unified occupancy (residents + visitors)
   const loadOccupancy = async () => {
     setLoadingOccupancy(true)
     try {
-      const response = await fetch('/api/residents')
+      const response = await fetch('/api/occupancy-list')
       if (response.ok) {
         const data = await response.json()
-        const inside = data.filter((r: any) => r.current_location === 'INSIDE')
-        setInsideResidents(inside)
+        setInsideResidents(data.occupants || [])
       }
     } catch (error) {
       console.error('Error loading occupancy:', error)
@@ -684,7 +683,18 @@ export default function ScannerPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center justify-center px-4 pb-8">
+      <div className="flex flex-col items-center justify-center px-4 pb-8 relative">
+        {/* V8.0 Requirement #3: Pool Closed Overlay */}
+        {!isPoolOpen && (
+          <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center rounded-2xl">
+            <div className="text-center p-8">
+              <div className="text-8xl mb-6">⛔</div>
+              <h2 className="text-5xl font-bold text-red-500 mb-4">FACILITY CLOSED</h2>
+              <p className="text-white text-xl">{closeReason || 'Pool is currently closed for maintenance'}</p>
+            </div>
+          </div>
+        )}
+        
         {!isScanning && scanResult === 'idle' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center max-w-md">
             <Camera className="w-20 h-20 mx-auto mb-4 text-teal-400" />
@@ -694,9 +704,14 @@ export default function ScannerPage() {
             </p>
             <button
               onClick={startScanner}
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all"
+              disabled={!isPoolOpen}
+              className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${
+                !isPoolOpen 
+                  ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                  : 'bg-teal-600 hover:bg-teal-700 text-white'
+              }`}
             >
-              Start Scanner
+              {!isPoolOpen ? 'Scanner Disabled' : 'Start Scanner'}
             </button>
             {cameraError && (
               <p className="mt-4 text-red-400 text-sm">{cameraError}</p>
@@ -803,25 +818,36 @@ export default function ScannerPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {insideResidents.map((resident: any) => {
-                        const totalPeople = 1 + (resident.active_guests || 0)
+                      {insideResidents.map((occupant: any) => {
+                        // V8.0: Support both residents and visitor passes
+                        const isVisitor = occupant.type === 'visitor'
+                        const totalPeople = occupant.total_people || 1
                         return (
-                          <tr key={resident.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-gray-900 font-semibold">{resident.name}</td>
-                            <td className="px-4 py-3 text-gray-700">{resident.unit}</td>
+                          <tr key={occupant.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900 font-semibold">
+                              {occupant.name}
+                              {isVisitor && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">VISITOR</span>}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{occupant.unit}</td>
                             <td className="px-4 py-3 text-center">
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
-                                +{resident.active_guests || 0}
-                              </span>
+                              {isVisitor ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                                  +{occupant.active_guests || 0}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center text-gray-900 font-bold">{totalPeople}</td>
                             <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => forceExit(resident.id)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
-                              >
-                                Force Exit
-                              </button>
+                              {!isVisitor && (
+                                <button
+                                  onClick={() => forceExit(occupant.id)}
+                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
+                                >
+                                  Force Exit
+                                </button>
+                              )}
                             </td>
                           </tr>
                         )

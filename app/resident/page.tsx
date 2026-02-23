@@ -771,13 +771,22 @@ export default function ResidentPortalPage() {
                       </div>
                       
                       {!isExpired && (
-                        <button
-                          onClick={() => shareGuestPass(pass.id)}
-                          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          Share
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => window.open(`/guest-pass/${pass.id}`, '_blank')}
+                            className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
+                          >
+                            <QrCode className="w-4 h-4" />
+                            View Pass
+                          </button>
+                          <button
+                            onClick={() => shareGuestPass(pass.id)}
+                            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
+                          >
+                            <Share2 className="w-4 h-4" />
+                            Share
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

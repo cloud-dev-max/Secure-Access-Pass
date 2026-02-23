@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
     const uuid = crypto.randomUUID().split('-')[0]
     const qrCode = `VISITOR-${timestamp}-${uuid}`
 
-    // V6: Visitor passes expire in 24 hours
+    // V8.0 Requirement #8: Visitor passes expire at 11:59:59 PM same day
     const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + 24)
+    expiresAt.setHours(23, 59, 59, 999)
 
     // Create the visitor pass
     const { data: newPass, error: createError } = await adminClient
