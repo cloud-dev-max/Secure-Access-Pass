@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X } from 'lucide-react'
+import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X, Download } from 'lucide-react'
 
 interface Log {
   id: string
@@ -66,6 +66,47 @@ export default function LogsPage() {
     setSelectedDate('')
     setPage(1) // Reset to first page
   }
+
+  // V8.12 UX #4: Export activity log to CSV
+  const exportActivityCSV = async () => {
+    try {
+      const response = await fetch('/api/activity-logs?limit=1000');
+      if (!response.ok) throw new Error('Failed to fetch activity logs');
+      
+      const data = await response.json();
+      const logs = data.logs || [];
+      
+      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit'];
+      const rows = logs.map((log: any) => [
+        new Date(log.created_at).toLocaleString(),
+        log.resident_name || 'Unknown',
+        log.user_type === 'visitor_pass' ? 'Visitor Pass' : 'Resident',
+        log.event_type || 'SCAN',
+        log.result || 'N/A',
+        log.resident_unit || 'N/A'
+      ]);
+      
+      const csvContent = [
+        'Access Activity Log',
+        `Generated: ${new Date().toLocaleString()}`,
+        `Total Records: ${logs.length}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `activity-log-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting activity log:', error);
+      alert('Failed to export activity log');
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -184,7 +225,14 @@ export default function LogsPage() {
               </Link>
             </div>
             <h1 className="text-3xl font-bold text-navy-900">Full Activity Log</h1>
-            <div className="w-32"></div> {/* Spacer for centering */}
+            {/* V8.12 UX #4: Export Activity CSV */}
+            <button
+              onClick={exportActivityCSV}
+              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
           </div>
         </div>
       </div>

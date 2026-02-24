@@ -104,6 +104,8 @@ export default function DashboardPage() {
   const [maxGuestsPerResident, setMaxGuestsPerResident] = useState(3);
   const [maxVisitorPasses, setMaxVisitorPasses] = useState(100); // V7.2: Max visitor passes (fixed default)
   const [savingSettings, setSavingSettings] = useState(false);
+  // V8.12 Fix #3: Cache settings to avoid 8s API calls
+  const [settingsCached, setSettingsCached] = useState(false);
 
   // V7: Revenue Analytics
   const [revenueData, setRevenueData] = useState<any>(null);
@@ -616,7 +618,13 @@ export default function DashboardPage() {
   };
 
   // V7: Load Facility Settings
-  const loadFacilitySettings = async () => {
+  // V8.12 Fix #3: Optimized settings load with caching
+  const loadFacilitySettings = async (force = false) => {
+    // Skip if already cached and not forcing reload
+    if (settingsCached && !force) {
+      return;
+    }
+    
     try {
       const response = await fetch("/api/settings");
       if (response.ok) {
@@ -628,6 +636,7 @@ export default function DashboardPage() {
         setGuestPassPrice(data.guest_pass_price || 5.0);
         setMaxGuestsPerResident(data.max_guests_per_resident || 3);
         setMaxVisitorPasses(data.max_visitor_passes || 100); // V7.2
+        setSettingsCached(true); // Mark as cached
       }
     } catch (error) {
       console.error("Error loading facility settings:", error);
@@ -659,7 +668,8 @@ export default function DashboardPage() {
       }
 
       alert("Settings saved successfully!");
-      await loadFacilitySettings();
+      setSettingsCached(false); // V8.12: Invalidate cache
+      await loadFacilitySettings(true); // Force reload
     } catch (error) {
       console.error("Error saving settings:", error);
       alert("Failed to save settings");
@@ -1439,22 +1449,13 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* V8.11 Feature #4: Recent Activity with CSV Export */}
+            {/* V8.12 UX #4: Recent Activity (Export button moved to Full Logs page) */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-6 h-6 text-navy-600" />
-                  <h2 className="text-2xl font-bold text-navy-900">
-                    Recent Activity
-                  </h2>
-                </div>
-                <button
-                  onClick={exportActivityCSV}
-                  className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Activity Log
-                </button>
+              <div className="flex items-center gap-3 mb-6">
+                <Clock className="w-6 h-6 text-navy-600" />
+                <h2 className="text-2xl font-bold text-navy-900">
+                  Recent Activity
+                </h2>
               </div>
 
               {stats.recentActivity.length === 0 ? (
@@ -2183,14 +2184,20 @@ export default function DashboardPage() {
                   {(() => {
                     const last7 = revenueData.charts.daily.slice(-7)
                     const maxRevenue = Math.max(...last7.map((d: any) => d.revenue), 10)
-                    const chartHeight = 200
+                    // V8.12 Fix #2: Professional chart with proper padding and Y-axis
                     const chartWidth = 100
-                    const padding = 20
+                    const chartHeight = 100
+                    const paddingLeft = 15 // Space for Y-axis labels
+                    const paddingBottom = 10
+                    const paddingTop = 5
+                    const paddingRight = 5
+                    const plotWidth = chartWidth - paddingLeft - paddingRight
+                    const plotHeight = chartHeight - paddingTop - paddingBottom
                     
                     // Calculate points for the line
                     const points = last7.map((day: any, i: number) => {
-                      const x = (i / (last7.length - 1)) * chartWidth
-                      const y = chartHeight - ((day.revenue / maxRevenue) * (chartHeight - padding * 2)) - padding
+                      const x = paddingLeft + (i / (last7.length - 1)) * plotWidth
+                      const y = paddingTop + (1 - day.revenue / maxRevenue) * plotHeight
                       return { x, y, data: day }
                     })
                     
@@ -2200,7 +2207,10 @@ export default function DashboardPage() {
                     ).join(' ')
                     
                     // Create path for area (gradient fill)
-                    const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
+                    const areaPath = `M ${paddingLeft} ${chartHeight - paddingBottom} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth - paddingRight} ${chartHeight - paddingBottom} Z`
+                    
+                    // Y-axis labels (4 ticks)
+                    const yTicks = [0, maxRevenue * 0.33, maxRevenue * 0.67, maxRevenue]
                     
                     return (
                       <div className="w-full h-72 relative">
@@ -2217,6 +2227,34 @@ export default function DashboardPage() {
                               <stop offset="100%" stopColor="rgb(20, 184, 166)" stopOpacity="0.05" />
                             </linearGradient>
                           </defs>
+                          
+                          {/* Y-axis grid lines and labels */}
+                          {yTicks.map((tick, i) => {
+                            const y = paddingTop + (1 - tick / maxRevenue) * plotHeight
+                            return (
+                              <g key={i}>
+                                <line
+                                  x1={paddingLeft}
+                                  y1={y}
+                                  x2={chartWidth - paddingRight}
+                                  y2={y}
+                                  stroke="rgb(229, 231, 235)"
+                                  strokeWidth="0.3"
+                                  vectorEffect="non-scaling-stroke"
+                                />
+                                <text
+                                  x={paddingLeft - 2}
+                                  y={y}
+                                  textAnchor="end"
+                                  dominantBaseline="middle"
+                                  fontSize="3"
+                                  fill="rgb(107, 114, 128)"
+                                >
+                                  ${Math.round(tick)}
+                                </text>
+                              </g>
+                            )
+                          })}
                           
                           {/* Area fill with gradient */}
                           <path 
@@ -2276,14 +2314,20 @@ export default function DashboardPage() {
                   {(() => {
                     const last6 = revenueData.charts.monthly.slice(-6)
                     const maxRevenue = Math.max(...last6.map((m: any) => m.revenue), 10)
-                    const chartHeight = 220
+                    // V8.12 Fix #2: Professional chart with proper padding and Y-axis
                     const chartWidth = 100
-                    const padding = 20
+                    const chartHeight = 100
+                    const paddingLeft = 15
+                    const paddingBottom = 10
+                    const paddingTop = 5
+                    const paddingRight = 5
+                    const plotWidth = chartWidth - paddingLeft - paddingRight
+                    const plotHeight = chartHeight - paddingTop - paddingBottom
                     
                     // Calculate points for the line
                     const points = last6.map((month: any, i: number) => {
-                      const x = (i / (last6.length - 1)) * chartWidth
-                      const y = chartHeight - ((month.revenue / maxRevenue) * (chartHeight - padding * 2)) - padding
+                      const x = paddingLeft + (i / (last6.length - 1)) * plotWidth
+                      const y = paddingTop + (1 - month.revenue / maxRevenue) * plotHeight
                       return { x, y, data: month }
                     })
                     
@@ -2293,7 +2337,10 @@ export default function DashboardPage() {
                     ).join(' ')
                     
                     // Create path for area
-                    const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
+                    const areaPath = `M ${paddingLeft} ${chartHeight - paddingBottom} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth - paddingRight} ${chartHeight - paddingBottom} Z`
+                    
+                    // Y-axis labels
+                    const yTicks = [0, maxRevenue * 0.33, maxRevenue * 0.67, maxRevenue]
                     
                     return (
                       <div className="w-full h-80 relative">
@@ -2310,6 +2357,34 @@ export default function DashboardPage() {
                               <stop offset="100%" stopColor="rgb(168, 85, 247)" stopOpacity="0.05" />
                             </linearGradient>
                           </defs>
+                          
+                          {/* Y-axis grid lines and labels */}
+                          {yTicks.map((tick, i) => {
+                            const y = paddingTop + (1 - tick / maxRevenue) * plotHeight
+                            return (
+                              <g key={i}>
+                                <line
+                                  x1={paddingLeft}
+                                  y1={y}
+                                  x2={chartWidth - paddingRight}
+                                  y2={y}
+                                  stroke="rgb(229, 231, 235)"
+                                  strokeWidth="0.3"
+                                  vectorEffect="non-scaling-stroke"
+                                />
+                                <text
+                                  x={paddingLeft - 2}
+                                  y={y}
+                                  textAnchor="end"
+                                  dominantBaseline="middle"
+                                  fontSize="3"
+                                  fill="rgb(107, 114, 128)"
+                                >
+                                  ${Math.round(tick)}
+                                </text>
+                              </g>
+                            )
+                          })}
                           
                           {/* Area fill */}
                           <path 
