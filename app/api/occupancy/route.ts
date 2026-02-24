@@ -36,17 +36,12 @@ export async function GET(request: NextRequest) {
 
     const accompanyingGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
 
-    // Count active visitor passes that have been used (INSIDE) today
-    // Note: We don't track visitor pass location, so we estimate based on today's usage
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    
+    // V8.6 Fix #1: Count visitor passes currently INSIDE (not just used today)
     const { count: visitorPassesCount } = await adminClient
       .from('visitor_passes')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
-      .eq('status', 'used')
-      .gte('used_at', todayStart.toISOString())
+      .eq('is_inside', true)
 
     const totalOccupancy = (residentsCount || 0) + accompanyingGuests + (visitorPassesCount || 0)
 

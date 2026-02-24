@@ -152,10 +152,9 @@ export default function DashboardPage() {
         },
         (payload) => {
           console.log("[Realtime] Access log change:", payload);
-          // V8.5 Fix #5: Only reload stats and occupancy, NOT full residents/rules list
-          // This prevents UI disruption (dropdowns closing, inputs losing focus)
-          loadOccupancyBreakdown();
-          loadInsideResidents();
+          // V8.6 Fix #2: Silent background refresh (no loading spinner)
+          loadOccupancyBreakdown(true);
+          loadInsideResidents(true);
           // Reload stats for Recent Activity widget
           fetch('/api/stats')
             .then(res => res.json())
@@ -178,9 +177,9 @@ export default function DashboardPage() {
         },
         (payload) => {
           console.log("[Realtime] Profile updated:", payload);
-          // Reload occupancy when resident location changes
-          loadOccupancyBreakdown();
-          loadInsideResidents();
+          // V8.6 Fix #2: Silent background refresh (no loading spinner)
+          loadOccupancyBreakdown(true);
+          loadInsideResidents(true);
         },
       )
       .subscribe();
@@ -439,8 +438,11 @@ export default function DashboardPage() {
   };
 
   // V8.4 Fix #1: Load who is inside (residents + visitor passes)
-  const loadInsideResidents = async () => {
-    setLoadingInsideResidents(true);
+  // V8.6 Fix #2: Add silent parameter for background polling (no loading spinner)
+  const loadInsideResidents = async (silent = false) => {
+    if (!silent) {
+      setLoadingInsideResidents(true);
+    }
     try {
       // Use unified occupancy endpoint that includes visitors
       const response = await fetch("/api/occupancy-list");
@@ -477,11 +479,13 @@ export default function DashboardPage() {
       }
 
       // V7.3: Also reload occupancy breakdown to update cards
-      await loadOccupancyBreakdown();
+      await loadOccupancyBreakdown(silent);
     } catch (error) {
       console.error("Error loading inside residents:", error);
     } finally {
-      setLoadingInsideResidents(false);
+      if (!silent) {
+        setLoadingInsideResidents(false);
+      }
     }
   };
 
@@ -1457,8 +1461,8 @@ export default function DashboardPage() {
                     type="number"
                     placeholder={
                       maxGuestsPerResident > 0
-                        ? `Guest Limit (default: ${maxGuestsPerResident})`
-                        : "Guest Limit (default: ...)"
+                        ? `Default: ${maxGuestsPerResident} guests`
+                        : "Default: ... guests"
                     }
                     value={newResidentGuestLimit}
                     onChange={(e) => setNewResidentGuestLimit(e.target.value)}

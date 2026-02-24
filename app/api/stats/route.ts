@@ -56,7 +56,15 @@ export async function GET() {
           .eq('current_location', 'INSIDE')
         
         const totalGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
-        currentOccupancy = residentsInside + totalGuests
+        
+        // V8.6 Fix #1: Also count visitor passes currently inside
+        const { count: visitorsInside } = await adminClient
+          .from('visitor_passes')
+          .select('id', { count: 'exact', head: true })
+          .eq('property_id', propertyId)
+          .eq('is_inside', true)
+        
+        currentOccupancy = residentsInside + totalGuests + (visitorsInside || 0)
       }
     } catch (error) {
       console.error('Exception fetching occupancy:', error)

@@ -473,7 +473,7 @@ export default function ResidentPortalPage() {
                 type="password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="••••"
+                placeholder="****"
                 required
                 maxLength={4}
                 pattern="\d{4}"
@@ -826,7 +826,7 @@ export default function ResidentPortalPage() {
                   type="password"
                   value={currentPin}
                   onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
+                  placeholder="****"
                   required
                   maxLength={4}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
@@ -841,7 +841,7 @@ export default function ResidentPortalPage() {
                   type="password"
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
+                  placeholder="****"
                   required
                   maxLength={4}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
@@ -856,7 +856,7 @@ export default function ResidentPortalPage() {
                   type="password"
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
+                  placeholder="****"
                   required
                   maxLength={4}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"

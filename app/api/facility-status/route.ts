@@ -64,14 +64,12 @@ export async function GET(request: NextRequest) {
       0
     ) || 0
 
-    // Count visitor passes used today
-    const today = new Date().toISOString().split('T')[0]
+    // V8.6 Fix #1: Count visitor passes currently INSIDE (not just used today)
     const { count: visitorPassesCount, error: visitorError } = await adminClient
       .from('visitor_passes')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
-      .eq('status', 'used')
-      .gte('used_at', today)
+      .eq('is_inside', true)
 
     if (visitorError) {
       console.error('Error counting visitor passes:', visitorError)

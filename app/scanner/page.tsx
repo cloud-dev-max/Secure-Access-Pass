@@ -110,16 +110,17 @@ export default function ScannerPage() {
   }, [occupancyRefreshTrigger])
 
   // V7.9 Fix #2: Auto-refresh 'People Currently Inside' modal
+  // V8.6 Fix #2: Use silent refresh for polling (no loading spinner flash)
   useEffect(() => {
     // Only refresh if modal is open
     if (showOccupancyPanel) {
-      loadOccupancy()
+      loadOccupancy() // Show spinner on initial open
     }
     
     // Set up interval to refresh every 5 seconds when modal is open
     if (showOccupancyPanel) {
       const interval = setInterval(() => {
-        loadOccupancy()
+        loadOccupancy(true) // Silent refresh for polling
       }, 5000)
       return () => clearInterval(interval)
     }
@@ -490,8 +491,11 @@ export default function ScannerPage() {
   }
   
   // V8.0 Requirement #1: Load unified occupancy (residents + visitors)
-  const loadOccupancy = async () => {
-    setLoadingOccupancy(true)
+  // V8.6 Fix #2: Add silent parameter for background polling (no loading spinner)
+  const loadOccupancy = async (silent = false) => {
+    if (!silent) {
+      setLoadingOccupancy(true)
+    }
     try {
       const response = await fetch('/api/occupancy-list')
       if (response.ok) {
@@ -501,7 +505,9 @@ export default function ScannerPage() {
     } catch (error) {
       console.error('Error loading occupancy:', error)
     } finally {
-      setLoadingOccupancy(false)
+      if (!silent) {
+        setLoadingOccupancy(false)
+      }
     }
   }
   
