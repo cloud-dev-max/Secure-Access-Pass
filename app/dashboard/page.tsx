@@ -108,11 +108,14 @@ export default function DashboardPage() {
   // V7: Revenue Analytics
   const [revenueData, setRevenueData] = useState<any>(null);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  // V8.11 Feature #4: Revenue date filter
+  const [revenueFilter, setRevenueFilter] = useState<'all' | 'year' | 'month' | 'week'>('all');
 
   useEffect(() => {
     loadData();
     loadMaintenanceStatus();
     loadOccupancyBreakdown(); // V6
+    loadInsideResidents(); // V8.11 Fix #1: Load occupancy data on mount
     loadFacilitySettings(); // V7
     // V7.1: Load revenue after mount to avoid undefined function error
     loadRevenueData();
@@ -127,11 +130,11 @@ export default function DashboardPage() {
   // V8.4 Fix #6: Don't pre-fill Guest Limit - let it be empty (uses default)
   // Removed auto-fill logic - field should remain empty unless user explicitly sets it
 
-  // V7.6 Fix #3: Poll for maintenance status updates every 10 seconds
+  // V8.11 Fix #2: Poll for maintenance status updates every 60 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       loadMaintenanceStatus();
-    }, 10000); // Poll every 10 seconds
+    }, 60000); // Poll every 60 seconds
 
     return () => clearInterval(interval);
   }, []);
@@ -679,6 +682,131 @@ export default function DashboardPage() {
       setRevenueData(null);
     } finally {
       setRevenueLoading(false);
+    }
+  };
+
+  // V8.11 Feature #4: Calculate filtered revenue based on date range
+  const getFilteredRevenue = () => {
+    if (!revenueData) return { revenue: 0, passes: 0 };
+    
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (revenueFilter) {
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        return { revenue: revenueData.summary.last7Days.revenue, passes: revenueData.summary.last7Days.count };
+      case 'month':
+        return { revenue: revenueData.summary.currentMonth.revenue, passes: revenueData.summary.currentMonth.count };
+      case 'year':
+        // Calculate year total from monthly data
+        const yearRevenue = revenueData.charts.monthly
+          .filter((m: any) => {
+            const monthDate = new Date(m.month);
+            return monthDate.getFullYear() === now.getFullYear();
+          })
+          .reduce((sum: number, m: any) => sum + m.revenue, 0);
+        const yearPasses = revenueData.charts.monthly
+          .filter((m: any) => {
+            const monthDate = new Date(m.month);
+            return monthDate.getFullYear() === now.getFullYear();
+          })
+          .reduce((sum: number, m: any) => sum + m.count, 0);
+        return { revenue: yearRevenue, passes: yearPasses };
+      case 'all':
+      default:
+        return { revenue: revenueData.summary.totalRevenue, passes: revenueData.summary.totalPasses };
+    }
+  };
+
+  // V8.11 Feature #4: Export revenue data to CSV
+  const exportRevenueCSV = () => {
+    if (!revenueData) return;
+    
+    const { revenue, passes } = getFilteredRevenue();
+    const filterLabel = revenueFilter === 'all' ? 'All-Time' : 
+                       revenueFilter === 'year' ? 'This Year' :
+                       revenueFilter === 'month' ? 'This Month' : 'Last 7 Days';
+    
+    // Create CSV content
+    const headers = ['Date', 'Revenue', 'Passes Sold', 'Price Per Pass'];
+    let rows: string[][] = [];
+    
+    if (revenueFilter === 'week' || revenueFilter === 'all') {
+      revenueData.charts.daily.forEach((day: any) => {
+        if (day.revenue > 0) {
+          rows.push([day.date, `$${day.revenue.toFixed(2)}`, day.count.toString(), `$${revenueData.summary.guestPassPrice.toFixed(2)}`]);
+        }
+      });
+    } else if (revenueFilter === 'month' || revenueFilter === 'year') {
+      revenueData.charts.monthly.forEach((month: any) => {
+        if (month.revenue > 0) {
+          rows.push([month.month, `$${month.revenue.toFixed(2)}`, month.count.toString(), `$${revenueData.summary.guestPassPrice.toFixed(2)}`]);
+        }
+      });
+    }
+    
+    // Add summary row
+    rows.push(['', '', '', '']);
+    rows.push(['TOTAL', `$${revenue.toFixed(2)}`, passes.toString(), `$${revenueData.summary.guestPassPrice.toFixed(2)}`]);
+    
+    const csvContent = [
+      `Revenue Report - ${filterLabel}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `revenue-${revenueFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // V8.11 Feature #4: Export activity log to CSV
+  const exportActivityCSV = async () => {
+    try {
+      const response = await fetch('/api/activity-logs?limit=1000');
+      if (!response.ok) throw new Error('Failed to fetch activity logs');
+      
+      const data = await response.json();
+      const logs = data.logs || [];
+      
+      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit'];
+      const rows = logs.map((log: any) => [
+        new Date(log.created_at).toLocaleString(),
+        log.resident_name || 'Unknown',
+        log.user_type === 'visitor_pass' ? 'Visitor Pass' : 'Resident',
+        log.event_type || 'SCAN',
+        log.result || 'N/A',
+        log.resident_unit || 'N/A'
+      ]);
+      
+      const csvContent = [
+        'Access Activity Log',
+        `Generated: ${new Date().toLocaleString()}`,
+        `Total Records: ${logs.length}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `activity-log-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting activity log:', error);
+      alert('Failed to export activity log');
     }
   };
 
@@ -1311,13 +1439,22 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Recent Activity */}
+            {/* V8.11 Feature #4: Recent Activity with CSV Export */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-              <div className="flex items-center gap-3 mb-6">
-                <Clock className="w-6 h-6 text-navy-600" />
-                <h2 className="text-2xl font-bold text-navy-900">
-                  Recent Activity
-                </h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-6 h-6 text-navy-600" />
+                  <h2 className="text-2xl font-bold text-navy-900">
+                    Recent Activity
+                  </h2>
+                </div>
+                <button
+                  onClick={exportActivityCSV}
+                  className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Activity Log
+                </button>
               </div>
 
               {stats.recentActivity.length === 0 ? (
@@ -2092,7 +2229,8 @@ export default function DashboardPage() {
                             d={linePath} 
                             fill="none" 
                             stroke="rgb(20, 184, 166)" 
-                            strokeWidth="2.5" 
+                            strokeWidth="2" 
+                            vectorEffect="non-scaling-stroke"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
@@ -2106,7 +2244,8 @@ export default function DashboardPage() {
                                 r="4" 
                                 fill="white" 
                                 stroke="rgb(20, 184, 166)" 
-                                strokeWidth="2.5"
+                                strokeWidth="2"
+                                vectorEffect="non-scaling-stroke"
                                 className="hover:r-6 transition-all cursor-pointer"
                               />
                             </g>
@@ -2183,7 +2322,8 @@ export default function DashboardPage() {
                             d={linePath} 
                             fill="none" 
                             stroke="rgb(168, 85, 247)" 
-                            strokeWidth="2.5" 
+                            strokeWidth="2" 
+                            vectorEffect="non-scaling-stroke"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
@@ -2197,7 +2337,8 @@ export default function DashboardPage() {
                               r="4" 
                               fill="white" 
                               stroke="rgb(168, 85, 247)" 
-                              strokeWidth="2.5"
+                              strokeWidth="2"
+                              vectorEffect="non-scaling-stroke"
                             />
                           ))}
                         </svg>
@@ -2217,16 +2358,42 @@ export default function DashboardPage() {
                   })()}
                 </div>
 
-                {/* V8.9 Fix #4: Total Revenue Footer */}
+                {/* V8.11 Feature #4: Enhanced Revenue Footer with Date Filter & CSV Export */}
                 <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 rounded-xl shadow-2xl p-8 border-2 border-teal-500">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <select
+                        value={revenueFilter}
+                        onChange={(e) => setRevenueFilter(e.target.value as any)}
+                        className="bg-white/10 text-white border border-teal-400 rounded-lg px-4 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
+                      >
+                        <option value="all" className="bg-navy-900">All-Time</option>
+                        <option value="year" className="bg-navy-900">This Year</option>
+                        <option value="month" className="bg-navy-900">This Month</option>
+                        <option value="week" className="bg-navy-900">Last 7 Days</option>
+                      </select>
+                      <button
+                        onClick={exportRevenueCSV}
+                        className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export CSV
+                      </button>
+                    </div>
+                  </div>
+                  
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-teal-300 text-sm font-semibold mb-2">ALL-TIME TOTAL</p>
+                      <p className="text-teal-300 text-sm font-semibold mb-2">
+                        {revenueFilter === 'all' ? 'ALL-TIME' : 
+                         revenueFilter === 'year' ? 'THIS YEAR' :
+                         revenueFilter === 'month' ? 'THIS MONTH' : 'LAST 7 DAYS'} TOTAL
+                      </p>
                       <h2 className="text-5xl font-bold text-white mb-2">
-                        ${revenueData.summary.totalRevenue.toFixed(2)}
+                        ${getFilteredRevenue().revenue.toFixed(2)}
                       </h2>
                       <p className="text-teal-200 text-sm">
-                        {revenueData.summary.totalPasses} passes sold • ${revenueData.summary.guestPassPrice.toFixed(2)} per pass
+                        {getFilteredRevenue().passes} passes sold • ${revenueData.summary.guestPassPrice.toFixed(2)} per pass
                       </p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">

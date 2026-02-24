@@ -80,8 +80,8 @@ export default function ScannerPage() {
 
     loadPoolStatus()
 
-    // Poll for status updates every 10 seconds (simpler than Realtime for now)
-    const interval = setInterval(loadPoolStatus, 10000)
+    // V8.11 Fix #2: Poll for status updates every 60 seconds
+    const interval = setInterval(loadPoolStatus, 60000)
 
     return () => clearInterval(interval)
   }, [])
@@ -103,8 +103,8 @@ export default function ScannerPage() {
 
     loadOccupancyCounter()
 
-    // V8.10 Fix #1: Increased to 15 seconds for saner polling rate
-    const interval = setInterval(loadOccupancyCounter, 15000)
+    // V8.11 Fix #2: Increased to 60 seconds to reduce server load
+    const interval = setInterval(loadOccupancyCounter, 60000)
 
     return () => clearInterval(interval)
   }, [])
@@ -117,11 +117,11 @@ export default function ScannerPage() {
       loadOccupancy() // Show spinner on initial open
     }
     
-    // V8.10 Fix #1: Increased to 15 seconds for saner polling rate
+    // V8.11 Fix #2: Increased to 60 seconds to reduce server load
     if (showOccupancyPanel) {
       const interval = setInterval(() => {
         loadOccupancy(true) // Silent refresh for polling
-      }, 15000)
+      }, 60000)
       return () => clearInterval(interval)
     }
   }, [showOccupancyPanel])
