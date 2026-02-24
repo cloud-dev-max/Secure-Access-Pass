@@ -131,3 +131,47 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+/**
+ * PATCH /api/guest-passes
+ * V8.4 Fix #1: Force exit visitor pass (update is_inside status)
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient()
+    const body = await request.json()
+    const { id, is_inside } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'id is required' },
+        { status: 400 }
+      )
+    }
+
+    // Update visitor pass is_inside status
+    const { data, error } = await adminClient
+      .from('visitor_passes')
+      .update({ is_inside })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating visitor pass:', error)
+      return NextResponse.json(
+        { error: 'Failed to update visitor pass', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✓ Visitor pass ${id} force exit: is_inside=${is_inside}`)
+    return NextResponse.json(data, { status: 200 })
+  } catch (error) {
+    console.error('Unexpected error in PATCH /api/guest-passes:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

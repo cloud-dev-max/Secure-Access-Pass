@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       throw residentsError
     }
 
-    // Get visitor passes currently inside (V8.0 Requirement #1)
+    // V8.4 Fix #1: Get visitor passes with purchaser info
     const now = new Date().toISOString()
     const { data: visitors, error: visitorsError } = await adminClient
       .from('visitor_passes')
@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
         is_inside,
         expires_at,
         status,
-        purchased_by
+        purchased_by,
+        purchaser:purchased_by(name, unit)
       `)
       .eq('property_id', propertyId)
       .eq('is_inside', true)
@@ -64,6 +65,8 @@ export async function GET(request: NextRequest) {
         id: v.id,
         name: v.guest_name || 'Visitor',
         unit: 'Visitor Pass',
+        purchaser_name: v.purchaser?.name || 'Unknown',
+        purchaser_unit: v.purchaser?.unit || 'N/A',
         active_guests: 0,
         total_people: 1
       }))

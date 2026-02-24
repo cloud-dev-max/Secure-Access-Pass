@@ -114,6 +114,8 @@ export default function LogsPage() {
   }
 
   const getLogLabel = (log: Log) => {
+    // V8.4 Fix #2: Detect visitor pass scans
+    const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
     
@@ -122,6 +124,14 @@ export default function LogsPage() {
     }
     if (isSystemBroadcast) {
       return <span className="font-semibold text-orange-900">System Broadcast</span>
+    }
+    if (isVisitorPass && log.profile) {
+      return (
+        <>
+          <span className="font-semibold text-navy-900">Visitor Pass (Guest of {log.profile.name})</span>
+          <span className="text-navy-600"> • Unit {log.profile.unit}</span>
+        </>
+      )
     }
     if (log.profile) {
       return (

@@ -505,23 +505,38 @@ export default function ScannerPage() {
     }
   }
   
-  const forceExit = async (residentId: string) => {
+  // V8.4 Fix #3: Force exit handles both residents and visitors
+  const forceExit = async (personId: string, isVisitor: boolean = false) => {
     if (!confirm('Force exit this person?')) return
     
     try {
-      const response = await fetch('/api/residents', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: residentId,
-          current_location: 'OUTSIDE',
-          active_guests: 0,
-        }),
-      })
-      
-      if (response.ok) {
-        await loadOccupancy()
+      if (isVisitor) {
+        // Force exit visitor pass
+        const response = await fetch('/api/guest-passes', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: personId,
+            is_inside: false,
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to exit visitor')
+      } else {
+        // Force exit resident
+        const response = await fetch('/api/residents', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: personId,
+            current_location: 'OUTSIDE',
+            active_guests: 0,
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to exit resident')
       }
+      
+      // Reload occupancy list
+      await loadOccupancy()
     } catch (error) {
       console.error('Error forcing exit:', error)
       alert('Failed to force exit')
@@ -853,16 +868,19 @@ export default function ScannerPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {insideResidents.map((occupant: any) => {
-                        // V8.0: Support both residents and visitor passes
+                        // V8.4 Fix #3: Support both residents and visitor passes with Force Exit
                         const isVisitor = occupant.type === 'visitor'
                         const totalPeople = occupant.total_people || 1
+                        const displayName = isVisitor 
+                          ? `Visitor Pass (Guest of ${occupant.purchaser_name || 'Unknown'})`
+                          : occupant.name
                         return (
                           <tr key={occupant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-gray-900 font-semibold">
-                              {occupant.name}
+                              {displayName}
                               {isVisitor && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">VISITOR</span>}
                             </td>
-                            <td className="px-4 py-3 text-gray-700">{occupant.unit}</td>
+                            <td className="px-4 py-3 text-gray-700">{isVisitor ? occupant.purchaser_unit : occupant.unit}</td>
                             <td className="px-4 py-3 text-center">
                               {isVisitor ? (
                                 <span className="text-gray-400">—</span>
@@ -874,14 +892,12 @@ export default function ScannerPage() {
                             </td>
                             <td className="px-4 py-3 text-center text-gray-900 font-bold">{totalPeople}</td>
                             <td className="px-4 py-3 text-center">
-                              {!isVisitor && (
-                                <button
-                                  onClick={() => forceExit(occupant.id)}
-                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
-                                >
-                                  Force Exit
-                                </button>
-                              )}
+                              <button
+                                onClick={() => forceExit(occupant.id, isVisitor)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
+                              >
+                                Force Exit
+                              </button>
                             </td>
                           </tr>
                         )

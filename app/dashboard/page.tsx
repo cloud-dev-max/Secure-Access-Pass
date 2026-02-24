@@ -117,12 +117,8 @@ export default function DashboardPage() {
     }
   }, [activeTab])
 
-  // V8.3 Fix #4: Pre-fill Guest Limit with property default when settings load
-  useEffect(() => {
-    if (maxGuestsPerResident && newResidentGuestLimit === '') {
-      setNewResidentGuestLimit(maxGuestsPerResident.toString())
-    }
-  }, [maxGuestsPerResident])
+  // V8.4 Fix #6: Don't pre-fill Guest Limit - let it be empty (uses default)
+  // Removed auto-fill logic - field should remain empty unless user explicitly sets it
 
   // V7.6 Fix #3: Poll for maintenance status updates every 10 seconds
   useEffect(() => {
@@ -406,46 +402,99 @@ export default function DashboardPage() {
     }
   }
 
-  // V4: Load who is inside
-  // V7.3 Bug Fix #2: Refresh occupancy breakdown when loading inside residents
+  // V8.4 Fix #1: Load who is inside (residents + visitor passes)
   const loadInsideResidents = async () => {
     setLoadingInsideResidents(true)
     try {
-      const inside = residents.filter(r => r.current_location === 'INSIDE')
-      setInsideResidents(inside)
+      // Use unified occupancy endpoint that includes visitors
+      const response = await fetch('/api/occupancy-list')
+      if (response.ok) {
+        const data = await response.json()
+        // Transform occupants into format expected by the table
+        const formattedOccupants = data.occupants.map((occ: any) => {
+          if (occ.type === 'visitor') {
+            return {
+              id: occ.id,
+              name: `Visitor Pass (Guest of ${occ.purchaser_name})`,
+              unit: occ.purchaser_unit,
+              email: 'N/A',
+              last_scan_at: null,
+              active_guests: 0,
+              is_visitor: true, // Flag for special handling
+              visitor_id: occ.id
+            }
+          } else {
+            // Regular resident
+            const resident = residents.find(r => r.id === occ.id)
+            return resident || {
+              id: occ.id,
+              name: occ.name,
+              unit: occ.unit,
+              active_guests: occ.active_guests,
+              is_visitor: false
+            }
+          }
+        })
+        setInsideResidents(formattedOccupants)
+      }
       
       // V7.3: Also reload occupancy breakdown to update cards
       await loadOccupancyBreakdown()
+    } catch (error) {
+      console.error('Error loading inside residents:', error)
     } finally {
       setLoadingInsideResidents(false)
     }
   }
 
-  // V4: Force check out a resident
-  const forceCheckout = async (residentId: string) => {
-    if (!confirm('Force check out this resident? They will be marked as OUTSIDE.')) {
-      return
-    }
+  // V8.4 Fix #1: Force check out (handles both residents and visitors)
+  const handleForceCheckout = async (personId: string) => {
+    const person = insideResidents.find(r => r.id === personId)
+    if (!person) return
+    
+    const isVisitor = person.is_visitor === true
+    const confirmMessage = isVisitor 
+      ? 'Force check out this visitor? They will be marked as OUTSIDE.'
+      : 'Force check out this resident? They will be marked as OUTSIDE.'
+    
+    if (!confirm(confirmMessage)) return
 
     try {
-      const response = await fetch('/api/residents', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: residentId,
-          current_location: 'OUTSIDE',
-        }),
-      })
-
-      if (!response.ok) throw new Error('Failed to update location')
+      if (isVisitor) {
+        // Force exit visitor pass
+        const response = await fetch('/api/guest-passes', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: person.visitor_id || personId,
+            is_inside: false
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to check out visitor')
+      } else {
+        // Force exit resident
+        const response = await fetch('/api/residents', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: personId,
+            current_location: 'OUTSIDE',
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to update location')
+      }
       
       // Reload data
-      await loadData()
       await loadInsideResidents()
     } catch (error) {
       console.error('Error forcing checkout:', error)
       alert('Failed to force checkout')
     }
+  }
+
+  // V4: Force check out a resident (legacy function - keeping for compatibility)
+  const forceCheckout = async (residentId: string) => {
+    return handleForceCheckout(residentId)
   }
 
   // V4: Regenerate PIN for resident
@@ -1013,9 +1062,9 @@ export default function DashboardPage() {
                   </div>
                   {revenueLoading ? (
                     <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-                  ) : revenueData?.daily && revenueData.daily.length > 0 ? (
+                  ) : revenueData?.charts?.daily && revenueData.charts.daily.length > 0 ? (
                     <span className="text-3xl font-bold text-green-600">
-                      ${revenueData.daily[0]?.revenue?.toFixed(0) || '0'}
+                      ${revenueData.charts.daily[revenueData.charts.daily.length - 1]?.revenue?.toFixed(0) || '0'}
                     </span>
                   ) : (
                     <span className="text-3xl font-bold text-gray-400">$0</span>
@@ -1023,7 +1072,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold text-navy-900 mb-1">Today's Revenue</h3>
                 <p className="text-sm text-navy-600">
-                  {revenueLoading ? 'Loading...' : revenueData?.daily && revenueData.daily.length > 0 ? `${revenueData.daily[0]?.count || 0} passes sold` : 'No sales yet'}
+                  {revenueLoading ? 'Loading...' : revenueData?.charts?.daily && revenueData.charts.daily.length > 0 ? `${revenueData.charts.daily[revenueData.charts.daily.length - 1]?.count || 0} passes sold` : 'No sales yet'}
                 </p>
                 <p className="text-xs text-green-600 font-semibold mt-2">View full analytics →</p>
               </button>
@@ -1126,6 +1175,8 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {stats.recentActivity.map((log, idx) => {
+                    // V8.4 Fix #2: Detect visitor pass scans
+                    const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
                     // V7.8 Feature #3: Handle STATUS_CHANGE and V7.5: Handle SYSTEM_BROADCAST
                     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (!log.user && log.denial_reason?.includes('BROADCAST'))
                     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || log.denial_reason?.includes('Status changed from')
@@ -1175,7 +1226,10 @@ export default function DashboardPage() {
                           )}
                         <div>
                           <p className="font-semibold text-navy-900">
-                            {isStatusChange ? 'Pool Status Change' : isSystemBroadcast ? 'System Broadcast' : `${log.user?.name || 'Unknown'} - Unit ${log.user?.unit || 'N/A'}`}
+                            {isStatusChange ? 'Pool Status Change' : 
+                             isSystemBroadcast ? 'System Broadcast' : 
+                             isVisitorPass ? `Visitor Pass (Guest of ${log.user?.name || 'Unknown'}) - Unit ${log.user?.unit || 'N/A'}` :
+                             `${log.user?.name || 'Unknown'} - Unit ${log.user?.unit || 'N/A'}`}
                           </p>
                           <p className="text-sm text-navy-600">
                             {isStatusChange ? log.denial_reason : isSystemBroadcast ? `${log.guest_count || 0} recipients` : `${log.scan_type} • ${log.result}`}
@@ -1248,17 +1302,25 @@ export default function DashboardPage() {
                   onChange={(e) => setNewResidentPhone(e.target.value)}
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
-                {/* V8.2 Fix #3: Guest Limit shows property default dynamically */}
-                <input
-                  type="number"
-                  placeholder={`Guest Limit (default: ${maxGuestsPerResident})`}
-                  value={newResidentGuestLimit}
-                  onChange={(e) => setNewResidentGuestLimit(e.target.value)}
-                  min="0"
-                  max="10"
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                  title={`Leave blank to use facility default (${maxGuestsPerResident})`}
-                />
+                {/* V8.4 Fix #6: Guest Limit with label and proper default loading */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-700 mb-2">
+                    Guest Limit (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder={maxGuestsPerResident > 0 ? `Leave blank for default (${maxGuestsPerResident})` : 'Loading...'}
+                    value={newResidentGuestLimit}
+                    onChange={(e) => setNewResidentGuestLimit(e.target.value)}
+                    min="0"
+                    max="10"
+                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                    title={`Leave blank to use facility default (${maxGuestsPerResident})`}
+                  />
+                  <p className="text-xs text-navy-500 mt-1">
+                    Property default is {maxGuestsPerResident > 0 ? maxGuestsPerResident : '...'} guests. Leave empty to use default.
+                  </p>
+                </div>
                 <button
                   type="submit"
                   disabled={isAddingResident}
