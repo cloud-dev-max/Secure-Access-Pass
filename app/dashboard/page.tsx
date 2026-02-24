@@ -152,10 +152,15 @@ export default function DashboardPage() {
         },
         (payload) => {
           console.log("[Realtime] Access log change:", payload);
-          // Reload stats and occupancy when activity happens
-          loadData();
+          // V8.5 Fix #5: Only reload stats and occupancy, NOT full residents/rules list
+          // This prevents UI disruption (dropdowns closing, inputs losing focus)
           loadOccupancyBreakdown();
           loadInsideResidents();
+          // Reload stats for Recent Activity widget
+          fetch('/api/stats')
+            .then(res => res.json())
+            .then(data => setStats(prev => ({ ...prev, recentActivity: data.recentActivity || [] })))
+            .catch(err => console.error('Error refreshing stats:', err));
         },
       )
       .subscribe();
@@ -1157,13 +1162,9 @@ export default function DashboardPage() {
                   </div>
                   {revenueLoading ? (
                     <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-                  ) : revenueData?.charts?.daily &&
-                    revenueData.charts.daily.length > 0 ? (
+                  ) : revenueData?.todayRevenue !== undefined && revenueData.todayRevenue > 0 ? (
                     <span className="text-3xl font-bold text-green-600">
-                      $
-                      {revenueData.charts.daily[
-                        revenueData.charts.daily.length - 1
-                      ]?.revenue?.toFixed(0) || "0"}
+                      ${revenueData.todayRevenue.toFixed(0)}
                     </span>
                   ) : (
                     <span className="text-3xl font-bold text-gray-400">$0</span>
@@ -1175,9 +1176,8 @@ export default function DashboardPage() {
                 <p className="text-sm text-navy-600">
                   {revenueLoading
                     ? "Loading..."
-                    : revenueData?.charts?.daily &&
-                        revenueData.charts.daily.length > 0
-                      ? `${revenueData.charts.daily[revenueData.charts.daily.length - 1]?.count || 0} passes sold`
+                    : revenueData?.todayPasses !== undefined && revenueData.todayPasses > 0
+                      ? `${revenueData.todayPasses} passes sold`
                       : "No sales yet"}
                 </p>
                 <p className="text-xs text-green-600 font-semibold mt-2">
@@ -1451,17 +1451,14 @@ export default function DashboardPage() {
                   onChange={(e) => setNewResidentPhone(e.target.value)}
                   className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                 />
-                {/* V8.4 Fix #6: Guest Limit with label and proper default loading */}
-                <div>
-                  <label className="block text-sm font-semibold text-navy-700 mb-2">
-                    Guest Limit (Optional)
-                  </label>
+                {/* V8.5 Fix #4: Guest Limit with proper vertical alignment */}
+                <div className="flex flex-col justify-end">
                   <input
                     type="number"
                     placeholder={
                       maxGuestsPerResident > 0
-                        ? `Leave blank for default (${maxGuestsPerResident})`
-                        : "Loading..."
+                        ? `Guest Limit (default: ${maxGuestsPerResident})`
+                        : "Guest Limit (default: ...)"
                     }
                     value={newResidentGuestLimit}
                     onChange={(e) => setNewResidentGuestLimit(e.target.value)}
@@ -1470,11 +1467,6 @@ export default function DashboardPage() {
                     className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
                     title={`Leave blank to use facility default (${maxGuestsPerResident})`}
                   />
-                  <p className="text-xs text-navy-500 mt-1">
-                    Property default is{" "}
-                    {maxGuestsPerResident > 0 ? maxGuestsPerResident : "..."}{" "}
-                    guests. Leave empty to use default.
-                  </p>
                 </div>
                 <button
                   type="submit"

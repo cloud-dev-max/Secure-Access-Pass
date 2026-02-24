@@ -43,10 +43,26 @@ export async function GET(request: NextRequest) {
     const totalPasses = passes.length
     const totalRevenue = totalPasses * guestPassPrice
 
-    // Group by date for daily revenue
+    // V8.5 Fix #3: Use LOCAL timezone consistently for all date operations
+    const today = new Date()
+    const getTodayDateString = () => {
+      const year = today.getFullYear()
+      const month = String(today.getMonth() + 1).padStart(2, '0')
+      const day = String(today.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    const todayStr = getTodayDateString()
+
+    // Group by date for daily revenue (using local timezone)
     const revenueByDate: { [key: string]: { count: number; revenue: number } } = {}
     passes.forEach(pass => {
-      const date = new Date(pass.created_at).toISOString().split('T')[0]
+      // Convert created_at to local date string
+      const passDate = new Date(pass.created_at)
+      const year = passDate.getFullYear()
+      const month = String(passDate.getMonth() + 1).padStart(2, '0')
+      const day = String(passDate.getDate()).padStart(2, '0')
+      const date = `${year}-${month}-${day}`
+      
       if (!revenueByDate[date]) {
         revenueByDate[date] = { count: 0, revenue: 0 }
       }
@@ -54,12 +70,18 @@ export async function GET(request: NextRequest) {
       revenueByDate[date].revenue += guestPassPrice
     })
 
-    // Get last 30 days of data
-    const today = new Date()
+    // V8.5 Fix #3: Calculate TODAY's revenue and passes explicitly
+    const todayRevenue = revenueByDate[todayStr]?.revenue || 0
+    const todayPasses = revenueByDate[todayStr]?.count || 0
+
+    // Get last 30 days of data (using local timezone)
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date(today)
       date.setDate(date.getDate() - (29 - i))
-      return date.toISOString().split('T')[0]
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     })
 
     const dailyRevenue = last30Days.map(date => ({
@@ -139,6 +161,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      // V8.5 Fix #3: Add top-level today values for Dashboard card
+      todayRevenue,
+      todayPasses,
       summary: {
         totalRevenue,
         totalPasses,
