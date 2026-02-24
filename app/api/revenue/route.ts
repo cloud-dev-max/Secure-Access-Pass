@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Get all visitor passes for this property
     const { data: guestPasses, error } = await adminClient
       .from('visitor_passes')
-      .select('id, created_at, status, expires_at, purchased_by')
+      .select('id, created_at, status, expires_at, purchased_by, is_inside')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
 
@@ -149,15 +149,19 @@ export async function GET(request: NextRequest) {
     })
     const last7DaysRevenue = last7Days.length * guestPassPrice
 
-    // V7.7 Fix #2: Active passes - only count where is_inside=TRUE and not expired
+    // V8.9 Fix #2: Active passes - count where status='active' OR is_inside=true (handles null expires_at)
     const now = new Date()
     const activePasses = passes.filter(p => {
-      const isActive = p.status === 'active'
-      const notExpired = new Date(p.expires_at) > now
-      const isInside = p.is_inside === true
-      return isActive && notExpired && isInside
+      // Pass is active if: status is 'active' OR currently inside
+      if (p.status === 'active' || p.is_inside === true) {
+        // If expires_at is null, it's a pending pass (valid)
+        if (!p.expires_at) return true
+        // Otherwise check if not expired
+        return new Date(p.expires_at) > now
+      }
+      return false
     }).length
-    const expiredPasses = passes.filter(p => p.status === 'expired' || p.status === 'used' || new Date(p.expires_at) <= now).length
+    const expiredPasses = passes.filter(p => p.status === 'expired' || (p.expires_at && new Date(p.expires_at) <= now)).length
 
     return NextResponse.json({
       success: true,

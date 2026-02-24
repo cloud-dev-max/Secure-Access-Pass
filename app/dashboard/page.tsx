@@ -1970,42 +1970,29 @@ export default function DashboardPage() {
               </div>
             ) : revenueData ? (
               <>
-                {/* Summary Cards */}
+                {/* V8.9 Fix #1: The Core 4 - Reordered summary cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  {/* 1. Today */}
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <DollarSign className="w-6 h-6 text-green-600" />
-                      <span className="text-2xl font-bold text-green-600">
-                        ${revenueData.summary.totalRevenue.toFixed(2)}
+                      <DollarSign className="w-6 h-6 text-teal-600" />
+                      <span className="text-2xl font-bold text-teal-600">
+                        ${revenueData.todayRevenue?.toFixed(2) || '0.00'}
                       </span>
                     </div>
                     <h3 className="text-sm font-semibold text-navy-900">
-                      Total Revenue
+                      Today
                     </h3>
                     <p className="text-xs text-navy-600">
-                      {revenueData.summary.totalPasses} passes sold
+                      {revenueData.todayPasses || 0} {revenueData.todayPasses === 1 ? 'pass' : 'passes'} sold
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  {/* 2. Last 7 Days */}
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-blue-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <TrendingUp className="w-6 h-6 text-blue-600" />
+                      <Clock className="w-6 h-6 text-blue-600" />
                       <span className="text-2xl font-bold text-blue-600">
-                        ${revenueData.summary.currentMonth.revenue.toFixed(2)}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-semibold text-navy-900">
-                      This Month
-                    </h3>
-                    <p className="text-xs text-navy-600">
-                      {revenueData.summary.currentMonth.count} passes
-                    </p>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <Clock className="w-6 h-6 text-purple-600" />
-                      <span className="text-2xl font-bold text-purple-600">
                         ${revenueData.summary.last7Days.revenue.toFixed(2)}
                       </span>
                     </div>
@@ -2017,10 +2004,27 @@ export default function DashboardPage() {
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                  {/* 3. This Month */}
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-purple-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <Users className="w-6 h-6 text-teal-600" />
-                      <span className="text-2xl font-bold text-teal-600">
+                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                      <span className="text-2xl font-bold text-purple-600">
+                        ${revenueData.summary.currentMonth.revenue.toFixed(2)}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">
+                      This Month
+                    </h3>
+                    <p className="text-xs text-navy-600">
+                      {revenueData.summary.currentMonth.count} passes
+                    </p>
+                  </div>
+
+                  {/* 4. Active Passes */}
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-400 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <Users className="w-6 h-6 text-green-600" />
+                      <span className="text-2xl font-bold text-green-600">
                         {revenueData.summary.activePasses}
                       </span>
                     </div>
@@ -2028,104 +2032,229 @@ export default function DashboardPage() {
                       Active Passes
                     </h3>
                     <p className="text-xs text-navy-600">
-                      ${revenueData.summary.guestPassPrice.toFixed(2)}/pass
+                      Currently valid passes
                     </p>
                   </div>
                 </div>
 
-                {/* Daily Revenue Chart */}
+                {/* V8.9 Fix #3: Elegant Line Chart - Daily Revenue */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-teal-600" />
                     Daily Revenue (Last 7 Days)
                   </h3>
-                  <div className="space-y-2">
-                    {revenueData.charts.daily.slice(-7).map((day: any) => (
-                      <div key={day.date} className="flex items-center gap-4">
-                        <span className="text-sm text-navy-600 w-24 font-medium">
-                          {day.date}
-                        </span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-10 relative overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-teal-500 to-blue-500 h-full rounded-full flex items-center px-3 transition-all duration-500"
-                            style={{
-                              width: `${Math.max(5, (day.revenue / Math.max(...revenueData.charts.daily.map((d: any) => d.revenue))) * 100)}%`,
-                            }}
-                          >
-                            <span className="text-xs font-bold text-white">
-                              ${day.revenue.toFixed(2)}
-                            </span>
-                          </div>
+                  {(() => {
+                    const last7 = revenueData.charts.daily.slice(-7)
+                    const maxRevenue = Math.max(...last7.map((d: any) => d.revenue), 10)
+                    const chartHeight = 200
+                    const chartWidth = 100
+                    const padding = 20
+                    
+                    // Calculate points for the line
+                    const points = last7.map((day: any, i: number) => {
+                      const x = (i / (last7.length - 1)) * chartWidth
+                      const y = chartHeight - ((day.revenue / maxRevenue) * (chartHeight - padding * 2)) - padding
+                      return { x, y, data: day }
+                    })
+                    
+                    // Create path for line
+                    const linePath = points.map((p, i) => 
+                      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+                    ).join(' ')
+                    
+                    // Create path for area (gradient fill)
+                    const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
+                    
+                    return (
+                      <div className="relative">
+                        <svg 
+                          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+                          className="w-full"
+                          style={{ minHeight: '200px' }}
+                        >
+                          <defs>
+                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="rgb(20, 184, 166)" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="rgb(20, 184, 166)" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Area fill with gradient */}
+                          <path 
+                            d={areaPath} 
+                            fill="url(#areaGradient)"
+                          />
+                          
+                          {/* Line */}
+                          <path 
+                            d={linePath} 
+                            fill="none" 
+                            stroke="rgb(20, 184, 166)" 
+                            strokeWidth="2.5" 
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          
+                          {/* Data points */}
+                          {points.map((point, i) => (
+                            <g key={i}>
+                              <circle 
+                                cx={point.x} 
+                                cy={point.y} 
+                                r="4" 
+                                fill="white" 
+                                stroke="rgb(20, 184, 166)" 
+                                strokeWidth="2.5"
+                                className="hover:r-6 transition-all cursor-pointer"
+                              />
+                            </g>
+                          ))}
+                        </svg>
+                        
+                        {/* Labels below chart */}
+                        <div className="flex justify-between mt-4 px-2 text-xs text-navy-600">
+                          {last7.map((day: any, i: number) => (
+                            <div key={i} className="text-center" style={{ width: `${100/last7.length}%` }}>
+                              <div className="font-medium">{day.date.split('-').slice(1).join('/')}</div>
+                              <div className="text-teal-600 font-bold">${day.revenue.toFixed(0)}</div>
+                              <div className="text-navy-400 text-[10px]">{day.count} {day.count === 1 ? 'pass' : 'passes'}</div>
+                            </div>
+                          ))}
                         </div>
-                        <span className="text-sm text-navy-600 w-20 text-right">
-                          {day.count} {day.count === 1 ? "pass" : "passes"}
-                        </span>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })()}
                 </div>
 
-                {/* Monthly Summary */}
+                {/* V8.9 Fix #3: Elegant Line Chart - Monthly Revenue */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
-                    <DollarSign className="w-6 h-6 text-green-600" />
-                    Monthly Revenue
+                  <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
+                    <DollarSign className="w-6 h-6 text-purple-600" />
+                    Monthly Revenue Trend
                   </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                    {revenueData.charts.monthly.slice(-6).map((month: any) => (
-                      <div
-                        key={month.month}
-                        className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-lg p-4 text-center border-2 border-teal-200 hover:border-teal-400 transition-colors"
-                      >
-                        <p className="text-xs font-semibold text-navy-600 mb-2">
-                          {month.month}
-                        </p>
-                        <p className="text-xl font-bold text-teal-600">
-                          ${month.revenue.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-navy-600 mt-1">
-                          {month.count} {month.count === 1 ? "pass" : "passes"}
-                        </p>
+                  {(() => {
+                    const last6 = revenueData.charts.monthly.slice(-6)
+                    const maxRevenue = Math.max(...last6.map((m: any) => m.revenue), 10)
+                    const chartHeight = 220
+                    const chartWidth = 100
+                    const padding = 20
+                    
+                    // Calculate points for the line
+                    const points = last6.map((month: any, i: number) => {
+                      const x = (i / (last6.length - 1)) * chartWidth
+                      const y = chartHeight - ((month.revenue / maxRevenue) * (chartHeight - padding * 2)) - padding
+                      return { x, y, data: month }
+                    })
+                    
+                    // Create path for line
+                    const linePath = points.map((p, i) => 
+                      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+                    ).join(' ')
+                    
+                    // Create path for area
+                    const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
+                    
+                    return (
+                      <div className="relative">
+                        <svg 
+                          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+                          className="w-full"
+                          style={{ minHeight: '220px' }}
+                        >
+                          <defs>
+                            <linearGradient id="monthlyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="rgb(168, 85, 247)" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="rgb(168, 85, 247)" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Area fill */}
+                          <path 
+                            d={areaPath} 
+                            fill="url(#monthlyGradient)"
+                          />
+                          
+                          {/* Line */}
+                          <path 
+                            d={linePath} 
+                            fill="none" 
+                            stroke="rgb(168, 85, 247)" 
+                            strokeWidth="2.5" 
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          
+                          {/* Data points */}
+                          {points.map((point, i) => (
+                            <circle 
+                              key={i}
+                              cx={point.x} 
+                              cy={point.y} 
+                              r="4" 
+                              fill="white" 
+                              stroke="rgb(168, 85, 247)" 
+                              strokeWidth="2.5"
+                            />
+                          ))}
+                        </svg>
+                        
+                        {/* Labels */}
+                        <div className="grid grid-cols-6 gap-2 mt-4 text-xs text-navy-600">
+                          {last6.map((month: any, i: number) => (
+                            <div key={i} className="text-center">
+                              <div className="font-medium truncate">{month.month.split(' ')[0]}</div>
+                              <div className="text-purple-600 font-bold">${month.revenue.toFixed(0)}</div>
+                              <div className="text-navy-400 text-[10px]">{month.count} passes</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )
+                  })()}
+                </div>
+
+                {/* V8.9 Fix #4: Total Revenue Footer */}
+                <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 rounded-xl shadow-2xl p-8 border-2 border-teal-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-teal-300 text-sm font-semibold mb-2">ALL-TIME TOTAL</p>
+                      <h2 className="text-5xl font-bold text-white mb-2">
+                        ${revenueData.summary.totalRevenue.toFixed(2)}
+                      </h2>
+                      <p className="text-teal-200 text-sm">
+                        {revenueData.summary.totalPasses} passes sold • ${revenueData.summary.guestPassPrice.toFixed(2)} per pass
+                      </p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+                      <DollarSign className="w-16 h-16 text-teal-400" />
+                    </div>
                   </div>
                 </div>
               </>
             ) : (
               /* V7.5 Issue #1: Show placeholder data with 0 values instead of blank state */
               <>
-                {/* Summary Cards - Placeholders */}
+                {/* V8.9: Placeholder Cards - The Core 4 (Empty State) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {/* 1. Today */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
                     <div className="flex items-center justify-between mb-2">
-                      <DollarSign className="w-6 h-6 text-green-600" />
-                      <span className="text-2xl font-bold text-green-600">
+                      <DollarSign className="w-6 h-6 text-teal-600" />
+                      <span className="text-2xl font-bold text-gray-400">
                         $0.00
                       </span>
                     </div>
                     <h3 className="text-sm font-semibold text-navy-900">
-                      Total Revenue
+                      Today
                     </h3>
                     <p className="text-xs text-navy-600">0 passes sold</p>
                   </div>
 
+                  {/* 2. Last 7 Days */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
                     <div className="flex items-center justify-between mb-2">
-                      <TrendingUp className="w-6 h-6 text-blue-600" />
-                      <span className="text-2xl font-bold text-blue-600">
-                        $0.00
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-semibold text-navy-900">
-                      This Month
-                    </h3>
-                    <p className="text-xs text-navy-600">0 passes</p>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <Clock className="w-6 h-6 text-purple-600" />
-                      <span className="text-2xl font-bold text-purple-600">
+                      <Clock className="w-6 h-6 text-blue-600" />
+                      <span className="text-2xl font-bold text-gray-400">
                         $0.00
                       </span>
                     </div>
@@ -2135,45 +2264,88 @@ export default function DashboardPage() {
                     <p className="text-xs text-navy-600">0 passes</p>
                   </div>
 
+                  {/* 3. This Month */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
                     <div className="flex items-center justify-between mb-2">
-                      <Users className="w-6 h-6 text-teal-600" />
-                      <span className="text-2xl font-bold text-teal-600">
+                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                      <span className="text-2xl font-bold text-gray-400">
+                        $0.00
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-navy-900">
+                      This Month
+                    </h3>
+                    <p className="text-xs text-navy-600">0 passes</p>
+                  </div>
+
+                  {/* 4. Active Passes */}
+                  <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <Users className="w-6 h-6 text-green-600" />
+                      <span className="text-2xl font-bold text-gray-400">
                         0
                       </span>
                     </div>
                     <h3 className="text-sm font-semibold text-navy-900">
                       Active Passes
                     </h3>
-                    <p className="text-xs text-navy-600">$5.00/pass</p>
+                    <p className="text-xs text-navy-600">Currently valid</p>
                   </div>
                 </div>
 
                 {/* Daily Revenue Chart - Empty */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-teal-600" />
                     Daily Revenue (Last 7 Days)
                   </h3>
-                  <div className="text-center py-8 text-navy-500">
-                    <p className="text-sm">
-                      No sales data yet. Daily revenue will appear here once
-                      guest passes are purchased.
+                  <div className="text-center py-12 text-navy-500">
+                    <div className="bg-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <TrendingUp className="w-10 h-10 text-teal-400" />
+                    </div>
+                    <p className="text-sm font-medium">
+                      No sales data yet
+                    </p>
+                    <p className="text-xs mt-2">
+                      Daily revenue chart will appear once guest passes are purchased
                     </p>
                   </div>
                 </div>
 
-                {/* Monthly Summary - Empty */}
+                {/* Monthly Revenue - Empty */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
-                    <DollarSign className="w-6 h-6 text-green-600" />
-                    Monthly Revenue
+                  <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
+                    <DollarSign className="w-6 h-6 text-purple-600" />
+                    Monthly Revenue Trend
                   </h3>
-                  <div className="text-center py-8 text-navy-500">
-                    <p className="text-sm">
-                      Monthly revenue trends will appear here once guest passes
-                      are purchased.
+                  <div className="text-center py-12 text-navy-500">
+                    <div className="bg-purple-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <DollarSign className="w-10 h-10 text-purple-400" />
+                    </div>
+                    <p className="text-sm font-medium">
+                      No monthly data yet
                     </p>
+                    <p className="text-xs mt-2">
+                      Monthly trends will appear once guest passes are purchased
+                    </p>
+                  </div>
+                </div>
+
+                {/* Total Revenue Footer - Empty State */}
+                <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 rounded-xl shadow-2xl p-8 border-2 border-teal-500/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-teal-300 text-sm font-semibold mb-2">ALL-TIME TOTAL</p>
+                      <h2 className="text-5xl font-bold text-white mb-2">
+                        $0.00
+                      </h2>
+                      <p className="text-teal-200 text-sm">
+                        0 passes sold • $5.00 per pass
+                      </p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+                      <DollarSign className="w-16 h-16 text-teal-400/50" />
+                    </div>
                   </div>
                 </div>
               </>
