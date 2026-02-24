@@ -76,18 +76,27 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V9.1 Fix #1: Fetch today's revenue from guest_passes table
+        // V9.2 Fix #4: Fetch today's revenue - use date string matching like revenue API
         const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayISO = today.toISOString()
+        const year = today.getFullYear()
+        const month = String(today.getMonth() + 1).padStart(2, '0')
+        const day = String(today.getDate()).padStart(2, '0')
+        const todayStr = `${year}-${month}-${day}`
 
-        const { data: revenueData, error: revenueError } = await adminClient
+        // Get all guest passes and filter by date string
+        const { data: allPasses, error: revenueError } = await adminClient
           .from('guest_passes')
-          .select('price')
+          .select('price, created_at')
           .eq('property_id', property.id)
-          .gte('created_at', todayISO)
 
-        const todaysRevenue = revenueData?.reduce((sum, pass) => sum + (pass.price || 0), 0) || 0
+        // V9.2 Fix #4: Filter by extracting date from created_at (local timezone)
+        const todaysRevenue = (allPasses || [])
+          .filter(pass => {
+            const passDate = new Date(pass.created_at)
+            const passDateStr = `${passDate.getFullYear()}-${String(passDate.getMonth() + 1).padStart(2, '0')}-${String(passDate.getDate()).padStart(2, '0')}`
+            return passDateStr === todayStr
+          })
+          .reduce((sum, pass) => sum + (pass.price || 0), 0)
 
         return {
           id: property.id,

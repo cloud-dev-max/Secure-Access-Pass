@@ -91,7 +91,7 @@ export default function LogsPage() {
       const data = await response.json();
       const logs = data.logs || [];
       
-      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit', 'Guests'];
+      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit', 'Guests', 'Total People'];
       const rows = logs.map((log: any) => {
         // V9.1 Fix #2: Correct field mapping - use scanned_at and nested user object
         const timestamp = log.scanned_at ? new Date(log.scanned_at).toLocaleString() : 'N/A'
@@ -113,7 +113,10 @@ export default function LogsPage() {
         const result = log.result || 'N/A'
         const guests = log.guest_count || 0
         
-        return [timestamp, name, type, action, result, unit, guests]
+        // V9.2 Feature #5: Total People = primary person (1) + guests
+        const totalPeople = 1 + guests
+        
+        return [timestamp, name, type, action, result, unit, guests, totalPeople]
       });
       
       const csvContent = [

@@ -30,6 +30,8 @@ import { QRCodeCanvas } from "qrcode.react";
 import type { Profile, AccessRule, UserRuleStatus } from "@/lib/types/database";
 import CsvUploader from "@/components/CsvUploader";
 import { createClient } from "@/lib/supabase/client"; // V7.7: For Realtime
+// V9.2 Feature #2: Recharts for professional, responsive charts
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 type ProfileWithRules = Profile & {
   rule_statuses: (UserRuleStatus & { rule: AccessRule })[];
@@ -2015,7 +2017,7 @@ export default function DashboardPage() {
                 {/* Guest Pass Price */}
                 <div>
                   <label className="block text-sm font-semibold text-navy-900 mb-2">
-                    Visitor Pass Price (24-hour pass)
+                    Visitor Pass Price (Daily Pass)
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-navy-600 font-bold text-lg">
@@ -2039,7 +2041,7 @@ export default function DashboardPage() {
                 {/* Max Guests Per Resident */}
                 <div>
                   <label className="block text-sm font-semibold text-navy-900 mb-2">
-                    Maximum Guests Per Resident
+                    Default Guests Per Resident
                   </label>
                   <input
                     type="number"
@@ -2054,8 +2056,7 @@ export default function DashboardPage() {
                     required
                   />
                   <p className="text-xs text-navy-500 mt-1">
-                    Maximum number of accompanying guests allowed per resident
-                    visit
+                    Default number of accompanying guests allowed per resident visit
                   </p>
                 </div>
 
@@ -2077,8 +2078,7 @@ export default function DashboardPage() {
                     required
                   />
                   <p className="text-xs text-navy-500 mt-1">
-                    Total number of concurrent visitor passes (24-hour paid
-                    passes) allowed
+                    Total number of concurrent visitor passes (daily paid passes) allowed
                   </p>
                 </div>
 
@@ -2184,164 +2184,76 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* V8.9 Fix #3: Elegant Line Chart - Daily Revenue */}
+                {/* V9.2 Feature #2: Recharts - Daily Revenue */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
                   <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-teal-600" />
                     Daily Revenue (Last 7 Days)
                   </h3>
                   {(() => {
-                    const last7 = revenueData.charts.daily.slice(-7)
-                    const maxRevenue = Math.max(...last7.map((d: any) => d.revenue), 10)
-                    // V8.12 Fix #2: Professional chart with proper padding and Y-axis
-                    const chartWidth = 100
-                    const chartHeight = 100
-                    const paddingLeft = 15 // Space for Y-axis labels
-                    const paddingBottom = 10
-                    const paddingTop = 5
-                    const paddingRight = 5
-                    const plotWidth = chartWidth - paddingLeft - paddingRight
-                    const plotHeight = chartHeight - paddingTop - paddingBottom
-                    
-                    // Calculate points for the line
-                    const points = last7.map((day: any, i: number) => {
-                      const x = paddingLeft + (i / (last7.length - 1)) * plotWidth
-                      const y = paddingTop + (1 - day.revenue / maxRevenue) * plotHeight
-                      return { x, y, data: day }
-                    })
-                    
-                    // Create path for line
-                    const linePath = points.map((p, i) => 
-                      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-                    ).join(' ')
-                    
-                    // Create path for area (gradient fill)
-                    const areaPath = `M ${paddingLeft} ${chartHeight - paddingBottom} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth - paddingRight} ${chartHeight - paddingBottom} Z`
-                    
-                    // Y-axis labels (4 ticks)
-                    const yTicks = [0, maxRevenue * 0.33, maxRevenue * 0.67, maxRevenue]
-                    
+                    const last7 = revenueData.charts.daily.slice(-7).map((d: any) => ({
+                      ...d,
+                      dateLabel: d.date.split('-').slice(1).join('/') // Format as MM/DD
+                    }))
+                    // V9.2 Feature #2: Use Recharts for professional, responsive chart
                     return (
-                      <div className="w-full h-72 relative">
-                        <svg 
-                          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          className="w-full h-full"
-                          preserveAspectRatio="xMidYMid meet"
-                        >
-                          <defs>
-                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="rgb(20, 184, 166)" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="rgb(20, 184, 166)" stopOpacity="0.05" />
-                            </linearGradient>
-                          </defs>
-                          
-                          {/* Y-axis grid lines and labels */}
-                          {yTicks.map((tick, i) => {
-                            const y = paddingTop + (1 - tick / maxRevenue) * plotHeight
-                            return (
-                              <g key={i}>
-                                <line
-                                  x1={paddingLeft}
-                                  y1={y}
-                                  x2={chartWidth - paddingRight}
-                                  y2={y}
-                                  stroke="rgb(229, 231, 235)"
-                                  strokeWidth="0.3"
-                                  vectorEffect="non-scaling-stroke"
-                                />
-                                <text
-                                  x={paddingLeft - 2}
-                                  y={y}
-                                  textAnchor="end"
-                                  dominantBaseline="middle"
-                                  fontSize="3"
-                                  fill="rgb(107, 114, 128)"
-                                >
-                                  ${Math.round(tick)}
-                                </text>
-                              </g>
-                            )
-                          })}
-                          
-                          {/* Area fill with gradient */}
-                          <path 
-                            d={areaPath} 
-                            fill="url(#areaGradient)"
-                          />
-                          
-                          {/* Line */}
-                          <path 
-                            d={linePath} 
-                            fill="none" 
-                            stroke="rgb(20, 184, 166)" 
-                            strokeWidth="2" 
-                            vectorEffect="non-scaling-stroke"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          
-                          {/* Data points */}
-                          {points.map((point, i) => (
-                            <g key={i}>
-                              <circle 
-                                cx={point.x} 
-                                cy={point.y} 
-                                r="4" 
-                                fill="white" 
-                                stroke="rgb(20, 184, 166)" 
-                                strokeWidth="2"
-                                vectorEffect="non-scaling-stroke"
-                                className="hover:r-6 transition-all cursor-pointer"
-                              />
-                            </g>
-                          ))}
-                          
-                          {/* V9.1 Fix #4: X-axis labels inside SVG, aligned with data points */}
-                          {points.map((point, i) => {
-                            const day = point.data
-                            const dateLabel = day.date.split('-').slice(1).join('/')
-                            const revenueLabel = `$${day.revenue.toFixed(0)}`
-                            return (
-                              <g key={`label-${i}`}>
-                                {/* Date label */}
-                                <text
-                                  x={point.x}
-                                  y={chartHeight - paddingBottom + 3}
-                                  textAnchor="middle"
-                                  fontSize="2.5"
-                                  fill="rgb(71, 85, 105)"
-                                  fontWeight="500"
-                                >
-                                  {dateLabel}
-                                </text>
-                                {/* Revenue label */}
-                                <text
-                                  x={point.x}
-                                  y={chartHeight - paddingBottom + 6}
-                                  textAnchor="middle"
-                                  fontSize="2.5"
-                                  fill="rgb(20, 184, 166)"
-                                  fontWeight="bold"
-                                >
-                                  {revenueLabel}
-                                </text>
-                              </g>
-                            )
-                          })}
-                        </svg>
+                      <div className="w-full h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={last7} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.05}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis 
+                              dataKey="dateLabel" 
+                              tick={{ fontSize: 12, fill: '#475569' }}
+                              stroke="#cbd5e1"
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#475569' }}
+                              tickFormatter={(value) => `$${value}`}
+                              stroke="#cbd5e1"
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#fff', 
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                padding: '8px 12px'
+                              }}
+                              formatter={(value: any) => [`$${value.toFixed(2)}`, 'Revenue']}
+                              labelFormatter={(label) => `Date: ${label}`}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="revenue" 
+                              stroke="#14b8a6" 
+                              strokeWidth={2}
+                              fill="url(#colorRevenue)" 
+                              dot={{ r: 4, fill: '#fff', stroke: '#14b8a6', strokeWidth: 2 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
                     )
                   })()}
                 </div>
 
-                {/* V8.9 Fix #3: Elegant Line Chart - Monthly Revenue */}
+                {/* V9.2 Feature #2: Recharts - Monthly Revenue */}
                 <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
                   <h3 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
                     <DollarSign className="w-6 h-6 text-purple-600" />
                     Monthly Revenue Trend
                   </h3>
                   {(() => {
-                    const last6 = revenueData.charts.monthly.slice(-6)
+                    const last6 = revenueData.charts.monthly.slice(-6).map((m: any) => ({
+                      ...m,
+                      monthLabel: m.month.split(' ')[0].substring(0, 3) // Format as 3-letter month
+                    }))
                     const maxRevenue = Math.max(...last6.map((m: any) => m.revenue), 10)
                     // V8.12 Fix #2: Professional chart with proper padding and Y-axis
                     const chartWidth = 100
