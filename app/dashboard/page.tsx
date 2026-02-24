@@ -65,6 +65,12 @@ export default function DashboardPage() {
   >("overview");
   const [selectedResident, setSelectedResident] =
     useState<ProfileWithRules | null>(null);
+  
+  // V9.3 Feature #4: Search & Pagination for large communities
+  const [residentSearch, setResidentSearch] = useState("");
+  const [residentPage, setResidentPage] = useState(1);
+  const [occupancySearch, setOccupancySearch] = useState("");
+  const residentsPerPage = 50;
 
   // New Resident Form
   const [newResidentName, setNewResidentName] = useState("");
@@ -2250,145 +2256,54 @@ export default function DashboardPage() {
                     Monthly Revenue Trend
                   </h3>
                   {(() => {
+                    // V9.3 Fix #3: Apply Recharts to Monthly Revenue
                     const last6 = revenueData.charts.monthly.slice(-6).map((m: any) => ({
                       ...m,
                       monthLabel: m.month.split(' ')[0].substring(0, 3) // Format as 3-letter month
                     }))
-                    const maxRevenue = Math.max(...last6.map((m: any) => m.revenue), 10)
-                    // V8.12 Fix #2: Professional chart with proper padding and Y-axis
-                    const chartWidth = 100
-                    const chartHeight = 100
-                    const paddingLeft = 15
-                    const paddingBottom = 10
-                    const paddingTop = 5
-                    const paddingRight = 5
-                    const plotWidth = chartWidth - paddingLeft - paddingRight
-                    const plotHeight = chartHeight - paddingTop - paddingBottom
-                    
-                    // Calculate points for the line
-                    const points = last6.map((month: any, i: number) => {
-                      const x = paddingLeft + (i / (last6.length - 1)) * plotWidth
-                      const y = paddingTop + (1 - month.revenue / maxRevenue) * plotHeight
-                      return { x, y, data: month }
-                    })
-                    
-                    // Create path for line
-                    const linePath = points.map((p, i) => 
-                      `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-                    ).join(' ')
-                    
-                    // Create path for area
-                    const areaPath = `M ${paddingLeft} ${chartHeight - paddingBottom} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth - paddingRight} ${chartHeight - paddingBottom} Z`
-                    
-                    // Y-axis labels
-                    const yTicks = [0, maxRevenue * 0.33, maxRevenue * 0.67, maxRevenue]
                     
                     return (
-                      <div className="w-full h-80 relative">
-                        <svg 
-                          viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          className="w-full h-full"
-                          preserveAspectRatio="xMidYMid meet"
-                        >
-                          <defs>
-                            <linearGradient id="monthlyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="rgb(168, 85, 247)" stopOpacity="0.3" />
-                              <stop offset="100%" stopColor="rgb(168, 85, 247)" stopOpacity="0.05" />
-                            </linearGradient>
-                          </defs>
-                          
-                          {/* Y-axis grid lines and labels */}
-                          {yTicks.map((tick, i) => {
-                            const y = paddingTop + (1 - tick / maxRevenue) * plotHeight
-                            return (
-                              <g key={i}>
-                                <line
-                                  x1={paddingLeft}
-                                  y1={y}
-                                  x2={chartWidth - paddingRight}
-                                  y2={y}
-                                  stroke="rgb(229, 231, 235)"
-                                  strokeWidth="0.3"
-                                  vectorEffect="non-scaling-stroke"
-                                />
-                                <text
-                                  x={paddingLeft - 2}
-                                  y={y}
-                                  textAnchor="end"
-                                  dominantBaseline="middle"
-                                  fontSize="3"
-                                  fill="rgb(107, 114, 128)"
-                                >
-                                  ${Math.round(tick)}
-                                </text>
-                              </g>
-                            )
-                          })}
-                          
-                          {/* Area fill */}
-                          <path 
-                            d={areaPath} 
-                            fill="url(#monthlyGradient)"
-                          />
-                          
-                          {/* Line */}
-                          <path 
-                            d={linePath} 
-                            fill="none" 
-                            stroke="rgb(168, 85, 247)" 
-                            strokeWidth="2" 
-                            vectorEffect="non-scaling-stroke"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          
-                          {/* Data points */}
-                          {points.map((point, i) => (
-                            <circle 
-                              key={i}
-                              cx={point.x} 
-                              cy={point.y} 
-                              r="4" 
-                              fill="white" 
-                              stroke="rgb(168, 85, 247)" 
-                              strokeWidth="2"
-                              vectorEffect="non-scaling-stroke"
+                      <div className="w-full h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={last6} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorMonthly" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.05}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis 
+                              dataKey="monthLabel" 
+                              tick={{ fontSize: 12, fill: '#475569' }}
+                              stroke="#cbd5e1"
                             />
-                          ))}
-                          
-                          {/* V9.1 Fix #4: X-axis labels inside SVG, aligned with data points */}
-                          {points.map((point, i) => {
-                            const month = point.data
-                            const monthLabel = month.month.split(' ')[0].substring(0, 3)
-                            const revenueLabel = `$${month.revenue.toFixed(0)}`
-                            return (
-                              <g key={`label-${i}`}>
-                                {/* Month label */}
-                                <text
-                                  x={point.x}
-                                  y={chartHeight - paddingBottom + 3}
-                                  textAnchor="middle"
-                                  fontSize="2.5"
-                                  fill="rgb(71, 85, 105)"
-                                  fontWeight="500"
-                                >
-                                  {monthLabel}
-                                </text>
-                                {/* Revenue label */}
-                                <text
-                                  x={point.x}
-                                  y={chartHeight - paddingBottom + 6}
-                                  textAnchor="middle"
-                                  fontSize="2.5"
-                                  fill="rgb(168, 85, 247)"
-                                  fontWeight="bold"
-                                >
-                                  {revenueLabel}
-                                </text>
-                              </g>
-                            )
-                          })}
-                        </svg>
+                            <YAxis 
+                              tick={{ fontSize: 12, fill: '#475569' }}
+                              tickFormatter={(value) => `$${value}`}
+                              stroke="#cbd5e1"
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#fff', 
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                padding: '8px 12px'
+                              }}
+                              formatter={(value: any) => [`$${value.toFixed(2)}`, 'Revenue']}
+                              labelFormatter={(label) => `Month: ${label}`}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="revenue" 
+                              stroke="#a855f7" 
+                              strokeWidth={2}
+                              fill="url(#colorMonthly)" 
+                              dot={{ r: 4, fill: '#fff', stroke: '#a855f7', strokeWidth: 2 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
                     )
                   })()}

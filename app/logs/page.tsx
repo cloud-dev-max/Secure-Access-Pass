@@ -95,12 +95,18 @@ export default function LogsPage() {
       const rows = logs.map((log: any) => {
         // V9.1 Fix #2: Correct field mapping - use scanned_at and nested user object
         const timestamp = log.scanned_at ? new Date(log.scanned_at).toLocaleString() : 'N/A'
-        const name = log.user?.name || log.profile?.name || 'Unknown'
-        const unit = log.user?.unit || log.profile?.unit || 'N/A'
         
-        // V9.1 Fix #2: Detect visitor passes and system events
+        // V9.1 Fix #2 + V9.3 Fix #1: Detect visitor passes and system events
         const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
         const isSystemEvent = log.qr_code === 'STATUS_CHANGE' || log.qr_code === 'SYSTEM_BROADCAST'
+        
+        // V9.3 Fix #1: System events should show 'System' as name, not 'Unknown'
+        let name = log.user?.name || log.profile?.name || 'Unknown'
+        if (isSystemEvent) {
+          name = 'System'
+        }
+        
+        const unit = log.user?.unit || log.profile?.unit || 'N/A'
         
         let type = 'Resident'
         if (isSystemEvent) {
@@ -109,12 +115,22 @@ export default function LogsPage() {
           type = 'Visitor Pass'
         }
         
-        const action = log.scan_type || 'SCAN'
-        const result = log.result || 'N/A'
-        const guests = log.guest_count || 0
+        // V9.3 Fix #1: System events should show actual action (STATUS_CHANGE, SYSTEM_BROADCAST)
+        let action = log.scan_type || 'SCAN'
+        if (isSystemEvent) {
+          action = log.qr_code || 'SYSTEM_EVENT'
+        }
         
-        // V9.2 Feature #5: Total People = primary person (1) + guests
-        const totalPeople = 1 + guests
+        const result = log.result || 'N/A'
+        
+        // V9.3 Fix #1: System events are not physical people - use N/A for counts
+        let guests: any = log.guest_count || 0
+        let totalPeople: any = 1 + (log.guest_count || 0)
+        
+        if (isSystemEvent) {
+          guests = 'N/A'
+          totalPeople = 'N/A'
+        }
         
         return [timestamp, name, type, action, result, unit, guests, totalPeople]
       });
