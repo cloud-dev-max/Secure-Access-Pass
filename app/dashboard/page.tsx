@@ -1082,8 +1082,8 @@ export default function DashboardPage() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* V8.10 Fix #3: Updated grid to fit all 4 cards in one row on desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* V7.1: Total Residents - Clickable */}
               <button
                 onClick={() => setActiveTab("residents")}
@@ -2066,11 +2066,13 @@ export default function DashboardPage() {
                     const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
                     
                     return (
-                      <div className="relative">
+                      <div className="w-full h-72 relative">
                         <svg 
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          className="w-full"
-                          style={{ minHeight: '200px' }}
+                          width="100%"
+                          height="100%"
+                          preserveAspectRatio="none"
+                          className="w-full h-full"
                         >
                           <defs>
                             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -2155,11 +2157,13 @@ export default function DashboardPage() {
                     const areaPath = `M 0 ${chartHeight} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${chartWidth} ${chartHeight} Z`
                     
                     return (
-                      <div className="relative">
+                      <div className="w-full h-80 relative">
                         <svg 
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          className="w-full"
-                          style={{ minHeight: '220px' }}
+                          width="100%"
+                          height="100%"
+                          preserveAspectRatio="none"
+                          className="w-full h-full"
                         >
                           <defs>
                             <linearGradient id="monthlyGradient" x1="0%" y1="0%" x2="0%" y2="100%">

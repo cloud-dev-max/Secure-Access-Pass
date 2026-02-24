@@ -87,7 +87,7 @@ export default function ScannerPage() {
   }, [])
 
   // V7.8 Feature #1: Load real-time occupancy counter
-  // V7.9 Fix #2: Refresh when trigger changes
+  // V8.10 Fix #1: Removed occupancyRefreshTrigger from deps to prevent exponential polling
   useEffect(() => {
     const loadOccupancyCounter = async () => {
       try {
@@ -103,28 +103,28 @@ export default function ScannerPage() {
 
     loadOccupancyCounter()
 
-    // Poll for occupancy updates every 5 seconds
-    const interval = setInterval(loadOccupancyCounter, 5000)
+    // V8.10 Fix #1: Increased to 15 seconds for saner polling rate
+    const interval = setInterval(loadOccupancyCounter, 15000)
 
     return () => clearInterval(interval)
-  }, [occupancyRefreshTrigger])
+  }, [])
 
   // V7.9 Fix #2: Auto-refresh 'People Currently Inside' modal
-  // V8.6 Fix #2: Use silent refresh for polling (no loading spinner flash)
+  // V8.10 Fix #1: Removed occupancyRefreshTrigger from deps to prevent exponential polling
   useEffect(() => {
     // Only refresh if modal is open
     if (showOccupancyPanel) {
       loadOccupancy() // Show spinner on initial open
     }
     
-    // Set up interval to refresh every 5 seconds when modal is open
+    // V8.10 Fix #1: Increased to 15 seconds for saner polling rate
     if (showOccupancyPanel) {
       const interval = setInterval(() => {
         loadOccupancy(true) // Silent refresh for polling
-      }, 5000)
+      }, 15000)
       return () => clearInterval(interval)
     }
-  }, [showOccupancyPanel, occupancyRefreshTrigger])
+  }, [showOccupancyPanel])
 
   const startScanner = async () => {
     try {
