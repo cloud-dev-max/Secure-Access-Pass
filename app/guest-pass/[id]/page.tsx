@@ -21,8 +21,9 @@ interface GuestPassData {
   guest_email: string | null
   guest_phone: string | null
   status: 'active' | 'used' | 'expired' | 'cancelled'
-  expires_at: string
+  expires_at: string | null
   used_at: string | null
+  is_inside: boolean
   purchaser: {
     name: string
     unit: string
@@ -77,10 +78,13 @@ export default function GuestPassPage() {
     }
   }
 
-  const isExpired = guestPass && (new Date(guestPass.expires_at) < new Date() || guestPass.status === 'expired')
-  const isUsed = guestPass?.status === 'used'
+  // V8.8 Fix #2 & #3: Handle null expires_at and 'used' passes correctly
+  const isExpired = guestPass && guestPass.expires_at && (new Date(guestPass.expires_at) < new Date() || guestPass.status === 'expired')
   const isCancelled = guestPass?.status === 'cancelled'
-  const isValid = guestPass && !isExpired && !isUsed && !isCancelled
+  const isActive = guestPass?.status === 'active' && !guestPass?.used_at
+  const isUsedAndStillValid = guestPass?.status === 'used' && guestPass.expires_at && new Date(guestPass.expires_at) > new Date()
+  const isUsed = guestPass?.status === 'used' && (!guestPass.expires_at || new Date(guestPass.expires_at) < new Date())
+  const isValid = guestPass && !isExpired && !isCancelled && (isActive || isUsedAndStillValid)
 
   // Loading State
   if (loading) {
@@ -145,22 +149,22 @@ export default function GuestPassPage() {
 
         {/* Status Badge */}
         <div className={`mb-6 p-4 rounded-lg border-2 ${
-          isValid 
+          isActive 
             ? 'bg-green-50 border-green-300' 
-            : isUsed 
-            ? 'bg-gray-50 border-gray-300' 
+            : isUsedAndStillValid
+            ? 'bg-blue-50 border-blue-300'
             : 'bg-red-50 border-red-300'
         }`}>
           <div className="flex items-center gap-2 justify-center">
-            {isValid ? (
+            {isActive ? (
               <>
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-800">Valid Pass</span>
+                <span className="font-semibold text-green-800">Ready to Use</span>
               </>
-            ) : isUsed ? (
+            ) : isUsedAndStillValid ? (
               <>
-                <XCircle className="w-5 h-5 text-gray-600" />
-                <span className="font-semibold text-gray-800">Already Used</span>
+                <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                <span className="font-semibold text-blue-800">Active - Valid for Re-entry</span>
               </>
             ) : isCancelled ? (
               <>
@@ -176,22 +180,21 @@ export default function GuestPassPage() {
           </div>
           
           <div className="text-center text-sm mt-2">
-            {isValid && (
+            {isActive ? (
               <div className="flex items-center gap-2 justify-center text-navy-600">
                 <Clock className="w-4 h-4" />
-                <span>Valid until {new Date(guestPass.expires_at).toLocaleString()}</span>
+                <span>Valid for 1 Day upon entry</span>
               </div>
-            )}
-            {isUsed && guestPass.used_at && (
-              <div className="text-navy-600">
-                Used on {new Date(guestPass.used_at).toLocaleString()}
+            ) : isUsedAndStillValid && guestPass.expires_at ? (
+              <div className="flex items-center gap-2 justify-center text-navy-600">
+                <Clock className="w-4 h-4" />
+                <span>Valid until {new Date(guestPass.expires_at).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
               </div>
-            )}
-            {isExpired && !isUsed && (
+            ) : isExpired && guestPass.expires_at ? (
               <div className="text-navy-600">
                 Expired on {new Date(guestPass.expires_at).toLocaleString()}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 

@@ -724,10 +724,10 @@ export default function ResidentPortalPage() {
               </p>
             ) : (
               guestPasses.filter((pass) => {
-                // V7.9 Fix #3: Filter based on 11:59 PM expiration logic
+                // V8.8 Fix #1: Handle null expires_at (unactivated passes)
                 if (showPassHistory) return true
-                const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
-                // V7.9: 'used' passes are still valid until expiration (11:59 PM same day)
+                // A pass is Active if: expires_at is null OR expires_at > now
+                const isExpired = pass.expires_at && (new Date(pass.expires_at) < new Date() || pass.status === 'expired')
                 return !isExpired
               }).map((pass) => {
                 // V8.7 Fix #5: Dynamic status based on status and is_inside
