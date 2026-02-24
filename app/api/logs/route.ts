@@ -4,11 +4,14 @@ import { NextRequest, NextResponse } from 'next/server'
 /**
  * GET /api/logs
  * V8.3 Fix #3: Full historical activity log with pagination and date filter
+ * V9.1 Fix #3: Added date range filtering support (startDate, endDate)
  * 
  * Query params:
  * - page: number (default 1)
  * - limit: number (default 50, max 100)
  * - date: string (YYYY-MM-DD format, optional - filters logs for specific day)
+ * - startDate: string (YYYY-MM-DD format, optional - start of date range)
+ * - endDate: string (YYYY-MM-DD format, optional - end of date range)
  * 
  * Returns:
  * - logs: array of access_logs with user profile data
@@ -27,19 +30,34 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const offset = (page - 1) * limit
-    const dateFilter = searchParams.get('date') // V8.3 Fix #3: Date filter (YYYY-MM-DD)
+    
+    // V9.1 Fix #3: Support both single date and date range
+    const dateFilter = searchParams.get('date') // Legacy: single day filter
+    const startDate = searchParams.get('startDate') // V9.1: range start
+    const endDate = searchParams.get('endDate') // V9.1: range end
 
-    // V8.3 Fix #3: Build query with optional date filter
+    // V8.3 Fix #3 + V9.1 Fix #3: Build query with optional date filters
     let countQuery = adminClient
       .from('access_logs')
       .select('*', { count: 'exact', head: true })
       .eq('property_id', propertyId)
     
+    // V9.1 Fix #3: Apply date range filters
     if (dateFilter) {
-      // Filter for logs on this specific day (00:00:00 to 23:59:59)
+      // Legacy: single day filter (00:00:00 to 23:59:59)
       const startOfDay = `${dateFilter}T00:00:00.000Z`
       const endOfDay = `${dateFilter}T23:59:59.999Z`
       countQuery = countQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
+    } else {
+      // V9.1: date range filter
+      if (startDate) {
+        const startOfDay = `${startDate}T00:00:00.000Z`
+        countQuery = countQuery.gte('scanned_at', startOfDay)
+      }
+      if (endDate) {
+        const endOfDay = `${endDate}T23:59:59.999Z`
+        countQuery = countQuery.lte('scanned_at', endOfDay)
+      }
     }
 
     const { count } = await countQuery
@@ -57,11 +75,22 @@ export async function GET(request: NextRequest) {
       `)
       .eq('property_id', propertyId)
     
-    // V8.3 Fix #3: Apply date filter if provided
+    // V9.1 Fix #3: Apply date filters
     if (dateFilter) {
+      // Legacy: single day filter
       const startOfDay = `${dateFilter}T00:00:00.000Z`
       const endOfDay = `${dateFilter}T23:59:59.999Z`
       logsQuery = logsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
+    } else {
+      // V9.1: date range filter
+      if (startDate) {
+        const startOfDay = `${startDate}T00:00:00.000Z`
+        logsQuery = logsQuery.gte('scanned_at', startOfDay)
+      }
+      if (endDate) {
+        const endOfDay = `${endDate}T23:59:59.999Z`
+        logsQuery = logsQuery.lte('scanned_at', endOfDay)
+      }
     }
     
     const { data: logs, error } = await logsQuery

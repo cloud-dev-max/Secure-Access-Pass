@@ -73,7 +73,7 @@ export default function LogsPage() {
     setPage(1) // Reset to first page
   }
 
-  // V9.0 Feature #2: Export activity log to CSV with date range filtering
+  // V9.0 Feature #2 + V9.1 Fix #2: Export activity log to CSV with date range filtering and correct field mapping
   const exportActivityCSV = async () => {
     try {
       // Build URL with date range if set
@@ -91,15 +91,30 @@ export default function LogsPage() {
       const data = await response.json();
       const logs = data.logs || [];
       
-      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit'];
-      const rows = logs.map((log: any) => [
-        new Date(log.created_at).toLocaleString(),
-        log.resident_name || 'Unknown',
-        log.user_type === 'visitor_pass' ? 'Visitor Pass' : 'Resident',
-        log.event_type || 'SCAN',
-        log.result || 'N/A',
-        log.resident_unit || 'N/A'
-      ]);
+      const headers = ['Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit', 'Guests'];
+      const rows = logs.map((log: any) => {
+        // V9.1 Fix #2: Correct field mapping - use scanned_at and nested user object
+        const timestamp = log.scanned_at ? new Date(log.scanned_at).toLocaleString() : 'N/A'
+        const name = log.user?.name || log.profile?.name || 'Unknown'
+        const unit = log.user?.unit || log.profile?.unit || 'N/A'
+        
+        // V9.1 Fix #2: Detect visitor passes and system events
+        const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
+        const isSystemEvent = log.qr_code === 'STATUS_CHANGE' || log.qr_code === 'SYSTEM_BROADCAST'
+        
+        let type = 'Resident'
+        if (isSystemEvent) {
+          type = 'System Event'
+        } else if (isVisitorPass) {
+          type = 'Visitor Pass'
+        }
+        
+        const action = log.scan_type || 'SCAN'
+        const result = log.result || 'N/A'
+        const guests = log.guest_count || 0
+        
+        return [timestamp, name, type, action, result, unit, guests]
+      });
       
       const csvContent = [
         'Access Activity Log',
@@ -310,9 +325,10 @@ export default function LogsPage() {
             </div>
             {(startDate || endDate) && (
               <div className="text-sm text-navy-600">
-                Showing logs {startDate && `from ${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`} 
+                {/* V9.1 Fix #3: Parse dates as local time by appending T00:00:00 */}
+                Showing logs {startDate && `from ${new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`} 
                 {startDate && endDate && ' to '}
-                {endDate && new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {endDate && new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             )}
           </div>

@@ -1110,14 +1110,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* V9.1 Fix #5: Portfolio button moved to far right */}
             <div className="flex gap-3">
-              <a
-                href="/dashboard/portfolio"
-                className="bg-purple-500/90 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all"
-              >
-                <Building2 className="w-5 h-5" />
-                Portfolio
-              </a>
               <a
                 href="/"
                 className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all"
@@ -1131,6 +1125,13 @@ export default function DashboardPage() {
               >
                 <QrCode className="w-5 h-5" />
                 Open Scanner
+              </a>
+              <a
+                href="/dashboard/portfolio"
+                className="bg-purple-500/90 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all border-2 border-purple-400/50"
+              >
+                <Building2 className="w-5 h-5" />
+                Portfolio
               </a>
             </div>
           </div>
@@ -2294,18 +2295,40 @@ export default function DashboardPage() {
                               />
                             </g>
                           ))}
+                          
+                          {/* V9.1 Fix #4: X-axis labels inside SVG, aligned with data points */}
+                          {points.map((point, i) => {
+                            const day = point.data
+                            const dateLabel = day.date.split('-').slice(1).join('/')
+                            const revenueLabel = `$${day.revenue.toFixed(0)}`
+                            return (
+                              <g key={`label-${i}`}>
+                                {/* Date label */}
+                                <text
+                                  x={point.x}
+                                  y={chartHeight - paddingBottom + 3}
+                                  textAnchor="middle"
+                                  fontSize="2.5"
+                                  fill="rgb(71, 85, 105)"
+                                  fontWeight="500"
+                                >
+                                  {dateLabel}
+                                </text>
+                                {/* Revenue label */}
+                                <text
+                                  x={point.x}
+                                  y={chartHeight - paddingBottom + 6}
+                                  textAnchor="middle"
+                                  fontSize="2.5"
+                                  fill="rgb(20, 184, 166)"
+                                  fontWeight="bold"
+                                >
+                                  {revenueLabel}
+                                </text>
+                              </g>
+                            )
+                          })}
                         </svg>
-                        
-                        {/* Labels below chart */}
-                        <div className="flex justify-between mt-4 px-2 text-xs text-navy-600">
-                          {last7.map((day: any, i: number) => (
-                            <div key={i} className="text-center" style={{ width: `${100/last7.length}%` }}>
-                              <div className="font-medium">{day.date.split('-').slice(1).join('/')}</div>
-                              <div className="text-teal-600 font-bold">${day.revenue.toFixed(0)}</div>
-                              <div className="text-navy-400 text-[10px]">{day.count} {day.count === 1 ? 'pass' : 'passes'}</div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     )
                   })()}
@@ -2420,18 +2443,40 @@ export default function DashboardPage() {
                               vectorEffect="non-scaling-stroke"
                             />
                           ))}
+                          
+                          {/* V9.1 Fix #4: X-axis labels inside SVG, aligned with data points */}
+                          {points.map((point, i) => {
+                            const month = point.data
+                            const monthLabel = month.month.split(' ')[0].substring(0, 3)
+                            const revenueLabel = `$${month.revenue.toFixed(0)}`
+                            return (
+                              <g key={`label-${i}`}>
+                                {/* Month label */}
+                                <text
+                                  x={point.x}
+                                  y={chartHeight - paddingBottom + 3}
+                                  textAnchor="middle"
+                                  fontSize="2.5"
+                                  fill="rgb(71, 85, 105)"
+                                  fontWeight="500"
+                                >
+                                  {monthLabel}
+                                </text>
+                                {/* Revenue label */}
+                                <text
+                                  x={point.x}
+                                  y={chartHeight - paddingBottom + 6}
+                                  textAnchor="middle"
+                                  fontSize="2.5"
+                                  fill="rgb(168, 85, 247)"
+                                  fontWeight="bold"
+                                >
+                                  {revenueLabel}
+                                </text>
+                              </g>
+                            )
+                          })}
                         </svg>
-                        
-                        {/* Labels */}
-                        <div className="grid grid-cols-6 gap-2 mt-4 text-xs text-navy-600">
-                          {last6.map((month: any, i: number) => (
-                            <div key={i} className="text-center">
-                              <div className="font-medium truncate">{month.month.split(' ')[0]}</div>
-                              <div className="text-purple-600 font-bold">${month.revenue.toFixed(0)}</div>
-                              <div className="text-navy-400 text-[10px]">{month.count} passes</div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     )
                   })()}

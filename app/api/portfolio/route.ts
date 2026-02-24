@@ -40,23 +40,43 @@ export async function GET(request: NextRequest) {
     // For each property, fetch occupancy and revenue data
     const propertyStats = await Promise.all(
       properties.map(async (property) => {
-        // Fetch current occupancy (residents + guests + visitors currently inside)
-        const { data: occupancyData, error: occupancyError } = await adminClient
-          .from('access_logs')
-          .select('qr_code, is_inside')
+        // V9.1 Fix #1: Fetch current occupancy using profiles table (residents currently INSIDE)
+        const { count: residentsInside, error: occupancyError } = await adminClient
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'resident')
+          .eq('is_active', true)
+          .eq('current_location', 'INSIDE')
+
+        const residentsInsideCount = residentsInside || 0
+        
+        // V9.1 Fix #1: Sum up active_guests for residents inside
+        const { data: residentsWithGuests } = await adminClient
+          .from('profiles')
+          .select('active_guests')
+          .eq('role', 'resident')
+          .eq('is_active', true)
+          .eq('current_location', 'INSIDE')
+        
+        const totalGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
+        
+        // V9.1 Fix #1: Count visitor passes currently inside
+        const { count: visitorsInside } = await adminClient
+          .from('visitor_passes')
+          .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
           .eq('is_inside', true)
 
-        const currentOccupancy = occupancyData?.length || 0
+        const currentOccupancy = residentsInsideCount + totalGuests + (visitorsInside || 0)
 
-        // Fetch active residents count
+        // V9.1 Fix #1: Fetch active residents count (total, not just inside)
         const { count: activeResidentsCount, error: residentsError } = await adminClient
-          .from('residents')
-          .select('id', { count: 'exact', head: true })
-          .eq('property_id', property.id)
-          .eq('status', 'active')
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'resident')
+          .eq('is_active', true)
 
-        // Fetch today's revenue
+        // V9.1 Fix #1: Fetch today's revenue from guest_passes table
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         const todayISO = today.toISOString()
