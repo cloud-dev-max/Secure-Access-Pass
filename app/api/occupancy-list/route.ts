@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
       throw residentsError
     }
 
-    // V8.4 Fix #1: Get visitor passes with purchaser info
-    const now = new Date().toISOString()
+    // V8.7 Fix #2: Get ALL visitor passes currently inside (no date filter)
+    // This prevents "phantom visitors" who forget to scan out
     const { data: visitors, error: visitorsError } = await adminClient
       .from('visitor_passes')
       .select(`
@@ -42,8 +42,6 @@ export async function GET(request: NextRequest) {
       `)
       .eq('property_id', propertyId)
       .eq('is_inside', true)
-      .gte('expires_at', now)
-      .in('status', ['active', 'used'])
 
     if (visitorsError) {
       console.error('Error fetching visitors:', visitorsError)

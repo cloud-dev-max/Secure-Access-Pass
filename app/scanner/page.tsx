@@ -548,6 +548,28 @@ export default function ScannerPage() {
       alert('Failed to force exit')
     }
   }
+
+  // V8.7 Feature #3: Clear all occupants
+  const clearAllOccupants = async () => {
+    if (!confirm('⚠️ Clear ALL occupants? This will mark all residents and visitors as OUTSIDE. This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/clear-occupancy', {
+        method: 'POST',
+      })
+
+      if (!response.ok) throw new Error('Failed to clear occupants')
+
+      alert('✓ All occupants cleared successfully')
+      await loadOccupancy()
+      await loadOccupancyCounter()
+    } catch (error) {
+      console.error('Error clearing occupants:', error)
+      alert('Failed to clear occupants')
+    }
+  }
   
   // V7.5 Issue #9: Expanded broadcast with target options
   const sendBroadcast = async () => {
@@ -913,13 +935,19 @@ export default function ScannerPage() {
                 </div>
               )}
               
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-end gap-2">
                 <button
                   onClick={loadOccupancy}
                   disabled={loadingOccupancy}
                   className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold disabled:opacity-50"
                 >
                   {loadingOccupancy ? 'Refreshing...' : 'Refresh'}
+                </button>
+                <button
+                  onClick={clearAllOccupants}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold"
+                >
+                  Clear All Occupants
                 </button>
               </div>
             </div>

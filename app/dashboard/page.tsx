@@ -539,6 +539,28 @@ export default function DashboardPage() {
     return handleForceCheckout(residentId);
   };
 
+  // V8.7 Feature #3: Clear all occupants
+  const clearAllOccupants = async () => {
+    if (!confirm('⚠️ Clear ALL occupants? This will mark all residents and visitors as OUTSIDE. This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/clear-occupancy', {
+        method: 'POST',
+      });
+
+      if (!response.ok) throw new Error('Failed to clear occupants');
+
+      alert('✓ All occupants cleared successfully');
+      await loadInsideResidents();
+      await loadOccupancyBreakdown();
+    } catch (error) {
+      console.error('Error clearing occupants:', error);
+      alert('Failed to clear occupants');
+    }
+  };
+
   // V4: Regenerate PIN for resident
   const regeneratePin = async (residentId: string) => {
     if (!confirm("Generate a new 4-digit PIN for this resident?")) {
@@ -2229,23 +2251,32 @@ export default function DashboardPage() {
                 })()}
               </div>
 
-              <button
-                onClick={loadInsideResidents}
-                disabled={loadingInsideResidents}
-                className="w-full bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loadingInsideResidents ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <Users className="w-5 h-5" />
-                    Refresh Occupancy List
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={loadInsideResidents}
+                  disabled={loadingInsideResidents}
+                  className="flex-1 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loadingInsideResidents ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-5 h-5" />
+                      Refresh
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={clearAllOccupants}
+                  className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <XCircle className="w-5 h-5" />
+                  Clear All Occupants
+                </button>
+              </div>
             </div>
 
             {/* People Inside Table */}

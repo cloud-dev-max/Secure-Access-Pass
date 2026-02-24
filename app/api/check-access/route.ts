@@ -65,16 +65,19 @@ export async function POST(request: NextRequest) {
 
       const property = visitorPass.property as any
       const now = new Date()
-      const expiresAt = new Date(visitorPass.expires_at)
 
-      // V7.9 Fix #1: Check expiration first (passes expire at 11:59 PM same day)
-      if (visitorPass.status === 'expired' || now > expiresAt) {
-        console.log('❌ DENIED: Visitor pass expired')
-        return NextResponse.json({
-          can_access: false,
-          denial_reason: 'This visitor pass has expired',
-          user_name: visitorPass.guest_name || 'Visitor'
-        })
+      // V8.7 Feature #4: Check expiration (only if expires_at is set)
+      // New passes have expires_at = null until first scan
+      if (visitorPass.expires_at) {
+        const expiresAt = new Date(visitorPass.expires_at)
+        if (visitorPass.status === 'expired' || now > expiresAt) {
+          console.log('❌ DENIED: Visitor pass expired')
+          return NextResponse.json({
+            can_access: false,
+            denial_reason: 'This visitor pass has expired',
+            user_name: visitorPass.guest_name || 'Visitor'
+          })
+        }
       }
 
       // V7.9 Fix #1: Check if re-entry (pass was used but still valid today)
@@ -142,12 +145,17 @@ export async function POST(request: NextRequest) {
           is_inside: true,
           status: 'used'
         }
-        // Only set used_at on first entry (for revenue tracking)
+        // V8.7 Feature #4: Set expiration on first entry (11:59 PM today)
         if (!visitorPass.used_at) {
-          updateData.used_at = new Date().toISOString()
-          console.log('✓ First entry - setting used_at timestamp')
+          const now = new Date()
+          updateData.used_at = now.toISOString()
+          // Set expiration to 11:59:59 PM of current day
+          const expiresAt = new Date()
+          expiresAt.setHours(23, 59, 59, 999)
+          updateData.expires_at = expiresAt.toISOString()
+          console.log('✓ First entry - setting used_at and expires_at (11:59 PM today)')
         } else {
-          console.log('✓ Re-entry detected - keeping original used_at')
+          console.log('✓ Re-entry detected - keeping original used_at and expires_at')
         }
         const { error: updateError } = await supabase
           .from('visitor_passes')

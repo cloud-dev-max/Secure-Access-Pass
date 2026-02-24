@@ -730,20 +730,42 @@ export default function ResidentPortalPage() {
                 // V7.9: 'used' passes are still valid until expiration (11:59 PM same day)
                 return !isExpired
               }).map((pass) => {
-                // V7.9 Fix #3: Check if expired (not just used)
-                const isExpired = new Date(pass.expires_at) < new Date() || pass.status === 'expired'
-                const wasUsed = pass.status === 'used' && pass.used_at // V7.9: Track if pass was scanned
+                // V8.7 Fix #5: Dynamic status based on status and is_inside
+                const isExpired = pass.expires_at && (new Date(pass.expires_at) < new Date() || pass.status === 'expired')
+                const isInside = pass.is_inside === true
+                const isActive = pass.status === 'active' && !pass.used_at
+                const isUsed = pass.status === 'used' && pass.used_at
+                
+                // Determine status text and color
+                let statusText = ''
+                let statusIcon = <CheckCircle2 className="w-4 h-4" />
+                let bgColor = 'bg-green-50 border-green-300'
+                let iconColor = 'text-green-600'
+                
+                if (isExpired) {
+                  statusText = 'Expired'
+                  statusIcon = <XCircle className="w-4 h-4 text-red-600" />
+                  bgColor = 'bg-red-50 border-red-300'
+                  iconColor = 'text-red-600'
+                } else if (isActive) {
+                  statusText = 'Ready to Use - Valid for 1 Day upon entry'
+                  bgColor = 'bg-green-50 border-green-300'
+                  iconColor = 'text-green-600'
+                } else if (isInside) {
+                  const expiresTime = pass.expires_at ? new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '11:59 PM'
+                  statusText = `Currently Inside - Expires at ${expiresTime}`
+                  bgColor = 'bg-blue-50 border-blue-300'
+                  iconColor = 'text-blue-600'
+                } else if (isUsed && !isInside) {
+                  statusText = 'Scanned Out - Valid for Re-entry Today'
+                  bgColor = 'bg-teal-50 border-teal-300'
+                  iconColor = 'text-teal-600'
+                }
                 
                 return (
                   <div
                     key={pass.id}
-                    className={`p-4 rounded-lg border-2 ${
-                      isExpired
-                        ? 'bg-red-50 border-red-300'
-                        : wasUsed
-                        ? 'bg-blue-50 border-blue-300'
-                        : 'bg-green-50 border-green-300'
-                    }`}
+                    className={`p-4 rounded-lg border-2 ${bgColor}`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -751,22 +773,10 @@ export default function ResidentPortalPage() {
                           {pass.guest_name || 'Guest Pass'}
                         </div>
                         <div className="text-sm text-navy-600">
-                          {isExpired ? (
-                            <span className="flex items-center gap-1">
-                              <XCircle className="w-4 h-4 text-red-600" />
-                              Expired
-                            </span>
-                          ) : wasUsed ? (
-                            <span className="flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                              In Use - Valid until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              Active - Valid until {new Date(pass.expires_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                            </span>
-                          )}
+                          <span className={`flex items-center gap-1 ${iconColor}`}>
+                            {statusIcon}
+                            {statusText}
+                          </span>
                         </div>
                       </div>
                       

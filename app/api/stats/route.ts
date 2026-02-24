@@ -9,6 +9,8 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const adminClient = createAdminClient()
+    // V8.7 Fix #1: Define propertyId before using it
+    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
     
     // Initialize default stats (graceful fallback)
     let totalResidents = 0
