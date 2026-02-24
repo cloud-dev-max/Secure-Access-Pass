@@ -32,19 +32,24 @@ export default function LogsPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const [selectedDate, setSelectedDate] = useState<string>('') // V8.3 Fix #3: Date filter
+  // V9.0 Feature #2: Date range picker
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
 
   useEffect(() => {
     loadLogs(page)
-  }, [page, selectedDate]) // V8.3: Reload when date filter changes
+  }, [page, startDate, endDate]) // V9.0: Reload when date range changes
 
   const loadLogs = async (pageNum: number) => {
     try {
       setLoading(true)
-      // V8.3 Fix #3: Add date parameter if filter is set
+      // V9.0 Feature #2: Add date range parameters if set
       let url = `/api/logs?page=${pageNum}&limit=50`
-      if (selectedDate) {
-        url += `&date=${selectedDate}`
+      if (startDate) {
+        url += `&startDate=${startDate}`
+      }
+      if (endDate) {
+        url += `&endDate=${endDate}`
       }
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch logs')
@@ -61,16 +66,26 @@ export default function LogsPage() {
     }
   }
 
-  // V8.3 Fix #3: Clear date filter and reload
+  // V9.0 Feature #2: Clear date range filter and reload
   const clearDateFilter = () => {
-    setSelectedDate('')
+    setStartDate('')
+    setEndDate('')
     setPage(1) // Reset to first page
   }
 
-  // V8.12 UX #4: Export activity log to CSV
+  // V9.0 Feature #2: Export activity log to CSV with date range filtering
   const exportActivityCSV = async () => {
     try {
-      const response = await fetch('/api/activity-logs?limit=1000');
+      // Build URL with date range if set
+      let url = '/api/activity-logs?limit=5000';
+      if (startDate) {
+        url += `&startDate=${startDate}`
+      }
+      if (endDate) {
+        url += `&endDate=${endDate}`
+      }
+      
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch activity logs');
       
       const data = await response.json();
@@ -96,12 +111,24 @@ export default function LogsPage() {
       ].join('\n');
       
       const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `activity-log-${new Date().toISOString().split('T')[0]}.csv`;
+      a.href = blobUrl;
+      // V9.0 Feature #2: Dynamic filename with date range
+      let filename = 'activity-audit';
+      if (startDate && endDate) {
+        const start = startDate.split('-').slice(1).join('-'); // MM-DD
+        const end = endDate.split('-').slice(1).join('-'); // MM-DD
+        const year = new Date().getFullYear();
+        filename = `activity-audit-${start}-to-${end}-${year}`;
+      } else if (startDate || endDate) {
+        filename = `activity-audit-${startDate || endDate}`;
+      } else {
+        filename = `activity-log-${new Date().toISOString().split('T')[0]}`;
+      }
+      a.download = `${filename}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error('Error exporting activity log:', error);
       alert('Failed to export activity log');
@@ -239,34 +266,53 @@ export default function LogsPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* V8.3 Fix #3: Date Filter */}
+        {/* V9.0 Feature #2: Date Range Filter */}
         <div className="bg-white rounded-lg border border-navy-200 p-4 mb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-3">
             <div className="flex items-center space-x-4">
               <Calendar className="w-5 h-5 text-navy-600" />
-              <span className="text-sm font-semibold text-navy-900">Filter by Date:</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value)
-                  setPage(1) // Reset to first page when filter changes
-                }}
-                className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              />
-              {selectedDate && (
+              <span className="text-sm font-semibold text-navy-900">Filter by Date Range:</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-navy-600">Start:</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    setPage(1)
+                  }}
+                  className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-navy-600">End:</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value)
+                    setPage(1)
+                  }}
+                  className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              {(startDate || endDate) && (
                 <button
                   onClick={clearDateFilter}
                   className="flex items-center space-x-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                 >
                   <X className="w-4 h-4" />
-                  <span className="text-sm font-medium">Clear Date</span>
+                  <span className="text-sm font-medium">Clear Filter</span>
                 </button>
               )}
             </div>
-            {selectedDate && (
+            {(startDate || endDate) && (
               <div className="text-sm text-navy-600">
-                Showing logs for: <span className="font-semibold text-navy-900">{new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                Showing logs {startDate && `from ${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`} 
+                {startDate && endDate && ' to '}
+                {endDate && new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             )}
           </div>
@@ -278,7 +324,7 @@ export default function LogsPage() {
             <div className="text-sm text-navy-600">
               Showing <span className="font-semibold text-navy-900">{logs.length}</span> of{' '}
               <span className="font-semibold text-navy-900">{total}</span> total logs
-              {selectedDate && <span className="ml-1">(filtered)</span>}
+              {(startDate || endDate) && <span className="ml-1">(filtered)</span>}
             </div>
             <div className="text-sm text-navy-600">
               Page <span className="font-semibold text-navy-900">{page}</span> of{' '}

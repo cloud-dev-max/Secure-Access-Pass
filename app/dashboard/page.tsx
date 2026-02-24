@@ -24,6 +24,7 @@ import {
   Mail,
   MessageSquare,
   Trash2, // V7.5: For delete rule button
+  Building2, // V9.0: Portfolio link
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import type { Profile, AccessRule, UserRuleStatus } from "@/lib/types/database";
@@ -1110,6 +1111,13 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex gap-3">
+              <a
+                href="/dashboard/portfolio"
+                className="bg-purple-500/90 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all"
+              >
+                <Building2 className="w-5 h-5" />
+                Portfolio
+              </a>
               <a
                 href="/"
                 className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all"
@@ -2216,10 +2224,8 @@ export default function DashboardPage() {
                       <div className="w-full h-72 relative">
                         <svg 
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          width="100%"
-                          height="100%"
-                          preserveAspectRatio="none"
                           className="w-full h-full"
+                          preserveAspectRatio="xMidYMid meet"
                         >
                           <defs>
                             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -2346,10 +2352,8 @@ export default function DashboardPage() {
                       <div className="w-full h-80 relative">
                         <svg 
                           viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                          width="100%"
-                          height="100%"
-                          preserveAspectRatio="none"
                           className="w-full h-full"
+                          preserveAspectRatio="xMidYMid meet"
                         >
                           <defs>
                             <linearGradient id="monthlyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
