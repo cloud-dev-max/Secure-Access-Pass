@@ -85,7 +85,11 @@ export async function PATCH(request: NextRequest) {
       id: propertyId, // Required for upsert
     }
 
-    if (property_name !== undefined) updates.property_name = property_name // V5
+    // V9.15 Fix #1: Sync BOTH name and property_name columns (One Source of Truth)
+    if (property_name !== undefined) {
+      updates.property_name = property_name
+      updates.name = property_name // Sync name column to match property_name
+    }
     if (operating_hours_start !== undefined) updates.operating_hours_start = operating_hours_start
     if (operating_hours_end !== undefined) updates.operating_hours_end = operating_hours_end
     if (max_capacity !== undefined) updates.max_capacity = max_capacity
@@ -96,7 +100,10 @@ export async function PATCH(request: NextRequest) {
     if (maintenance_reason !== undefined) updates.maintenance_reason = maintenance_reason
 
     // If property doesn't have required fields, add defaults
-    updates.name = 'Default Property'
+    if (!updates.name && !updates.property_name) {
+      updates.name = 'Default Property'
+      updates.property_name = 'Default Property'
+    }
     updates.address = '123 Main Street'
     updates.city = 'Default City'
     updates.state = 'CA'

@@ -1239,11 +1239,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.14 Fix #2: Deleted redundant blue header - buttons moved to layout.tsx */}
+      {/* V9.15 Fix #2: Tab Navigation Menu - Centered */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.14 Fix #2: Tab Navigation Menu only (action buttons now in global header) */}
-          {/* V9.9 Fix #5: Mobile dropdown menu */}
+          {/* Mobile dropdown menu */}
           <select
             value={activeTab}
             onChange={(e) => {
@@ -1264,8 +1263,8 @@ export default function DashboardPage() {
             <option value="logs" className="bg-navy-800 text-white">🕐 All Activity</option>
           </select>
 
-          {/* V9.9 Fix #5: Horizontal tabs (now in header with white/transparent styling) */}
-          <div className="hidden xl:flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-2">
+          {/* V9.15 Fix #2: Horizontal tabs - CENTERED with justify-center and mx-auto */}
+          <div className="hidden xl:flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-2 justify-center mx-auto">
             <button
               onClick={() => setActiveTab("overview")}
               className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${

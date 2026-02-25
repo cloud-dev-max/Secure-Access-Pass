@@ -47,29 +47,29 @@ export async function POST(request: NextRequest) {
 
     console.log('Resident authenticated:', profile.name)
 
-    // V9.14 Fix #3: Ensure property_name returns actual facility name
+    // V9.15 Fix #1: Use property_name column strictly (One Source of Truth)
     let propertyName = ''
     
     if (profile.property_id) {
       const { data: propertyData, error: propError } = await adminClient
         .from('properties')
-        .select('name')
+        .select('property_name')
         .eq('id', profile.property_id)
         .single()
       
       if (propError) {
-        console.error('[V9.14] Property lookup error:', propError)
-        console.error('[V9.14] Property ID:', profile.property_id)
+        console.error('[V9.15] Property lookup error:', propError)
+        console.error('[V9.15] Property ID:', profile.property_id)
       }
       
-      if (propertyData && propertyData.name) {
-        propertyName = propertyData.name
-        console.log('[V9.14] Property name fetched:', propertyName)
+      if (propertyData && propertyData.property_name) {
+        propertyName = propertyData.property_name
+        console.log('[V9.15] Property name fetched:', propertyName)
       } else {
-        console.error('[V9.14] No property name in result for property_id:', profile.property_id)
+        console.error('[V9.15] No property_name in result for property_id:', profile.property_id)
       }
     } else {
-      console.warn('[V9.14] No property_id for resident:', profile.email)
+      console.warn('[V9.15] No property_id for resident:', profile.email)
     }
 
     // Return resident profile (client will store in localStorage)
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
-      property_name: propertyName // V9.14 Fix #3: Actual facility name only
+      property_name: propertyName // V9.15 Fix #1: From property_name column only
     }, { status: 200 })
   } catch (error) {
     console.error('Unexpected error in POST /api/resident-auth:', error)
