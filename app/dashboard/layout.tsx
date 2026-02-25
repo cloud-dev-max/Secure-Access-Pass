@@ -60,43 +60,42 @@ function PropertySwitcher() {
 
 function DashboardHeader() {
   return (
-    <div className="bg-gradient-to-r from-navy-900 to-navy-800 border-b border-navy-700 px-6 py-3">
-      <div className="max-w-7xl mx-auto space-y-3">
-        {/* V9.16 Fix #2: Layer 1 - Title and Property Dropdown */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-teal-500/20 p-2 rounded-lg">
-              <Building2 className="w-5 h-5 text-teal-400" />
-            </div>
-            <h1 className="text-xl font-bold text-white">Secure Access Pass</h1>
+    <div className="bg-gradient-to-r from-navy-900 to-navy-800 border-b border-navy-700 px-6 py-2">
+      {/* V9.17 Fix #1: Smart One-Line Header - Single row until 1024px, then wrap */}
+      <div className="max-w-7xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
+        {/* Left side: Shield + Title */}
+        <div className="flex items-center gap-3">
+          <div className="bg-teal-500/20 p-2 rounded-lg">
+            <Building2 className="w-5 h-5 text-teal-400" />
           </div>
-          
-          <PropertySwitcher />
+          <h1 className="text-xl font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
         </div>
         
-        {/* V9.16 Fix #2 & #3: Layer 2 - Action Buttons (Centered, labels visible down to 400px) */}
-        <div className="flex items-center justify-center gap-2 sm:gap-4">
+        {/* Right side: Action Buttons + Property Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
           >
             <Home className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Home</span>
+            <span className="hidden sm:inline">Home</span>
           </Link>
           <Link
             href="/scanner"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
           >
             <QrCode className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Scanner</span>
+            <span className="hidden sm:inline">Scanner</span>
           </Link>
           <Link
             href="/dashboard/portfolio"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
           >
             <Building2 className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Portfolio</span>
+            <span className="hidden sm:inline">Portfolio</span>
           </Link>
+          
+          <PropertySwitcher />
         </div>
       </div>
     </div>

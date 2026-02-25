@@ -1239,10 +1239,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.15 Fix #2: Tab Navigation Menu - Centered */}
+      {/* V9.17 Fix #2 & #3: Tab Navigation Menu - Strict lg breakpoint, centered, compact */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.16 Fix #1: Mobile dropdown menu - breakpoint changed to md */}
+          {/* V9.17 Fix #2: Mobile dropdown - strict lg breakpoint to prevent overflow */}
           <select
             value={activeTab}
             onChange={(e) => {
@@ -1252,7 +1252,7 @@ export default function DashboardPage() {
                 setActiveTab(e.target.value as any);
               }
             }}
-            className="block md:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
+            className="block lg:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
           >
             <option value="overview" className="bg-navy-800 text-white">📊 Overview</option>
             <option value="residents" className="bg-navy-800 text-white">👥 Residents ({stats.totalResidents})</option>
@@ -1263,8 +1263,8 @@ export default function DashboardPage() {
             <option value="logs" className="bg-navy-800 text-white">🕐 All Activity</option>
           </select>
 
-          {/* V9.16 Fix #1: Horizontal tabs - breakpoint changed to md for tablets/laptops */}
-          <div className="hidden md:flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-2 justify-center mx-auto">
+          {/* V9.17 Fix #2 & #3: Horizontal tabs - strict lg breakpoint, centered, no overflow */}
+          <div className="hidden lg:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
             <button
               onClick={() => setActiveTab("overview")}
               className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
