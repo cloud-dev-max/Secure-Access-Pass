@@ -76,39 +76,30 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V9.4 Fix #3: Copy EXACT logic from /api/revenue - use local date string matching
-        // Get TODAY's date string (local timezone)
-        const today = new Date()
-        const getTodayDateString = () => {
-          const year = today.getFullYear()
-          const month = String(today.getMonth() + 1).padStart(2, '0')
-          const day = String(today.getDate()).padStart(2, '0')
-          return `${year}-${month}-${day}`
-        }
-        const todayStr = getTodayDateString()
-
-        // Fetch ALL passes for this property
+        // V9.4 DIAGNOSTIC: Remove date filter, use correct table name, verify adminClient
+        // CRITICAL FIX: Table is 'visitor_passes', NOT 'guest_passes'
+        console.log('[PORTFOLIO DIAGNOSTIC] Using adminClient (service role):', !!adminClient)
+        console.log('[PORTFOLIO DIAGNOSTIC] Fetching from visitor_passes for property:', property.id)
+        
+        // Fetch ALL passes for this property (no date filter for diagnostic)
         const { data: allPasses, error: revenueError } = await adminClient
-          .from('guest_passes')
+          .from('visitor_passes')  // CORRECTED: was 'guest_passes'
           .select('price, created_at')
           .eq('property_id', property.id)
 
-        // Filter to today's passes using local date string (EXACT logic from /api/revenue lines 58-71)
+        console.log('[PORTFOLIO DIAGNOSTIC] Query result:', {
+          passesCount: allPasses?.length || 0,
+          error: revenueError?.message || null,
+          firstPass: allPasses?.[0] || null
+        })
+
+        // Sum up ALL passes (no date filter - diagnostic mode)
         let todaysRevenue = 0
         if (allPasses) {
-          allPasses.forEach(pass => {
-            // Convert created_at to local date string
-            const passDate = new Date(pass.created_at)
-            const year = passDate.getFullYear()
-            const month = String(passDate.getMonth() + 1).padStart(2, '0')
-            const day = String(passDate.getDate()).padStart(2, '0')
-            const date = `${year}-${month}-${day}`
-            
-            // If pass was created today, add to revenue
-            if (date === todayStr) {
-              todaysRevenue += (pass.price || 0)
-            }
-          })
+          todaysRevenue = allPasses.reduce((sum, pass) => sum + (pass.price || 0), 0)
+          console.log('[PORTFOLIO DIAGNOSTIC] Total ALL-TIME revenue:', todaysRevenue)
+        } else {
+          console.error('[PORTFOLIO DIAGNOSTIC] No passes returned. Error:', revenueError)
         }
 
         return {
