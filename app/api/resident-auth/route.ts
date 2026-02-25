@@ -47,10 +47,23 @@ export async function POST(request: NextRequest) {
 
     console.log('Resident authenticated:', profile.name)
 
-    // Return resident profile (client will store in localStorage)
-    // V9.11 Fix #3: Include property name for pass design
+    // V9.12 HARD FIX #2: Direct secondary lookup if join fails
     const property = profile.property as any
-    console.log('Property data for resident:', property) // Debug log
+    let propertyName = property?.name || property?.property_name
+    
+    // If join failed, do direct lookup
+    if (!propertyName && profile.property_id) {
+      const { data: propertyData } = await adminClient
+        .from('properties')
+        .select('name')
+        .eq('id', profile.property_id)
+        .single()
+      
+      propertyName = propertyData?.name
+      console.log('[V9.12] Direct property lookup:', propertyData)
+    }
+
+    // Return resident profile (client will store in localStorage)
     return NextResponse.json({
       id: profile.id,
       name: profile.name,
@@ -59,7 +72,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
-      property_name: property?.name || property?.property_name || 'Access Pass'
+      property_name: propertyName || 'Secure Access Pass'
     }, { status: 200 })
   } catch (error) {
     console.error('Unexpected error in POST /api/resident-auth:', error)

@@ -644,10 +644,18 @@ export default function DashboardPage() {
     }
   };
 
-  // V9.8 Fix #4: Simplified drill-down logic with correct schema field checking
+  // V9.12 HARD FIX #3: Fetch 24h prior + target day (same as chart API)
   const loadPeopleAtHour = async (hour: string) => {
     try {
-      const response = await fetch(`/api/activity-logs?limit=5000&startDate=${trendDate}&endDate=${trendDate}`);
+      // V9.12: Calculate 24h prior date for fetching
+      const [year, month, day] = trendDate.split('-').map(Number);
+      const targetDate = new Date(year, month - 1, day);
+      const priorDate = new Date(targetDate);
+      priorDate.setDate(priorDate.getDate() - 1);
+      const priorDateStr = priorDate.toISOString().split('T')[0];
+      
+      // Fetch logs from 24h prior + target day (EXACT match to chart API)
+      const response = await fetch(`/api/activity-logs?limit=10000&startDate=${priorDateStr}&endDate=${trendDate}`);
       if (!response.ok) throw new Error('Failed to load activity logs');
       const data = await response.json();
       
@@ -655,7 +663,6 @@ export default function DashboardPage() {
       const hourNum = parseInt(hour.split(':')[0]);
       
       // Create hour boundaries using LOCAL date (match API's date string format)
-      const [year, month, day] = trendDate.split('-').map(Number);
       const hourStart = new Date(year, month - 1, day, hourNum, 0, 0, 0);
       const hourEnd = new Date(year, month - 1, day, hourNum, 59, 59, 999);
       
@@ -1152,63 +1159,58 @@ export default function DashboardPage() {
     return ruleStatus?.status ?? false;
   };
 
-  // V7: Download full professional ID card (matching resident portal format)
+  // V9.12 HARD FIX #2: EXACT copy of resident page canvas logic
   const downloadFullIDCard = (resident: ProfileWithRules) => {
     const idCanvas = document.createElement("canvas");
     const ctx = idCanvas.getContext("2d");
     if (!ctx) return;
 
-    // Card dimensions (landscape professional card)
-    const cardWidth = 1000;
-    const cardHeight = 450;
+    // Set card dimensions (standard ID card ratio) - EXACT match
+    const cardWidth = 800;
+    const cardHeight = 500;
     idCanvas.width = cardWidth;
     idCanvas.height = cardHeight;
 
-    // V9.10 Fix #3: Add top header bar with dynamic property name
-    // Top accent bar
+    // Background gradient - EXACT match
+    const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+    gradient.addColorStop(0, "#0f172a"); // navy-900
+    gradient.addColorStop(0.5, "#1e293b"); // navy-800
+    gradient.addColorStop(1, "#0d9488"); // teal-600
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, cardWidth, cardHeight);
+
+    // Top accent bar - EXACT match
     ctx.fillStyle = "#14b8a6"; // teal-500
     ctx.fillRect(0, 0, cardWidth, 60);
-    
-    // Property name (top bar) - V9.10 Fix #3: Dynamic property name
+
+    // Property name (top bar) - Use propertyName from state
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 32px Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(propertyName || "Secure Access Pass", cardWidth / 2, 42);
 
-    // Draw gradient background (navy to teal) - below header
-    const gradient = ctx.createLinearGradient(0, 60, cardWidth, cardHeight);
-    gradient.addColorStop(0, "#1e3a8a"); // navy-900
-    gradient.addColorStop(1, "#0d9488"); // teal-600
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 60, cardWidth, cardHeight - 60);
-
-    // Border
-    ctx.strokeStyle = "#14b8a6"; // teal-500
-    ctx.lineWidth = 8;
-    ctx.strokeRect(4, 4, cardWidth - 8, cardHeight - 8);
-
-    // Card title
+    // Card title - EXACT match
     ctx.font = "bold 28px Arial, sans-serif";
     ctx.fillStyle = "#14b8a6"; // teal-500
     ctx.textAlign = "left";
     ctx.fillText("Pool Access Pass", 40, 120);
 
-    // Resident name
+    // Resident name - EXACT match
     ctx.font = "bold 42px Arial, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(resident.name, 40, 180);
 
-    // Unit number
+    // Unit number - EXACT match
     ctx.font = "28px Arial, sans-serif";
     ctx.fillStyle = "#cbd5e1"; // gray-300
     ctx.fillText(`Unit ${resident.unit}`, 40, 220);
 
-    // Email
+    // Email - EXACT match
     ctx.font = "20px Arial, sans-serif";
     ctx.fillStyle = "#94a3b8"; // gray-400
     ctx.fillText(resident.email, 40, 260);
 
-    // V9.11 Fix #4: Status badge with proper padding
+    // Status badge with proper padding - EXACT match
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 20px Arial, sans-serif";
     ctx.textAlign = "center";
@@ -1222,13 +1224,13 @@ export default function DashboardPage() {
     ctx.fillStyle = "#ffffff";
     ctx.fillText(badgeText, badgeX + (textWidth + badgePadding) / 2, 316);
 
-    // Guests Allowed info
+    // Guests Allowed info - EXACT match
     ctx.font = "22px Arial, sans-serif";
     ctx.fillStyle = "#0d9488"; // teal-600
     ctx.textAlign = "left";
     ctx.fillText(`Guests Allowed: ${maxGuestsPerResident}`, 40, 360);
 
-    // Add QR Code
+    // Add QR Code - EXACT match
     const qrCanvas = document.getElementById(
       `qr-${resident.id}`,
     ) as HTMLCanvasElement;
@@ -1246,20 +1248,12 @@ export default function DashboardPage() {
       ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
     }
 
-    // Footer text
+    // Footer text - EXACT match
     ctx.fillStyle = "#64748b"; // gray-500
     ctx.font = "16px Arial, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(
-      "Scan this QR code at the pool entrance",
-      cardWidth / 2,
-      cardHeight - 40,
-    );
-    ctx.fillText(
-      "Valid for current resident only • Non-transferable",
-      cardWidth / 2,
-      cardHeight - 15,
-    );
+    ctx.fillText("Scan this QR code at the pool entrance", cardWidth / 2, cardHeight - 40);
+    ctx.fillText("Valid for current resident only • Non-transferable", cardWidth / 2, cardHeight - 15);
 
     // Download the professional card
     const url = idCanvas.toDataURL("image/png");
@@ -1316,44 +1310,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.11 Fix #2: True 2-Layer Navbar */}
+      {/* V9.12 HARD FIX #1: Single Layer - DELETED Title/Shield/Buttons Row */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.11 Fix #2: Layer 1 - Title + Action Buttons in one row */}
-          <div className="flex items-center justify-between gap-4 py-4 border-b border-white/10">
-            {/* Left: Title */}
-            <div className="flex items-center gap-3">
-              <Shield className="w-6 h-6 text-teal-400" />
-              <h1 className="text-xl sm:text-2xl font-bold">Secure Access Pass</h1>
-            </div>
-            
-            {/* Right: Action Buttons */}
-            <div className="flex items-center gap-2">
-              <a
-                href="/"
-                className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </a>
-              <a
-                href="/scanner"
-                className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <QrCode className="w-4 h-4" />
-                <span className="hidden sm:inline">Scanner</span>
-              </a>
-              <a
-                href="/dashboard/portfolio"
-                className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <Building2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Portfolio</span>
-              </a>
-            </div>
-          </div>
-
-          {/* V9.11 Fix #2: Layer 2 - Tab Navigation */}
+          {/* V9.12: Only Tab Navigation - No title, no buttons, just tabs */}
           {/* V9.9 Fix #5: Mobile dropdown menu (now in header) */}
           <select
             value={activeTab}
