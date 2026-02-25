@@ -1,7 +1,7 @@
 'use client'
 
 import { PropertyProvider, useProperty } from '@/contexts/PropertyContext'
-import { Building2, ChevronDown, Home, QrCode } from 'lucide-react'
+import { Building2, ChevronDown, Home, QrCode, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -61,41 +61,84 @@ function PropertySwitcher() {
 function DashboardHeader() {
   return (
     <div className="bg-gradient-to-r from-navy-900 to-navy-800 border-b border-navy-700 px-6 py-2">
-      {/* V9.17 Fix #1: Smart One-Line Header - Single row until 1024px, then wrap */}
-      <div className="max-w-7xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
-        {/* Left side: Shield + Title */}
-        <div className="flex items-center gap-3">
-          <div className="bg-teal-500/20 p-2 rounded-lg">
-            <Building2 className="w-5 h-5 text-teal-400" />
-          </div>
-          <h1 className="text-xl font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
-        </div>
+      <div className="max-w-7xl mx-auto">
+        {/* V9.18 Fix #1 & #2: Smart 2-Row Stacking - Desktop: 1 line, Below xl: 2 centered rows */}
         
-        {/* Right side: Action Buttons + Property Switcher */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
-          >
-            <Home className="w-4 h-4" />
-            <span className="hidden sm:inline">Home</span>
-          </Link>
-          <Link
-            href="/scanner"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
-          >
-            <QrCode className="w-4 h-4" />
-            <span className="hidden sm:inline">Scanner</span>
-          </Link>
-          <Link
-            href="/dashboard/portfolio"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
-          >
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Portfolio</span>
-          </Link>
+        {/* Desktop view (xl and above): Single line */}
+        <div className="hidden xl:flex items-center justify-between gap-3">
+          {/* Left: Shield + Title */}
+          <div className="flex items-center gap-3">
+            <div className="bg-teal-500/20 p-2 rounded-lg">
+              <Shield className="w-5 h-5 text-teal-400" />
+            </div>
+            <h1 className="text-xl font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
+          </div>
           
-          <PropertySwitcher />
+          {/* Right: Buttons + Property */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </Link>
+            <Link
+              href="/scanner"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Scanner</span>
+            </Link>
+            <Link
+              href="/dashboard/portfolio"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Portfolio</span>
+            </Link>
+            
+            <PropertySwitcher />
+          </div>
+        </div>
+
+        {/* Mobile/Tablet view (below xl): 2 centered rows */}
+        <div className="xl:hidden space-y-2">
+          {/* Row 1: Shield + Title (left) and Property (right) */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-teal-500/20 p-2 rounded-lg">
+                <Shield className="w-5 h-5 text-teal-400" />
+              </div>
+              <h1 className="text-lg sm:text-xl font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
+            </div>
+            <PropertySwitcher />
+          </div>
+          
+          {/* Row 2: Action Buttons (centered) */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <Home className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Home</span>
+            </Link>
+            <Link
+              href="/scanner"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Scanner</span>
+            </Link>
+            <Link
+              href="/dashboard/portfolio"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+            >
+              <Building2 className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Portfolio</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
