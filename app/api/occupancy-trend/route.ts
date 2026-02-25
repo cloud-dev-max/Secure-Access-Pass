@@ -43,6 +43,31 @@ export async function GET(request: NextRequest) {
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0)
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
       
+      // V9.9 Fix #1: Carry-over occupancy - query all entries/exits BEFORE target date
+      const { data: priorLogs, error: priorError } = await adminClient
+        .from('access_logs')
+        .select('scan_type, guest_count')
+        .eq('property_id', propertyId)
+        .lt('scanned_at', startOfDay.toISOString())
+      
+      if (priorError) {
+        console.error('Error fetching prior occupancy:', priorError)
+      }
+      
+      // Calculate overnight occupancy (net of all prior entries/exits)
+      let overnightOccupancy = 0
+      if (priorLogs) {
+        priorLogs.forEach(log => {
+          const people = 1 + (log.guest_count || 0)
+          if (log.scan_type === 'ENTRY') {
+            overnightOccupancy += people
+          } else if (log.scan_type === 'EXIT') {
+            overnightOccupancy -= people
+          }
+        })
+        if (overnightOccupancy < 0) overnightOccupancy = 0 // Safety check
+      }
+      
       // Fetch all access logs for the target date
       const { data: logs, error } = await adminClient
         .from('access_logs')
@@ -90,7 +115,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Calculate running total chronologically (0-23)
-    let currentOccupancy = 0
+    // V9.9 Fix #1: Start with overnight occupancy from prior entries/exits
+    let currentOccupancy = overnightOccupancy
     const hourlyData: any[] = []
     
     for (let hour = 0; hour < 24; hour++) {
@@ -109,10 +135,24 @@ export async function GET(request: NextRequest) {
       // V9.7 Fix #1: Fixed ReferenceError - use hourlyData instead of deleted hourlyOccupancy
       const maxOccupancy = Math.max(0, ...hourlyData.map(d => d.occupancy || 0))
       
+      // V9.9 Fix #2: Hide future hours when viewing today
+      const now = new Date()
+      const isToday = targetDate.getFullYear() === now.getFullYear() &&
+                     targetDate.getMonth() === now.getMonth() &&
+                     targetDate.getDate() === now.getDate()
+      
+      const filteredData = isToday 
+        ? hourlyData.filter(d => {
+            const hour = parseInt(d.hour.split(':')[0])
+            return hour <= now.getHours()
+          })
+        : hourlyData
+      
       return NextResponse.json({
-        hourlyTrend: hourlyData,  // V9.5 Fix #2: Match frontend expectation
+        hourlyTrend: filteredData,  // V9.9 Fix #2: Only show hours up to now for today
         requestedDate: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`,
-        maxOccupancy
+        maxOccupancy,
+        overnightCarryOver: overnightOccupancy  // V9.9 Fix #1: Return for debugging
       }, { status: 200 })
       
     } catch (dataError) {

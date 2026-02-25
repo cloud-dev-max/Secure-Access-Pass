@@ -78,6 +78,12 @@ export default function DashboardPage() {
   const [loadingTrend, setLoadingTrend] = useState(false);
   const [selectedHour, setSelectedHour] = useState<string | null>(null);
   const [hourlyPeople, setHourlyPeople] = useState<any[]>([]);
+  
+  // V9.9 Fix #4: Multi-day CSV export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [exportEndDate, setExportEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isExporting, setIsExporting] = useState(false);
 
   // New Resident Form
   const [newResidentName, setNewResidentName] = useState("");
@@ -663,10 +669,16 @@ export default function DashboardPage() {
         const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`;
         
         if (!userLogs.has(userId)) {
+          // V9.9 Fix #3: Map Unknown/Visitor Pass names to "Visitor"
+          let displayName = log.user?.name || 'Unknown';
+          if (!log.user?.name || log.user?.name === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
+            displayName = 'Visitor';
+          }
+          
           userLogs.set(userId, { 
             entries: [], 
             exits: [], 
-            name: log.user?.name || 'Unknown',
+            name: displayName,
             unit: log.user?.unit || 'N/A',
             guestCount: log.guest_count || 0
           });
@@ -723,29 +735,71 @@ export default function DashboardPage() {
   };
 
   // V9.4 Feature #1: Export hourly trend CSV
-  const exportHourlyTrendCSV = () => {
+  // V9.9 Fix #4: Multi-day CSV export function
+  const exportMultiDayTrendCSV = async () => {
     try {
-      const headers = ['Time', 'Occupancy Count'];
-      const rows = trendData.map((point: any) => [point.hour, point.occupancy]);
+      setIsExporting(true);
       
+      // Parse date range
+      const startDate = new Date(exportStartDate);
+      const endDate = new Date(exportEndDate);
+      
+      // Validate date range
+      if (startDate > endDate) {
+        alert('Start date must be before or equal to end date');
+        setIsExporting(false);
+        return;
+      }
+      
+      // Build CSV data by fetching each day's data
+      const allRows: any[] = [];
+      const headers = ['Date', 'Time', 'Occupancy Count'];
+      
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // Fetch trend data for this date
+        const response = await fetch(`/api/occupancy-trend?date=${dateStr}`);
+        if (response.ok) {
+          const data = await response.json();
+          (data.hourlyTrend || []).forEach((point: any) => {
+            allRows.push([dateStr, point.hour, point.occupancy]);
+          });
+        }
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Generate CSV content with UTF-8 BOM
       const csvContent = [
-        `Hourly Occupancy Trend - ${trendDate}`,
+        '\uFEFF', // UTF-8 BOM
+        `Multi-Day Hourly Occupancy Trend`,
+        `Date Range: ${exportStartDate} to ${exportEndDate}`,
         `Generated: ${new Date().toLocaleString()}`,
+        `Total Records: ${allRows.length}`,
         '',
         headers.join(','),
-        ...rows.map(row => row.join(','))
+        ...allRows.map(row => row.join(','))
       ].join('\n');
       
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `occupancy-trend-${trendDate}.csv`;
+      a.download = `occupancy-trend-${exportStartDate}-to-${exportEndDate}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+      
+      // Close modal
+      setShowExportModal(false);
+      setIsExporting(false);
     } catch (error) {
-      console.error('Error exporting trend CSV:', error);
+      console.error('Error exporting multi-day trend CSV:', error);
       alert('Failed to export trend data');
+      setIsExporting(false);
     }
   };
 
@@ -1251,52 +1305,48 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* Header */}
+      {/* V9.9 Fix #5: Consolidated Single Header with Navigation */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Top row: Title and Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 sm:py-6">
+            <div className="flex items-center gap-3">
               <div className="hidden sm:block bg-teal-500 p-3 rounded-xl">
                 <Shield className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Secure Access Pass</h1>
-                <p className="hidden sm:block text-navy-200">Manager Command Center</p>
+                <h1 className="text-2xl sm:text-3xl font-bold">Secure Access Pass</h1>
+                <p className="hidden sm:block text-navy-200 text-sm">Manager Command Center</p>
               </div>
             </div>
 
-            {/* V9.1 Fix #5: Portfolio button moved to far right */}
-            <div className="flex gap-3">
+            <div className="flex gap-2 flex-wrap">
               <a
                 href="/"
-                className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all"
+                className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
               >
-                <Home className="w-5 h-5" />
-                Home
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Home</span>
               </a>
               <a
                 href="/scanner"
-                className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                className="bg-teal-500 hover:bg-teal-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
               >
-                <QrCode className="w-5 h-5" />
-                Open Scanner
+                <QrCode className="w-4 h-4" />
+                <span className="hidden sm:inline">Scanner</span>
               </a>
               <a
                 href="/dashboard/portfolio"
-                className="bg-purple-500/90 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all border-2 border-purple-400/50"
+                className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
               >
-                <Building2 className="w-5 h-5" />
-                Portfolio
+                <Building2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Portfolio</span>
               </a>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white shadow-md border-b border-navy-200">
-        <div className="max-w-7xl mx-auto px-6">
-          {/* V9.7 Fix #2: Mobile dropdown menu (visible on mobile only) */}
+          {/* Bottom row: Tab Navigation */}
+          {/* V9.9 Fix #5: Mobile dropdown menu (now in header) */}
           <select
             value={activeTab}
             onChange={(e) => {
@@ -1306,103 +1356,103 @@ export default function DashboardPage() {
                 setActiveTab(e.target.value as any);
               }
             }}
-            className="block xl:hidden w-full p-3 my-4 border border-navy-300 rounded-lg bg-white text-navy-700 font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="block xl:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
           >
-            <option value="overview">📊 Overview</option>
-            <option value="residents">👥 Residents ({stats.totalResidents})</option>
-            <option value="rules">🛡️ Access Rules ({stats.activeRules})</option>
-            <option value="settings">⚙️ Facility Settings</option>
-            <option value="revenue">💰 Revenue Analytics</option>
-            <option value="occupancy">📈 Current Occupancy ({stats.currentOccupancy})</option>
-            <option value="logs">🕐 All Activity</option>
+            <option value="overview" className="bg-navy-800 text-white">📊 Overview</option>
+            <option value="residents" className="bg-navy-800 text-white">👥 Residents ({stats.totalResidents})</option>
+            <option value="rules" className="bg-navy-800 text-white">🛡️ Access Rules ({stats.activeRules})</option>
+            <option value="settings" className="bg-navy-800 text-white">⚙️ Facility Settings</option>
+            <option value="revenue" className="bg-navy-800 text-white">💰 Revenue Analytics</option>
+            <option value="occupancy" className="bg-navy-800 text-white">📈 Current Occupancy ({stats.currentOccupancy})</option>
+            <option value="logs" className="bg-navy-800 text-white">🕐 All Activity</option>
           </select>
 
-          {/* V9.8 Fix #3: Horizontal tabs (xl breakpoint, tighter spacing) */}
-          <div className="hidden xl:flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {/* V9.9 Fix #5: Horizontal tabs (now in header with white/transparent styling) */}
+          <div className="hidden xl:flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide pb-2">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "overview"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4" />
                 Overview
               </div>
             </button>
             <button
               onClick={() => setActiveTab("residents")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "residents"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
+                <Users className="w-4 h-4" />
                 Residents ({stats.totalResidents})
               </div>
             </button>
             <button
               onClick={() => setActiveTab("rules")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "rules"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <Shield className="w-4 h-4" />
                 Access Rules ({stats.activeRules})
               </div>
             </button>
             <button
               onClick={() => setActiveTab("settings")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "settings"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <Settings className="w-4 h-4" />
                 Facility Settings
               </div>
             </button>
             <button
               onClick={() => setActiveTab("revenue")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "revenue"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4" />
                 Revenue Analytics
               </div>
             </button>
             <button
               onClick={() => setActiveTab("occupancy")}
-              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "occupancy"
-                  ? "border-teal-500 text-navy-900"
-                  : "border-transparent text-navy-500 hover:text-navy-700"
+                  ? "border-teal-400 text-white bg-white/10"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-4 h-4" />
                 Current Occupancy ({stats.currentOccupancy})
               </div>
             </button>
             <Link
               href="/logs"
-              className="shrink-0 px-4 py-3 font-semibold border-b-2 border-transparent text-navy-500 hover:text-navy-700 transition-colors"
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
                 All Activity
               </div>
             </Link>
@@ -2873,12 +2923,11 @@ export default function DashboardPage() {
                     className="px-4 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                   <button
-                    onClick={exportHourlyTrendCSV}
-                    disabled={trendData.length === 0}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={() => setShowExportModal(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                   >
                     <Download className="w-5 h-5" />
-                    Export Trend Data
+                    Export Multi-Day Data
                   </button>
                 </div>
               </div>
@@ -3170,6 +3219,74 @@ export default function DashboardPage() {
                   setBroadcastTargetFilter("INSIDE");
                 }}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-navy-900 px-6 py-3 rounded-lg font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* V9.9 Fix #4: Multi-Day CSV Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
+              <Download className="w-7 h-7 text-green-600" />
+              Export Multi-Day Trend Data
+            </h2>
+            <p className="text-navy-600 mb-6">
+              Select a date range to export hourly occupancy data
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-navy-900 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-navy-900 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={exportMultiDayTrendCSV}
+                disabled={isExporting}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    Export CSV
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowExportModal(false)}
+                disabled={isExporting}
+                className="px-6 py-3 border-2 border-navy-300 text-navy-700 rounded-lg font-semibold hover:bg-navy-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
