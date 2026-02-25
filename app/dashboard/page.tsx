@@ -1277,7 +1277,29 @@ export default function DashboardPage() {
       {/* Navigation Tabs */}
       <div className="bg-white shadow-md border-b border-navy-200">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {/* V9.7 Fix #2: Mobile dropdown menu (visible on mobile only) */}
+          <select
+            value={activeTab}
+            onChange={(e) => {
+              if (e.target.value === 'logs') {
+                window.location.href = '/logs';
+              } else {
+                setActiveTab(e.target.value as any);
+              }
+            }}
+            className="block md:hidden w-full p-3 my-4 border border-navy-300 rounded-lg bg-white text-navy-700 font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          >
+            <option value="overview">📊 Overview</option>
+            <option value="residents">👥 Residents ({stats.totalResidents})</option>
+            <option value="rules">🛡️ Access Rules ({stats.activeRules})</option>
+            <option value="settings">⚙️ Facility Settings</option>
+            <option value="revenue">💰 Revenue Analytics</option>
+            <option value="occupancy">📈 Current Occupancy ({stats.currentOccupancy})</option>
+            <option value="logs">🕐 All Activity</option>
+          </select>
+
+          {/* V9.7 Fix #2: Horizontal tabs (hidden on mobile, visible on desktop) */}
+          <div className="hidden md:flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button
               onClick={() => setActiveTab("overview")}
               className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
