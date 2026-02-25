@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createAdminClient()
     const body = await request.json()
-    const { qr_code, scan_type, guest_count = 0, check_only = false } = body
+    const { qr_code, scan_type, guest_count = 0, check_only = false, scanner_property_id } = body
 
     if (!qr_code || !scan_type) {
       return NextResponse.json(
@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    // V9.10 Fix #2: Use scanner's property context (fallback to env default)
+    const activeFacilityId = scanner_property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
 
     if (!['ENTRY', 'EXIT'].includes(scan_type)) {
       return NextResponse.json(
@@ -52,6 +55,16 @@ export async function POST(request: NextRequest) {
 
     if (visitorPass && !visitorError) {
       console.log('✓ Visitor pass detected')
+      
+      // V9.10 Fix #2: Cross-Facility Security - Enforce Property Boundaries
+      if (visitorPass.property_id !== activeFacilityId) {
+        console.log(`❌ DENIED: Cross-facility scan attempt (Pass: ${visitorPass.property_id}, Scanner: ${activeFacilityId})`)
+        return NextResponse.json({
+          can_access: false,
+          denial_reason: 'Access Denied: This pass belongs to a different facility',
+          user_name: visitorPass.guest_name || 'Visitor'
+        })
+      }
       
       if (check_only) {
         return NextResponse.json({
@@ -242,6 +255,17 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✓ Resident found: ${resident.name}`)
+    
+    // V9.10 Fix #2: Cross-Facility Security - Enforce Property Boundaries for Residents
+    if (resident.property_id !== activeFacilityId) {
+      console.log(`❌ DENIED: Cross-facility scan attempt (Resident: ${resident.property_id}, Scanner: ${activeFacilityId})`)
+      return NextResponse.json({
+        can_access: false,
+        denial_reason: 'Access Denied: This pass belongs to a different facility',
+        user_name: resident.name
+      })
+    }
+    
     const property = resident.property as any
 
     // V6: Calculate effective guest limit (personal overrides property)

@@ -1164,23 +1164,28 @@ export default function DashboardPage() {
     idCanvas.width = cardWidth;
     idCanvas.height = cardHeight;
 
-    // Draw gradient background (navy to teal)
-    const gradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+    // V9.10 Fix #3: Add top header bar with dynamic property name
+    // Top accent bar
+    ctx.fillStyle = "#14b8a6"; // teal-500
+    ctx.fillRect(0, 0, cardWidth, 60);
+    
+    // Property name (top bar) - V9.10 Fix #3: Dynamic property name
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 32px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(propertyName || "Secure Access Pass", cardWidth / 2, 42);
+
+    // Draw gradient background (navy to teal) - below header
+    const gradient = ctx.createLinearGradient(0, 60, cardWidth, cardHeight);
     gradient.addColorStop(0, "#1e3a8a"); // navy-900
     gradient.addColorStop(1, "#0d9488"); // teal-600
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, cardWidth, cardHeight);
+    ctx.fillRect(0, 60, cardWidth, cardHeight - 60);
 
     // Border
     ctx.strokeStyle = "#14b8a6"; // teal-500
     ctx.lineWidth = 8;
     ctx.strokeRect(4, 4, cardWidth - 8, cardHeight - 8);
-
-    // White shield icon background (top left)
-    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-    ctx.beginPath();
-    ctx.arc(80, 80, 60, 0, 2 * Math.PI);
-    ctx.fill();
 
     // Card title
     ctx.font = "bold 28px Arial, sans-serif";
@@ -1305,47 +1310,35 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.9 Fix #5: Consolidated Single Header with Navigation */}
+      {/* V9.10 Fix #4: True Single Header - No title, just action buttons and tabs */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* Top row: Title and Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 sm:py-6">
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block bg-teal-500 p-3 rounded-xl">
-                <Shield className="w-8 h-8" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">Secure Access Pass</h1>
-                <p className="hidden sm:block text-navy-200 text-sm">Manager Command Center</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <a
-                href="/"
-                className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </a>
-              <a
-                href="/scanner"
-                className="bg-teal-500 hover:bg-teal-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <QrCode className="w-4 h-4" />
-                <span className="hidden sm:inline">Scanner</span>
-              </a>
-              <a
-                href="/dashboard/portfolio"
-                className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-              >
-                <Building2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Portfolio</span>
-              </a>
-            </div>
+          {/* V9.10 Fix #4: Compact top bar - Action buttons only */}
+          <div className="flex items-center justify-end gap-2 py-3 border-b border-white/10">
+            <a
+              href="/"
+              className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+            >
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Home</span>
+            </a>
+            <a
+              href="/scanner"
+              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="hidden sm:inline">Scanner</span>
+            </a>
+            <a
+              href="/dashboard/portfolio"
+              className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+            >
+              <Building2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Portfolio</span>
+            </a>
           </div>
 
-          {/* Bottom row: Tab Navigation */}
+          {/* V9.10 Fix #4: Tab Navigation row */}
           {/* V9.9 Fix #5: Mobile dropdown menu (now in header) */}
           <select
             value={activeTab}
@@ -2927,7 +2920,7 @@ export default function DashboardPage() {
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                   >
                     <Download className="w-5 h-5" />
-                    Export Multi-Day Data
+                    Export Data
                   </button>
                 </div>
               </div>

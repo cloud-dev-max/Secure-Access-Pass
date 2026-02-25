@@ -43,18 +43,24 @@ export async function GET(request: NextRequest) {
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0)
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
       
-      // V9.9 Fix #1: Carry-over occupancy - query all entries/exits BEFORE target date
+      // V9.10 Fix #1: 24-Hour Restricted Carry-over (Auto-Expire Ghosts)
+      // Only count entries/exits from the 24 hours BEFORE target date
+      // Users who entered >24h ago without exiting are "expired" and excluded
+      const priorDayStart = new Date(startOfDay)
+      priorDayStart.setHours(priorDayStart.getHours() - 24) // 24 hours before target date start
+      
       const { data: priorLogs, error: priorError } = await adminClient
         .from('access_logs')
         .select('scan_type, guest_count')
         .eq('property_id', propertyId)
-        .lt('scanned_at', startOfDay.toISOString())
+        .gte('scanned_at', priorDayStart.toISOString()) // Only last 24 hours
+        .lt('scanned_at', startOfDay.toISOString())      // Before target date
       
       if (priorError) {
         console.error('Error fetching prior occupancy:', priorError)
       }
       
-      // Calculate overnight occupancy (net of all prior entries/exits)
+      // Calculate overnight occupancy (net of ONLY last 24h entries/exits)
       let overnightOccupancy = 0
       if (priorLogs) {
         priorLogs.forEach(log => {

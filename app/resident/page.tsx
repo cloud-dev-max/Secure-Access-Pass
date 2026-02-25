@@ -29,6 +29,7 @@ interface ResidentProfile {
   phone: string | null
   qr_code: string
   current_location: 'INSIDE' | 'OUTSIDE'
+  property_name?: string // V9.10 Fix #3: Dynamic property name
 }
 
 export default function ResidentPortalPage() {
@@ -276,11 +277,11 @@ export default function ResidentPortalPage() {
     ctx.fillStyle = '#14b8a6' // teal-500
     ctx.fillRect(0, 0, cardWidth, 60)
 
-    // Property name (top bar)
+    // V9.10 Fix #3: Property name (top bar) - Use dynamic property name
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 32px Arial, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('Seaside Luxury Apartments', cardWidth / 2, 42)
+    ctx.fillText(resident.property_name || 'Secure Access Pass', cardWidth / 2, 42)
 
     // Card title
     ctx.font = 'bold 28px Arial, sans-serif'
