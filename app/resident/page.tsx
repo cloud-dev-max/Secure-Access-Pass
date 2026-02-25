@@ -281,7 +281,8 @@ export default function ResidentPortalPage() {
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 32px Arial, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(resident.property_name || 'Secure Access Pass', cardWidth / 2, 42)
+    // V9.13 Fix #3: Use actual property name only, no fallback
+    ctx.fillText(resident.property_name || '', cardWidth / 2, 42)
 
     // Card title
     ctx.font = 'bold 28px Arial, sans-serif'

@@ -47,20 +47,26 @@ export async function POST(request: NextRequest) {
 
     console.log('Resident authenticated:', profile.name)
 
-    // V9.12 HARD FIX #2: Direct secondary lookup if join fails
-    const property = profile.property as any
-    let propertyName = property?.name || property?.property_name
+    // V9.13 Fix #3: Direct property query - NO fallback to generic text
+    let propertyName = ''
     
-    // If join failed, do direct lookup
-    if (!propertyName && profile.property_id) {
-      const { data: propertyData } = await adminClient
+    if (profile.property_id) {
+      const { data: propertyData, error: propError } = await adminClient
         .from('properties')
         .select('name')
         .eq('id', profile.property_id)
         .single()
       
-      propertyName = propertyData?.name
-      console.log('[V9.12] Direct property lookup:', propertyData)
+      if (propError) {
+        console.error('[V9.13] Property lookup error:', propError)
+      } else {
+        propertyName = propertyData?.name || ''
+        console.log('[V9.13] Property name fetched:', propertyName)
+      }
+    }
+    
+    if (!propertyName) {
+      console.warn('[V9.13] WARNING: No property name found for resident:', profile.email)
     }
 
     // Return resident profile (client will store in localStorage)
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
-      property_name: propertyName || 'Secure Access Pass'
+      property_name: propertyName // V9.13 Fix #3: Must be actual property name, no fallback
     }, { status: 200 })
   } catch (error) {
     console.error('Unexpected error in POST /api/resident-auth:', error)

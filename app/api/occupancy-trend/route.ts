@@ -48,9 +48,10 @@ export async function GET(request: NextRequest) {
       const priorDayStart = new Date(startOfDay)
       priorDayStart.setHours(priorDayStart.getHours() - 24)
       
+      // V9.13 Fix #2: Fetch logs with user names for people array
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
-        .select('user_id, qr_code, scanned_at, scan_type, guest_count')
+        .select('user_id, qr_code, scanned_at, scan_type, guest_count, name, unit')
         .eq('property_id', propertyId)
         .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
         )
       }
     
-      // V9.11 Fix #1: Group logs by user (same as drill-down)
+      // V9.13 Fix #2: Group logs by user with name & unit info
       const userLogs = new Map()
       
       ;(allLogs || []).forEach(log => {
@@ -73,10 +74,19 @@ export async function GET(request: NextRequest) {
         const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
         
         if (!userLogs.has(userId)) {
+          // V9.13 Fix #2: Store user details for people array
+          let displayName = log.name || 'Unknown'
+          // Map missing/visitor passes to "Visitor"
+          if (!log.name || log.name === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
+            displayName = 'Visitor'
+          }
+          
           userLogs.set(userId, {
             entries: [],
             exits: [],
-            guestCount: log.guest_count || 0
+            guestCount: log.guest_count || 0,
+            name: displayName,
+            unit: log.unit || ''
           })
         }
         
@@ -91,7 +101,7 @@ export async function GET(request: NextRequest) {
         }
       })
       
-      // V9.11 Fix #1: Calculate occupancy for each hour using presence pairing
+      // V9.13 Fix #2: Calculate occupancy + people array for each hour
       const hourlyData: any[] = []
       
       for (let hour = 0; hour < 24; hour++) {
@@ -99,6 +109,7 @@ export async function GET(request: NextRequest) {
         const hourEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59, 999)
         
         let hourOccupancy = 0
+        const people: any[] = [] // V9.13 Fix #2: Build people array
         
         // Loop through every user and check if they were present during this hour
         userLogs.forEach((userLog) => {
@@ -118,14 +129,24 @@ export async function GET(request: NextRequest) {
           const wasPresent = relevantEntry <= hourEnd && (!relevantExit || relevantExit >= hourStart)
           
           if (wasPresent) {
-            hourOccupancy += 1 + (userLog.guestCount || 0)
+            const guestCount = userLog.guestCount || 0
+            hourOccupancy += 1 + guestCount
+            
+            // V9.13 Fix #2: Add person to people array
+            people.push({
+              name: userLog.name,
+              unit: userLog.unit,
+              guests: guestCount,
+              total: 1 + guestCount
+            })
           }
         })
         
         const timeLabel = `${String(hour).padStart(2, '0')}:00`
         hourlyData.push({
           hour: timeLabel,
-          occupancy: hourOccupancy
+          occupancy: hourOccupancy,
+          people // V9.13 Fix #2: Include people array
         })
       }
     
