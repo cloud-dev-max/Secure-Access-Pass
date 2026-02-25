@@ -1239,39 +1239,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.13 Fix #1: Restore Navigation Bar with Action Buttons */}
+      {/* V9.14 Fix #2: Deleted redundant blue header - buttons moved to layout.tsx */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.13 Fix #1: Title + Action Buttons Row */}
-          <div className="flex items-center justify-between gap-4 py-4 border-b border-white/10">
-            <h1 className="text-xl sm:text-2xl font-bold">Secure Access Pass</h1>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <a
-                href="/"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </a>
-              <a
-                href="/scanner"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 transition-colors text-sm font-medium"
-              >
-                <QrCode className="w-4 h-4" />
-                <span className="hidden sm:inline">Scanner</span>
-              </a>
-              <a
-                href="/dashboard/portfolio"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
-              >
-                <Building2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Portfolio</span>
-              </a>
-            </div>
-          </div>
-
-          {/* V9.13: Tab Navigation Menu */}
-          {/* V9.9 Fix #5: Mobile dropdown menu (now in header) */}
+          {/* V9.14 Fix #2: Tab Navigation Menu only (action buttons now in global header) */}
+          {/* V9.9 Fix #5: Mobile dropdown menu */}
           <select
             value={activeTab}
             onChange={(e) => {

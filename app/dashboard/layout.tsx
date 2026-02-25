@@ -1,7 +1,8 @@
 'use client'
 
 import { PropertyProvider, useProperty } from '@/contexts/PropertyContext'
-import { Building2, ChevronDown } from 'lucide-react'
+import { Building2, ChevronDown, Home, QrCode } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 
 function PropertySwitcher() {
@@ -60,13 +61,38 @@ function PropertySwitcher() {
 function DashboardHeader() {
   return (
     <div className="bg-gradient-to-r from-navy-900 to-navy-800 border-b border-navy-700 px-6 py-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Secure Access Pass</h1>
           <p className="text-sm text-navy-300">Property Management Dashboard</p>
         </div>
         
-        <PropertySwitcher />
+        {/* V9.14 Fix #2: Action buttons moved to global header */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+          >
+            <Home className="w-4 h-4" />
+            <span className="hidden sm:inline">Home</span>
+          </Link>
+          <Link
+            href="/scanner"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 transition-colors text-sm font-medium text-white"
+          >
+            <QrCode className="w-4 h-4" />
+            <span className="hidden sm:inline">Scanner</span>
+          </Link>
+          <Link
+            href="/dashboard/portfolio"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+          >
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Portfolio</span>
+          </Link>
+          
+          <PropertySwitcher />
+        </div>
       </div>
     </div>
   )

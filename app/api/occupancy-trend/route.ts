@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
       const priorDayStart = new Date(startOfDay)
       priorDayStart.setHours(priorDayStart.getHours() - 24)
       
-      // V9.13 Fix #2: Fetch logs with user names for people array
+      // V9.14 Fix #1: Fetch logs with Supabase join to profiles table
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
-        .select('user_id, qr_code, scanned_at, scan_type, guest_count, name, unit')
+        .select('user_id, qr_code, scanned_at, scan_type, guest_count, profiles (name, unit)')
         .eq('property_id', propertyId)
         .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         )
       }
     
-      // V9.13 Fix #2: Group logs by user with name & unit info
+      // V9.14 Fix #1: Group logs by user with joined profile data
       const userLogs = new Map()
       
       ;(allLogs || []).forEach(log => {
@@ -74,10 +74,12 @@ export async function GET(request: NextRequest) {
         const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
         
         if (!userLogs.has(userId)) {
-          // V9.13 Fix #2: Store user details for people array
-          let displayName = log.name || 'Unknown'
-          // Map missing/visitor passes to "Visitor"
-          if (!log.name || log.name === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
+          // V9.14 Fix #1: Extract joined profile data
+          const profileData = Array.isArray(log.profiles) ? log.profiles[0] : log.profiles
+          const logName = profileData?.name
+          const logUnit = profileData?.unit
+          let displayName = logName || 'Unknown'
+          if (!logName || logName === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
             displayName = 'Visitor'
           }
           
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
             exits: [],
             guestCount: log.guest_count || 0,
             name: displayName,
-            unit: log.unit || ''
+            unit: logUnit || ''
           })
         }
         

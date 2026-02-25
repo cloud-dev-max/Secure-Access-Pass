@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Resident authenticated:', profile.name)
 
-    // V9.13 Fix #3: Direct property query - NO fallback to generic text
+    // V9.14 Fix #3: Ensure property_name returns actual facility name
     let propertyName = ''
     
     if (profile.property_id) {
@@ -58,15 +58,18 @@ export async function POST(request: NextRequest) {
         .single()
       
       if (propError) {
-        console.error('[V9.13] Property lookup error:', propError)
-      } else {
-        propertyName = propertyData?.name || ''
-        console.log('[V9.13] Property name fetched:', propertyName)
+        console.error('[V9.14] Property lookup error:', propError)
+        console.error('[V9.14] Property ID:', profile.property_id)
       }
-    }
-    
-    if (!propertyName) {
-      console.warn('[V9.13] WARNING: No property name found for resident:', profile.email)
+      
+      if (propertyData && propertyData.name) {
+        propertyName = propertyData.name
+        console.log('[V9.14] Property name fetched:', propertyName)
+      } else {
+        console.error('[V9.14] No property name in result for property_id:', profile.property_id)
+      }
+    } else {
+      console.warn('[V9.14] No property_id for resident:', profile.email)
     }
 
     // Return resident profile (client will store in localStorage)
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
-      property_name: propertyName // V9.13 Fix #3: Must be actual property name, no fallback
+      property_name: propertyName // V9.14 Fix #3: Actual facility name only
     }, { status: 200 })
   } catch (error) {
     console.error('Unexpected error in POST /api/resident-auth:', error)

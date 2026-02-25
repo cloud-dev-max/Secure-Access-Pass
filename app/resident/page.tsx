@@ -29,7 +29,7 @@ interface ResidentProfile {
   phone: string | null
   qr_code: string
   current_location: 'INSIDE' | 'OUTSIDE'
-  property_name?: string // V9.10 Fix #3: Dynamic property name
+  property_name: string // V9.14 Fix #3: Actual facility name (required)
 }
 
 export default function ResidentPortalPage() {
