@@ -23,6 +23,7 @@ import {
   Share2,
   Mail,
   MessageSquare,
+  Printer,
   Trash2, // V7.5: For delete rule button
   Building2, // V9.0: Portfolio link
 } from "lucide-react";
@@ -128,6 +129,10 @@ export default function DashboardPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   // V8.12 Fix #3: Cache settings to avoid 8s API calls
   const [settingsCached, setSettingsCached] = useState(false);
+  
+  // V10.0: Gate Sign QR Generator
+  const [showGateSignModal, setShowGateSignModal] = useState(false);
+  const [gateSignQRCode, setGateSignQRCode] = useState('');
 
   // V7: Revenue Analytics
   const [revenueData, setRevenueData] = useState<any>(null);
@@ -822,6 +827,19 @@ export default function DashboardPage() {
     } finally {
       setSavingSettings(false);
     }
+  };
+
+  // V10.0: Generate Gate Sign QR Code
+  const generateGateSign = () => {
+    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001';
+    const checkInUrl = `${window.location.origin}/check-in/${propertyId}`;
+    setGateSignQRCode(checkInUrl);
+    setShowGateSignModal(true);
+  };
+
+  // V10.0: Print Gate Sign
+  const printGateSign = () => {
+    window.print();
   };
 
   // V7: Load Revenue Data
@@ -2231,6 +2249,22 @@ export default function DashboardPage() {
                   )}
                 </button>
               </form>
+              
+              {/* V10.0: Generate Gate Sign Button */}
+              <div className="mt-6 pt-6 border-t border-navy-200">
+                <h3 className="text-lg font-semibold text-navy-900 mb-3">Self-Check-In System</h3>
+                <p className="text-sm text-navy-600 mb-4">
+                  Generate a QR code for your gate entrance. Residents and visitors can scan this code to check in/out.
+                </p>
+                <button
+                  type="button"
+                  onClick={generateGateSign}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-colors"
+                >
+                  <QrCode className="w-5 h-5" />
+                  Generate Gate Sign
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -3187,6 +3221,76 @@ export default function DashboardPage() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* V10.0: Gate Sign Modal */}
+      {showGateSignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl">
+            <h2 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
+              <QrCode className="w-7 h-7 text-teal-600" />
+              Gate Check-In Sign
+            </h2>
+            <p className="text-navy-600 mb-6">
+              Display this QR code at your entrance gate. Residents and visitors can scan to check in/out.
+            </p>
+
+            <div className="bg-navy-50 rounded-xl p-6 mb-6 text-center">
+              <div className="bg-white inline-block p-6 rounded-xl shadow-lg mb-4">
+                <div id="gate-sign-qr" className="flex items-center justify-center">
+                  {gateSignQRCode && (
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(gateSignQRCode)}`}
+                      alt="Gate Check-In QR Code"
+                      className="w-64 h-64"
+                    />
+                  )}
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-navy-900 mb-2">
+                Scan to Check In or Out
+              </h3>
+              <p className="text-navy-600">
+                {propertyName || 'Secure Access Pass'}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={printGateSign}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                <Printer className="w-5 h-5" />
+                Print Sign (8.5x11)
+              </button>
+              <button
+                onClick={() => setShowGateSignModal(false)}
+                className="px-6 py-3 border-2 border-navy-300 text-navy-700 rounded-lg font-semibold hover:bg-navy-50 transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Print styles */}
+            <style jsx global>{`
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                #gate-sign-qr,
+                #gate-sign-qr * {
+                  visibility: visible;
+                }
+                #gate-sign-qr {
+                  position: absolute;
+                  left: 50%;
+                  top: 50%;
+                  transform: translate(-50%, -50%);
+                }
+              }
+            `}</style>
           </div>
         </div>
       )}
