@@ -11,10 +11,23 @@ export async function GET(request: NextRequest) {
     const adminClient = createAdminClient()
     const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
     
-    // Get start and end of today
-    const now = new Date()
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    // V9.5 Fix #2: Accept date parameter from query string (default to today)
+    const { searchParams } = new URL(request.url)
+    const dateParam = searchParams.get('date') // Format: YYYY-MM-DD
+    
+    // Parse requested date or use today
+    let targetDate: Date
+    if (dateParam) {
+      // Parse as local date (avoid timezone shifts)
+      const [year, month, day] = dateParam.split('-').map(Number)
+      targetDate = new Date(year, month - 1, day)
+    } else {
+      targetDate = new Date()
+    }
+    
+    // Get start and end of the target date (local timezone boundaries)
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0)
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
     
     // Fetch all access logs for today
     const { data: logs, error } = await adminClient
@@ -62,15 +75,14 @@ export async function GET(request: NextRequest) {
     for (let hour = 0; hour < 24; hour++) {
       const timeLabel = `${String(hour).padStart(2, '0')}:00`
       hourlyData.push({
-        hour,
-        time: timeLabel,
+        hour: timeLabel,  // V9.5 Fix #2: Use time string for chart X-axis
         occupancy: hourlyOccupancy[hour]
       })
     }
     
     return NextResponse.json({
-      hourlyData,
-      currentHour: now.getHours(),
+      hourlyTrend: hourlyData,  // V9.5 Fix #2: Match frontend expectation
+      requestedDate: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`,
       maxOccupancy: Math.max(...Object.values(hourlyOccupancy))
     }, { status: 200 })
     

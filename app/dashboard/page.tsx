@@ -1248,7 +1248,7 @@ export default function DashboardPage() {
       {/* Navigation Tabs */}
       <div className="bg-white shadow-md border-b border-navy-200">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-6">
+          <div className="flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button
               onClick={() => setActiveTab("overview")}
               className={`px-6 py-4 font-semibold border-b-2 transition-colors ${

@@ -127,9 +127,10 @@ export default function LogsPage() {
           action = 'Pool Status Change'
           result = log.denial_reason || 'Status Changed'
         } else if (isSystemBroadcast) {
-          // Action = "System Broadcast", Result = recipient count
+          // V9.5 Fix #3: Show actual broadcast message, not recipient count
           action = 'System Broadcast'
-          result = `${log.guest_count || 0} recipients`
+          // denial_reason contains the broadcast message
+          result = log.denial_reason || `Broadcast to ${log.guest_count || 0} recipients`
         }
         
         // V9.3 Fix #1 + V9.4 Fix #2: System events - use 0 for Guests, N/A for Total People
@@ -153,7 +154,8 @@ export default function LogsPage() {
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
       
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+      // V9.5 Fix #3: Add UTF-8 BOM for proper emoji rendering in Excel
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;

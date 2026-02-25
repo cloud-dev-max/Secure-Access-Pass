@@ -195,3 +195,13 @@ textarea:disabled {
   color: #9ca3af !important;
   cursor: not-allowed;
 }
+
+/* V9.5 Fix #4: Hide scrollbar for responsive tab navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}

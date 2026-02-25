@@ -76,30 +76,34 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V9.4 DIAGNOSTIC: Remove date filter, use correct table name, verify adminClient
-        // CRITICAL FIX: Table is 'visitor_passes', NOT 'guest_passes'
-        console.log('[PORTFOLIO DIAGNOSTIC] Using adminClient (service role):', !!adminClient)
-        console.log('[PORTFOLIO DIAGNOSTIC] Fetching from visitor_passes for property:', property.id)
+        // V9.5 Fix #1: Copy EXACT working logic from /api/revenue (lines 19-75)
+        // NO price column - multiply pass count by property's guest_pass_price setting
         
-        // Fetch ALL passes for this property (no date filter for diagnostic)
+        // Get all visitor passes for this property (just IDs and created_at)
         const { data: allPasses, error: revenueError } = await adminClient
-          .from('visitor_passes')  // CORRECTED: was 'guest_passes'
-          .select('price, created_at')
+          .from('visitor_passes')
+          .select('id, created_at')
           .eq('property_id', property.id)
 
-        console.log('[PORTFOLIO DIAGNOSTIC] Query result:', {
-          passesCount: allPasses?.length || 0,
-          error: revenueError?.message || null,
-          firstPass: allPasses?.[0] || null
-        })
-
-        // Sum up ALL passes (no date filter - diagnostic mode)
+        // Calculate today's revenue using local date string matching (EXACT logic from /api/revenue)
         let todaysRevenue = 0
-        if (allPasses) {
-          todaysRevenue = allPasses.reduce((sum, pass) => sum + (pass.price || 0), 0)
-          console.log('[PORTFOLIO DIAGNOSTIC] Total ALL-TIME revenue:', todaysRevenue)
-        } else {
-          console.error('[PORTFOLIO DIAGNOSTIC] No passes returned. Error:', revenueError)
+        if (allPasses && allPasses.length > 0) {
+          const passPrice = property.guest_pass_price || 5.00
+          const today = new Date()
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+          
+          // Count passes created today
+          let todayPassCount = 0
+          allPasses.forEach(pass => {
+            const passDate = new Date(pass.created_at)
+            const passDateStr = `${passDate.getFullYear()}-${String(passDate.getMonth() + 1).padStart(2, '0')}-${String(passDate.getDate()).padStart(2, '0')}`
+            if (passDateStr === todayStr) {
+              todayPassCount++
+            }
+          })
+          
+          // Revenue = pass count × price (EXACT logic from revenue API)
+          todaysRevenue = todayPassCount * passPrice
         }
 
         return {
