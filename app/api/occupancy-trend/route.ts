@@ -46,37 +46,43 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    // Initialize hourly buckets (0-23)
-    const hourlyOccupancy: { [hour: number]: number } = {}
+    // V9.6 Fix #1: Calculate running total (net occupancy), not entries per hour
+    // Group logs by hour for entry/exit counts
+    const hourlyEntries: { [hour: number]: number } = {}
+    const hourlyExits: { [hour: number]: number } = {}
+    
     for (let i = 0; i < 24; i++) {
-      hourlyOccupancy[i] = 0
+      hourlyEntries[i] = 0
+      hourlyExits[i] = 0
     }
     
-    // Calculate net occupancy per hour
-    let currentOccupancy = 0
-    const hourlyData: any[] = []
-    
+    // Count entries and exits per hour
     logs.forEach(log => {
       const logDate = new Date(log.scanned_at)
       const hour = logDate.getHours()
       const people = 1 + (log.guest_count || 0) // Primary person + guests
       
       if (log.scan_type === 'ENTRY') {
-        currentOccupancy += people
+        hourlyEntries[hour] += people
       } else if (log.scan_type === 'EXIT') {
-        currentOccupancy -= people
-        if (currentOccupancy < 0) currentOccupancy = 0 // Safety check
+        hourlyExits[hour] += people
       }
-      
-      hourlyOccupancy[hour] = currentOccupancy
     })
     
-    // Build array of hourly data points
+    // Calculate running total chronologically (0-23)
+    let currentOccupancy = 0
+    const hourlyData: any[] = []
+    
     for (let hour = 0; hour < 24; hour++) {
+      // Add entries, subtract exits for this hour
+      currentOccupancy += hourlyEntries[hour]
+      currentOccupancy -= hourlyExits[hour]
+      if (currentOccupancy < 0) currentOccupancy = 0 // Safety check
+      
       const timeLabel = `${String(hour).padStart(2, '0')}:00`
       hourlyData.push({
-        hour: timeLabel,  // V9.5 Fix #2: Use time string for chart X-axis
-        occupancy: hourlyOccupancy[hour]
+        hour: timeLabel,
+        occupancy: currentOccupancy  // Running total stays constant if no activity
       })
     }
     

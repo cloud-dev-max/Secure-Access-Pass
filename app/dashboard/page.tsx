@@ -638,7 +638,7 @@ export default function DashboardPage() {
     }
   };
 
-  // V9.4 Feature #1: Load people inside at specific hour
+  // V9.6 Fix #2: Load people WHO WERE PRESENT during the hour (not just who entered)
   const loadPeopleAtHour = async (hour: string) => {
     try {
       const response = await fetch(`/api/activity-logs?limit=5000&startDate=${trendDate}&endDate=${trendDate}`);
@@ -651,19 +651,48 @@ export default function DashboardPage() {
       const hourEnd = new Date(trendDate);
       hourEnd.setHours(hourNum, 59, 59, 999);
       
-      const logsInHour = (data.logs || []).filter((log: any) => {
-        const logTime = new Date(log.scanned_at);
-        return logTime >= hourStart && logTime <= hourEnd && log.scan_type === 'ENTRY';
+      // Group logs by user to find entry/exit pairs
+      const userLogs = new Map();
+      (data.logs || []).forEach((log: any) => {
+        const userId = log.user_id || log.qr_code || 'unknown';
+        if (!userLogs.has(userId)) {
+          userLogs.set(userId, { entries: [], exits: [], log });
+        }
+        const userLog = userLogs.get(userId);
+        if (log.scan_type === 'ENTRY') {
+          userLog.entries.push(new Date(log.scanned_at));
+        } else if (log.scan_type === 'EXIT') {
+          userLog.exits.push(new Date(log.scanned_at));
+        }
       });
       
+      // Find people present during the clicked hour
       const peopleMap = new Map();
-      logsInHour.forEach((log: any) => {
-        const name = log.user?.name || log.profile?.name || 'Unknown';
-        const unit = log.user?.unit || log.profile?.unit || 'N/A';
-        const guests = log.guest_count || 0;
-        const key = `${name}-${unit}`;
-        if (!peopleMap.has(key)) {
-          peopleMap.set(key, { name, unit, guests, totalPeople: 1 + guests });
+      userLogs.forEach((userLog, userId) => {
+        // Find last entry before or during the hour
+        const lastEntry = userLog.entries
+          .filter((t: Date) => t <= hourEnd)
+          .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0];
+        
+        if (!lastEntry) return; // Never entered by this hour
+        
+        // Find first exit after entry
+        const firstExit = userLog.exits
+          .filter((t: Date) => t >= lastEntry)
+          .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
+        
+        // Person was present if: entered <= hour end AND (no exit OR exit >= hour start)
+        const wasPresent = lastEntry <= hourEnd && (!firstExit || firstExit >= hourStart);
+        
+        if (wasPresent) {
+          const log = userLog.log;
+          const name = log.user?.name || log.profile?.name || 'Unknown';
+          const unit = log.user?.unit || log.profile?.unit || 'N/A';
+          const guests = log.guest_count || 0;
+          const key = `${name}-${unit}`;
+          if (!peopleMap.has(key)) {
+            peopleMap.set(key, { name, unit, guests, totalPeople: 1 + guests });
+          }
         }
       });
       
@@ -1251,7 +1280,7 @@ export default function DashboardPage() {
           <div className="flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "overview"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1264,7 +1293,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("residents")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "residents"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1277,7 +1306,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("rules")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "rules"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1290,7 +1319,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("settings")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "settings"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1303,7 +1332,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("revenue")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "revenue"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1316,7 +1345,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("occupancy")}
-              className={`px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
                 activeTab === "occupancy"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1327,6 +1356,15 @@ export default function DashboardPage() {
                 Current Occupancy ({stats.currentOccupancy})
               </div>
             </button>
+            <Link
+              href="/logs"
+              className="shrink-0 px-6 py-4 font-semibold border-b-2 border-transparent text-navy-500 hover:text-navy-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                All Activity
+              </div>
+            </Link>
           </div>
         </div>
       </div>
