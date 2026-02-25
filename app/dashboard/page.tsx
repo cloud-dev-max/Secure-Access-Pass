@@ -1208,13 +1208,19 @@ export default function DashboardPage() {
     ctx.fillStyle = "#94a3b8"; // gray-400
     ctx.fillText(resident.email, 40, 260);
 
-    // Status badge
-    ctx.fillStyle = "#10b981"; // green-500
-    ctx.fillRect(40, 290, 180, 40);
+    // V9.11 Fix #4: Status badge with proper padding
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 20px Arial, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("✓ VALID RESIDENT", 130, 316);
+    const badgeText = "✓ VALID RESIDENT";
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeX = 40;
+    const badgeY = 290;
+    const badgePadding = 20; // 10px each side
+    ctx.fillStyle = "#10b981"; // green-500
+    ctx.fillRect(badgeX, badgeY, textWidth + badgePadding, 40);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(badgeText, badgeX + (textWidth + badgePadding) / 2, 316);
 
     // Guests Allowed info
     ctx.font = "22px Arial, sans-serif";
@@ -1310,35 +1316,44 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.10 Fix #4: True Single Header - No title, just action buttons and tabs */}
+      {/* V9.11 Fix #2: True 2-Layer Navbar */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.10 Fix #4: Compact top bar - Action buttons only */}
-          <div className="flex items-center justify-end gap-2 py-3 border-b border-white/10">
-            <a
-              href="/"
-              className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-            >
-              <Home className="w-4 h-4" />
-              <span className="hidden sm:inline">Home</span>
-            </a>
-            <a
-              href="/scanner"
-              className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-            >
-              <QrCode className="w-4 h-4" />
-              <span className="hidden sm:inline">Scanner</span>
-            </a>
-            <a
-              href="/dashboard/portfolio"
-              className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
-            >
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Portfolio</span>
-            </a>
+          {/* V9.11 Fix #2: Layer 1 - Title + Action Buttons in one row */}
+          <div className="flex items-center justify-between gap-4 py-4 border-b border-white/10">
+            {/* Left: Title */}
+            <div className="flex items-center gap-3">
+              <Shield className="w-6 h-6 text-teal-400" />
+              <h1 className="text-xl sm:text-2xl font-bold">Secure Access Pass</h1>
+            </div>
+            
+            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-2">
+              <a
+                href="/"
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Home</span>
+              </a>
+              <a
+                href="/scanner"
+                className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+              >
+                <QrCode className="w-4 h-4" />
+                <span className="hidden sm:inline">Scanner</span>
+              </a>
+              <a
+                href="/dashboard/portfolio"
+                className="bg-purple-500/90 hover:bg-purple-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all text-sm"
+              >
+                <Building2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Portfolio</span>
+              </a>
+            </div>
           </div>
 
-          {/* V9.10 Fix #4: Tab Navigation row */}
+          {/* V9.11 Fix #2: Layer 2 - Tab Navigation */}
           {/* V9.9 Fix #5: Mobile dropdown menu (now in header) */}
           <select
             value={activeTab}

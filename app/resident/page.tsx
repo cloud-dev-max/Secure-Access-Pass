@@ -304,13 +304,19 @@ export default function ResidentPortalPage() {
     ctx.fillStyle = '#94a3b8' // gray-400
     ctx.fillText(resident.email, 40, 260)
 
-    // Status badge
-    ctx.fillStyle = '#10b981' // green-500
-    ctx.fillRect(40, 290, 180, 40)
+    // V9.11 Fix #4: Status badge with proper padding
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 20px Arial, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('✓ VALID RESIDENT', 130, 316)
+    const badgeText = '✓ VALID RESIDENT'
+    const textWidth = ctx.measureText(badgeText).width
+    const badgeX = 40
+    const badgeY = 290
+    const badgePadding = 20 // 10px each side
+    ctx.fillStyle = '#10b981' // green-500
+    ctx.fillRect(badgeX, badgeY, textWidth + badgePadding, 40)
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(badgeText, badgeX + (textWidth + badgePadding) / 2, 316)
 
     // V4: Guests Allowed info
     ctx.font = '22px Arial, sans-serif'

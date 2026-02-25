@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
     console.log('[V7.4] Looking up resident with email:', email)
 
     // V7.4 Issue #9: Use ilike for case-insensitive email matching
-    // V9.10 Fix #3: Include property data for dynamic pass design
+    // V9.11 Fix #3: Include property data for dynamic pass design (correct join)
     // Find resident by email and PIN
     const { data: profile, error } = await adminClient
       .from('profiles')
-      .select('*, property:property_id(id, name)')
+      .select('*, property:properties!property_id(id, name)')
       .ilike('email', email.trim())
       .eq('access_pin', pin.trim())
       .eq('role', 'resident')
@@ -48,8 +48,9 @@ export async function POST(request: NextRequest) {
     console.log('Resident authenticated:', profile.name)
 
     // Return resident profile (client will store in localStorage)
-    // V9.10 Fix #3: Include property name for pass design
+    // V9.11 Fix #3: Include property name for pass design
     const property = profile.property as any
+    console.log('Property data for resident:', property) // Debug log
     return NextResponse.json({
       id: profile.id,
       name: profile.name,
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
-      property_name: property?.name || 'Secure Access Pass'
+      property_name: property?.name || property?.property_name || 'Access Pass'
     }, { status: 200 })
   } catch (error) {
     console.error('Unexpected error in POST /api/resident-auth:', error)

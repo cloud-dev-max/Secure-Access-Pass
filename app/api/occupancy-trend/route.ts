@@ -43,43 +43,16 @@ export async function GET(request: NextRequest) {
       const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0)
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
       
-      // V9.10 Fix #1: 24-Hour Restricted Carry-over (Auto-Expire Ghosts)
-      // Only count entries/exits from the 24 hours BEFORE target date
-      // Users who entered >24h ago without exiting are "expired" and excluded
+      // V9.11 Fix #1: Presence Pairing Algorithm (Match Drill-Down Logic)
+      // Fetch logs from 24 hours prior + target day to track user presence
       const priorDayStart = new Date(startOfDay)
-      priorDayStart.setHours(priorDayStart.getHours() - 24) // 24 hours before target date start
+      priorDayStart.setHours(priorDayStart.getHours() - 24)
       
-      const { data: priorLogs, error: priorError } = await adminClient
+      const { data: allLogs, error } = await adminClient
         .from('access_logs')
-        .select('scan_type, guest_count')
+        .select('user_id, qr_code, scanned_at, scan_type, guest_count')
         .eq('property_id', propertyId)
-        .gte('scanned_at', priorDayStart.toISOString()) // Only last 24 hours
-        .lt('scanned_at', startOfDay.toISOString())      // Before target date
-      
-      if (priorError) {
-        console.error('Error fetching prior occupancy:', priorError)
-      }
-      
-      // Calculate overnight occupancy (net of ONLY last 24h entries/exits)
-      let overnightOccupancy = 0
-      if (priorLogs) {
-        priorLogs.forEach(log => {
-          const people = 1 + (log.guest_count || 0)
-          if (log.scan_type === 'ENTRY') {
-            overnightOccupancy += people
-          } else if (log.scan_type === 'EXIT') {
-            overnightOccupancy -= people
-          }
-        })
-        if (overnightOccupancy < 0) overnightOccupancy = 0 // Safety check
-      }
-      
-      // Fetch all access logs for the target date
-      const { data: logs, error } = await adminClient
-        .from('access_logs')
-        .select('scanned_at, scan_type, guest_count')
-        .eq('property_id', propertyId)
-        .gte('scanned_at', startOfDay.toISOString())
+        .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
         .order('scanned_at', { ascending: true })
       
@@ -91,52 +64,70 @@ export async function GET(request: NextRequest) {
         )
       }
     
-    // V9.7 Fix #1: Bulletproof array initialization (prevent NaN errors)
-    // V9.6 Fix #1: Calculate running total (net occupancy), not entries per hour
-    const hourlyEntries = Array(24).fill(0) // Explicit array initialization
-    const hourlyExits = Array(24).fill(0)   // Prevents undefined errors
-    
-    // Count entries and exits per hour (wrapped in try/catch for safety)
-    try {
-      (logs || []).forEach(log => {
-        if (!log || !log.scanned_at) return // Skip invalid logs
+      // V9.11 Fix #1: Group logs by user (same as drill-down)
+      const userLogs = new Map()
+      
+      ;(allLogs || []).forEach(log => {
+        if (!log || !log.scanned_at) return
         
-        const logDate = new Date(log.scanned_at)
-        const hour = logDate.getHours()
+        const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
         
-        // Validate hour is in range 0-23
-        if (hour < 0 || hour > 23) return
+        if (!userLogs.has(userId)) {
+          userLogs.set(userId, {
+            entries: [],
+            exits: [],
+            guestCount: log.guest_count || 0
+          })
+        }
         
-        const people = 1 + (log.guest_count || 0) // Primary person + guests
+        const userLog = userLogs.get(userId)
+        const timestamp = new Date(log.scanned_at)
         
         if (log.scan_type === 'ENTRY') {
-          hourlyEntries[hour] += people
+          userLog.entries.push(timestamp)
+          userLog.guestCount = log.guest_count || 0 // Update from most recent entry
         } else if (log.scan_type === 'EXIT') {
-          hourlyExits[hour] += people
+          userLog.exits.push(timestamp)
         }
       })
-    } catch (parseError) {
-      console.error('Error parsing logs:', parseError)
-      // Continue with zeros - better than crashing
-    }
-    
-    // Calculate running total chronologically (0-23)
-    // V9.9 Fix #1: Start with overnight occupancy from prior entries/exits
-    let currentOccupancy = overnightOccupancy
-    const hourlyData: any[] = []
-    
-    for (let hour = 0; hour < 24; hour++) {
-      // Add entries, subtract exits for this hour
-      currentOccupancy += (hourlyEntries[hour] || 0)
-      currentOccupancy -= (hourlyExits[hour] || 0)
-      if (currentOccupancy < 0) currentOccupancy = 0 // Safety check
       
-      const timeLabel = `${String(hour).padStart(2, '0')}:00`
-      hourlyData.push({
-        hour: timeLabel,
-        occupancy: currentOccupancy  // Running total stays constant if no activity
-      })
-    }
+      // V9.11 Fix #1: Calculate occupancy for each hour using presence pairing
+      const hourlyData: any[] = []
+      
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0, 0, 0)
+        const hourEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59, 999)
+        
+        let hourOccupancy = 0
+        
+        // Loop through every user and check if they were present during this hour
+        userLogs.forEach((userLog) => {
+          // Find most recent entry that occurred before or during this hour
+          const relevantEntry = userLog.entries
+            .filter((t: Date) => t <= hourEnd)
+            .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
+          
+          if (!relevantEntry) return // Never entered by this hour
+          
+          // Find first exit that occurred after that entry
+          const relevantExit = userLog.exits
+            .filter((t: Date) => t >= relevantEntry)
+            .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0]
+          
+          // User was present if: entered before/during hour AND (no exit OR exit after hour started)
+          const wasPresent = relevantEntry <= hourEnd && (!relevantExit || relevantExit >= hourStart)
+          
+          if (wasPresent) {
+            hourOccupancy += 1 + (userLog.guestCount || 0)
+          }
+        })
+        
+        const timeLabel = `${String(hour).padStart(2, '0')}:00`
+        hourlyData.push({
+          hour: timeLabel,
+          occupancy: hourOccupancy
+        })
+      }
     
       // V9.7 Fix #1: Fixed ReferenceError - use hourlyData instead of deleted hourlyOccupancy
       const maxOccupancy = Math.max(0, ...hourlyData.map(d => d.occupancy || 0))
@@ -157,8 +148,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         hourlyTrend: filteredData,  // V9.9 Fix #2: Only show hours up to now for today
         requestedDate: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`,
-        maxOccupancy,
-        overnightCarryOver: overnightOccupancy  // V9.9 Fix #1: Return for debugging
+        maxOccupancy
       }, { status: 200 })
       
     } catch (dataError) {
