@@ -72,6 +72,13 @@ export default function DashboardPage() {
   const [occupancySearch, setOccupancySearch] = useState("");
   const residentsPerPage = 50;
 
+  // V9.4 Feature #1: Hourly Occupancy Trend
+  const [trendDate, setTrendDate] = useState(new Date().toISOString().split('T')[0]);
+  const [trendData, setTrendData] = useState<any[]>([]);
+  const [loadingTrend, setLoadingTrend] = useState(false);
+  const [selectedHour, setSelectedHour] = useState<string | null>(null);
+  const [hourlyPeople, setHourlyPeople] = useState<any[]>([]);
+
   // New Resident Form
   const [newResidentName, setNewResidentName] = useState("");
   const [newResidentEmail, setNewResidentEmail] = useState("");
@@ -136,7 +143,18 @@ export default function DashboardPage() {
     if (activeTab === "revenue") {
       loadRevenueData();
     }
+    // V9.4 Feature #1: Load hourly trend when occupancy tab is active
+    if (activeTab === "occupancy") {
+      loadHourlyTrend(trendDate);
+    }
   }, [activeTab]);
+
+  // V9.4 Feature #1: Reload trend when date changes
+  useEffect(() => {
+    if (activeTab === "occupancy") {
+      loadHourlyTrend(trendDate);
+    }
+  }, [trendDate]);
 
   // V8.4 Fix #6: Don't pre-fill Guest Limit - let it be empty (uses default)
   // Removed auto-fill logic - field should remain empty unless user explicitly sets it
@@ -599,6 +617,87 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error regenerating PIN:", error);
       alert("Failed to regenerate PIN");
+    }
+  };
+
+  // V9.4 Feature #1: Load hourly occupancy trend
+  const loadHourlyTrend = async (date: string) => {
+    setLoadingTrend(true);
+    setSelectedHour(null);
+    setHourlyPeople([]);
+    try {
+      const response = await fetch(`/api/occupancy-trend?date=${date}`);
+      if (!response.ok) throw new Error('Failed to load trend data');
+      const data = await response.json();
+      setTrendData(data.hourlyTrend || []);
+    } catch (error) {
+      console.error('Error loading hourly trend:', error);
+      setTrendData([]);
+    } finally {
+      setLoadingTrend(false);
+    }
+  };
+
+  // V9.4 Feature #1: Load people inside at specific hour
+  const loadPeopleAtHour = async (hour: string) => {
+    try {
+      const response = await fetch(`/api/activity-logs?limit=5000&startDate=${trendDate}&endDate=${trendDate}`);
+      if (!response.ok) throw new Error('Failed to load activity logs');
+      const data = await response.json();
+      
+      const hourNum = parseInt(hour.split(':')[0]);
+      const hourStart = new Date(trendDate);
+      hourStart.setHours(hourNum, 0, 0, 0);
+      const hourEnd = new Date(trendDate);
+      hourEnd.setHours(hourNum, 59, 59, 999);
+      
+      const logsInHour = (data.logs || []).filter((log: any) => {
+        const logTime = new Date(log.scanned_at);
+        return logTime >= hourStart && logTime <= hourEnd && log.scan_type === 'ENTRY';
+      });
+      
+      const peopleMap = new Map();
+      logsInHour.forEach((log: any) => {
+        const name = log.user?.name || log.profile?.name || 'Unknown';
+        const unit = log.user?.unit || log.profile?.unit || 'N/A';
+        const guests = log.guest_count || 0;
+        const key = `${name}-${unit}`;
+        if (!peopleMap.has(key)) {
+          peopleMap.set(key, { name, unit, guests, totalPeople: 1 + guests });
+        }
+      });
+      
+      setHourlyPeople(Array.from(peopleMap.values()));
+    } catch (error) {
+      console.error('Error loading people at hour:', error);
+      setHourlyPeople([]);
+    }
+  };
+
+  // V9.4 Feature #1: Export hourly trend CSV
+  const exportHourlyTrendCSV = () => {
+    try {
+      const headers = ['Time', 'Occupancy Count'];
+      const rows = trendData.map((point: any) => [point.hour, point.occupancy]);
+      
+      const csvContent = [
+        `Hourly Occupancy Trend - ${trendDate}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `occupancy-trend-${trendDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting trend CSV:', error);
+      alert('Failed to export trend data');
     }
   };
 
@@ -2674,6 +2773,128 @@ export default function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+
+            {/* V9.4 Feature #1: Hourly Occupancy Trend Chart */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-6 h-6 text-green-600" />
+                  <h2 className="text-2xl font-bold text-navy-900">
+                    Hourly Occupancy Trend
+                  </h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="date"
+                    value={trendDate}
+                    onChange={(e) => setTrendDate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="px-4 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                  <button
+                    onClick={exportHourlyTrendCSV}
+                    disabled={trendData.length === 0}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    Export Trend Data
+                  </button>
+                </div>
+              </div>
+
+              {loadingTrend ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+                </div>
+              ) : trendData.length === 0 ? (
+                <div className="text-center py-12 text-navy-500">
+                  <Activity className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-semibold mb-2">No data available</p>
+                  <p className="text-sm">Select a date with activity to view trends</p>
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={trendData} onClick={(data) => {
+                      if (data && data.activeLabel) {
+                        setSelectedHour(data.activeLabel);
+                        loadPeopleAtHour(data.activeLabel);
+                      }
+                    }}>
+                      <defs>
+                        <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="hour" 
+                        stroke="#6b7280"
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis 
+                        stroke="#6b7280"
+                        style={{ fontSize: '12px' }}
+                        label={{ value: 'People Inside', angle: -90, position: 'insideLeft' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          padding: '8px 12px'
+                        }}
+                        formatter={(value: any) => [`${value} people`, 'Occupancy']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="occupancy" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        fill="url(#trendGradient)"
+                        cursor="pointer"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+
+                  {/* Show people at selected hour */}
+                  {selectedHour && (
+                    <div className="mt-6 border-t border-navy-200 pt-6">
+                      <h3 className="text-lg font-bold text-navy-900 mb-4">
+                        People Inside at {selectedHour}
+                      </h3>
+                      {hourlyPeople.length === 0 ? (
+                        <p className="text-navy-500 text-center py-4">No entries found for this hour</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-navy-50 border-b border-navy-200">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-navy-700 uppercase">Name</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-navy-700 uppercase">Unit</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-navy-700 uppercase">Guests</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-navy-700 uppercase">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-navy-100">
+                              {hourlyPeople.map((person, idx) => (
+                                <tr key={idx} className="hover:bg-green-50 transition-colors">
+                                  <td className="px-4 py-3 font-semibold text-navy-900">{person.name}</td>
+                                  <td className="px-4 py-3 text-navy-600">{person.unit}</td>
+                                  <td className="px-4 py-3 text-navy-600">{person.guests}</td>
+                                  <td className="px-4 py-3 font-bold text-green-600">{person.totalPeople}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

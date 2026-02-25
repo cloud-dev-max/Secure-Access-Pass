@@ -98,7 +98,9 @@ export default function LogsPage() {
         
         // V9.1 Fix #2 + V9.3 Fix #1: Detect visitor passes and system events
         const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
-        const isSystemEvent = log.qr_code === 'STATUS_CHANGE' || log.qr_code === 'SYSTEM_BROADCAST'
+        const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
+        const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
+        const isSystemEvent = isStatusChange || isSystemBroadcast
         
         // V9.3 Fix #1: System events should show 'System' as name, not 'Unknown'
         let name = log.user?.name || log.profile?.name || 'Unknown'
@@ -115,20 +117,27 @@ export default function LogsPage() {
           type = 'Visitor Pass'
         }
         
-        // V9.3 Fix #1: System events should show actual action (STATUS_CHANGE, SYSTEM_BROADCAST)
+        // V9.4 Fix #2: Mirror UI logic - show event description as Action
+        // Copy EXACT logic from dashboard (lines 1546-1559)
         let action = log.scan_type || 'SCAN'
-        if (isSystemEvent) {
-          action = log.qr_code || 'SYSTEM_EVENT'
+        let result = log.result || 'N/A'
+        
+        if (isStatusChange) {
+          // Action = "Pool Status Change", Result = the actual status message
+          action = 'Pool Status Change'
+          result = log.denial_reason || 'Status Changed'
+        } else if (isSystemBroadcast) {
+          // Action = "System Broadcast", Result = recipient count
+          action = 'System Broadcast'
+          result = `${log.guest_count || 0} recipients`
         }
         
-        const result = log.result || 'N/A'
-        
-        // V9.3 Fix #1: System events are not physical people - use N/A for counts
+        // V9.3 Fix #1 + V9.4 Fix #2: System events - use 0 for Guests, N/A for Total People
         let guests: any = log.guest_count || 0
         let totalPeople: any = 1 + (log.guest_count || 0)
         
         if (isSystemEvent) {
-          guests = 'N/A'
+          guests = 0
           totalPeople = 'N/A'
         }
         

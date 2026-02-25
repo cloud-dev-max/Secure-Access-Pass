@@ -76,22 +76,40 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V9.3 Fix #2: Use ISO boundaries with Supabase filters (like stats API)
-        const now = new Date()
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-        const startOfDayISO = startOfDay.toISOString()
-        const endOfDayISO = endOfDay.toISOString()
+        // V9.4 Fix #3: Copy EXACT logic from /api/revenue - use local date string matching
+        // Get TODAY's date string (local timezone)
+        const today = new Date()
+        const getTodayDateString = () => {
+          const year = today.getFullYear()
+          const month = String(today.getMonth() + 1).padStart(2, '0')
+          const day = String(today.getDate()).padStart(2, '0')
+          return `${year}-${month}-${day}`
+        }
+        const todayStr = getTodayDateString()
 
-        // Query with strict DB filters for today's passes
-        const { data: revenueData, error: revenueError } = await adminClient
+        // Fetch ALL passes for this property
+        const { data: allPasses, error: revenueError } = await adminClient
           .from('guest_passes')
-          .select('price')
+          .select('price, created_at')
           .eq('property_id', property.id)
-          .gte('created_at', startOfDayISO)
-          .lte('created_at', endOfDayISO)
 
-        const todaysRevenue = revenueData?.reduce((sum, pass) => sum + (pass.price || 0), 0) || 0
+        // Filter to today's passes using local date string (EXACT logic from /api/revenue lines 58-71)
+        let todaysRevenue = 0
+        if (allPasses) {
+          allPasses.forEach(pass => {
+            // Convert created_at to local date string
+            const passDate = new Date(pass.created_at)
+            const year = passDate.getFullYear()
+            const month = String(passDate.getMonth() + 1).padStart(2, '0')
+            const day = String(passDate.getDate()).padStart(2, '0')
+            const date = `${year}-${month}-${day}`
+            
+            // If pass was created today, add to revenue
+            if (date === todayStr) {
+              todaysRevenue += (pass.price || 0)
+            }
+          })
+        }
 
         return {
           id: property.id,
