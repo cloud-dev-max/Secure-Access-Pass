@@ -638,61 +638,80 @@ export default function DashboardPage() {
     }
   };
 
-  // V9.6 Fix #2: Load people WHO WERE PRESENT during the hour (not just who entered)
+  // V9.8 Fix #4: Simplified drill-down logic with correct schema field checking
   const loadPeopleAtHour = async (hour: string) => {
     try {
       const response = await fetch(`/api/activity-logs?limit=5000&startDate=${trendDate}&endDate=${trendDate}`);
       if (!response.ok) throw new Error('Failed to load activity logs');
       const data = await response.json();
       
+      // Parse clicked hour (e.g., "14:00" → 14)
       const hourNum = parseInt(hour.split(':')[0]);
-      const hourStart = new Date(trendDate);
-      hourStart.setHours(hourNum, 0, 0, 0);
-      const hourEnd = new Date(trendDate);
-      hourEnd.setHours(hourNum, 59, 59, 999);
       
-      // Group logs by user to find entry/exit pairs
+      // Create hour boundaries using LOCAL date (match API's date string format)
+      const [year, month, day] = trendDate.split('-').map(Number);
+      const hourStart = new Date(year, month - 1, day, hourNum, 0, 0, 0);
+      const hourEnd = new Date(year, month - 1, day, hourNum, 59, 59, 999);
+      
+      // Group logs by user to track entry/exit pairs
       const userLogs = new Map();
       (data.logs || []).forEach((log: any) => {
-        const userId = log.user_id || log.qr_code || 'unknown';
+        // Skip invalid logs
+        if (!log || !log.scanned_at) return;
+        
+        // Use user_id as primary key, fallback to qr_code for visitor passes
+        const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`;
+        
         if (!userLogs.has(userId)) {
-          userLogs.set(userId, { entries: [], exits: [], log });
+          userLogs.set(userId, { 
+            entries: [], 
+            exits: [], 
+            name: log.user?.name || 'Unknown',
+            unit: log.user?.unit || 'N/A',
+            guestCount: log.guest_count || 0
+          });
         }
+        
         const userLog = userLogs.get(userId);
+        const timestamp = new Date(log.scanned_at);
+        
+        // Check scan_type field (correct schema field from API)
         if (log.scan_type === 'ENTRY') {
-          userLog.entries.push(new Date(log.scanned_at));
+          userLog.entries.push(timestamp);
+          // Update guest count from most recent entry
+          userLog.guestCount = log.guest_count || 0;
         } else if (log.scan_type === 'EXIT') {
-          userLog.exits.push(new Date(log.scanned_at));
+          userLog.exits.push(timestamp);
         }
       });
       
-      // Find people present during the clicked hour
+      // Find people who were PRESENT during the clicked hour
       const peopleMap = new Map();
+      
       userLogs.forEach((userLog, userId) => {
-        // Find last entry before or during the hour
-        const lastEntry = userLog.entries
+        // Find the last entry that occurred before or during the hour
+        const relevantEntry = userLog.entries
           .filter((t: Date) => t <= hourEnd)
           .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0];
         
-        if (!lastEntry) return; // Never entered by this hour
+        if (!relevantEntry) return; // Never entered by this hour
         
-        // Find first exit after entry
-        const firstExit = userLog.exits
-          .filter((t: Date) => t >= lastEntry)
+        // Find the first exit that occurred after that entry
+        const relevantExit = userLog.exits
+          .filter((t: Date) => t >= relevantEntry)
           .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
         
-        // Person was present if: entered <= hour end AND (no exit OR exit >= hour start)
-        const wasPresent = lastEntry <= hourEnd && (!firstExit || firstExit >= hourStart);
+        // Present if: entered before/during hour AND (no exit OR exited after hour started)
+        const wasPresent = relevantEntry <= hourEnd && (!relevantExit || relevantExit >= hourStart);
         
         if (wasPresent) {
-          const log = userLog.log;
-          const name = log.user?.name || log.profile?.name || 'Unknown';
-          const unit = log.user?.unit || log.profile?.unit || 'N/A';
-          const guests = log.guest_count || 0;
-          const key = `${name}-${unit}`;
-          if (!peopleMap.has(key)) {
-            peopleMap.set(key, { name, unit, guests, totalPeople: 1 + guests });
-          }
+          const key = `${userLog.name}-${userLog.unit}`;
+          peopleMap.set(key, {
+            name: userLog.name,
+            unit: userLog.unit,
+            guests: userLog.guestCount,
+            totalPeople: 1 + userLog.guestCount
+          });
         }
       });
       
@@ -1237,12 +1256,12 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="bg-teal-500 p-3 rounded-xl">
+              <div className="hidden sm:block bg-teal-500 p-3 rounded-xl">
                 <Shield className="w-8 h-8" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold">Secure Access Pass</h1>
-                <p className="text-navy-200">Manager Command Center</p>
+                <p className="hidden sm:block text-navy-200">Manager Command Center</p>
               </div>
             </div>
 
@@ -1287,7 +1306,7 @@ export default function DashboardPage() {
                 setActiveTab(e.target.value as any);
               }
             }}
-            className="block md:hidden w-full p-3 my-4 border border-navy-300 rounded-lg bg-white text-navy-700 font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="block xl:hidden w-full p-3 my-4 border border-navy-300 rounded-lg bg-white text-navy-700 font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           >
             <option value="overview">📊 Overview</option>
             <option value="residents">👥 Residents ({stats.totalResidents})</option>
@@ -1298,11 +1317,11 @@ export default function DashboardPage() {
             <option value="logs">🕐 All Activity</option>
           </select>
 
-          {/* V9.7 Fix #2: Horizontal tabs (hidden on mobile, visible on desktop) */}
-          <div className="hidden md:flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {/* V9.8 Fix #3: Horizontal tabs (xl breakpoint, tighter spacing) */}
+          <div className="hidden xl:flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "overview"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1315,7 +1334,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("residents")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "residents"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1328,7 +1347,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("rules")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "rules"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1341,7 +1360,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("settings")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "settings"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1354,7 +1373,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("revenue")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "revenue"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1367,7 +1386,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("occupancy")}
-              className={`shrink-0 px-6 py-4 font-semibold border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 font-semibold border-b-2 transition-colors ${
                 activeTab === "occupancy"
                   ? "border-teal-500 text-navy-900"
                   : "border-transparent text-navy-500 hover:text-navy-700"
@@ -1380,7 +1399,7 @@ export default function DashboardPage() {
             </button>
             <Link
               href="/logs"
-              className="shrink-0 px-6 py-4 font-semibold border-b-2 border-transparent text-navy-500 hover:text-navy-700 transition-colors"
+              className="shrink-0 px-4 py-3 font-semibold border-b-2 border-transparent text-navy-500 hover:text-navy-700 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
@@ -2899,6 +2918,7 @@ export default function DashboardPage() {
                         stroke="#6b7280"
                         style={{ fontSize: '12px' }}
                         label={{ value: 'People Inside', angle: -90, position: 'insideLeft' }}
+                        allowDecimals={false}
                       />
                       <Tooltip 
                         contentStyle={{ 
