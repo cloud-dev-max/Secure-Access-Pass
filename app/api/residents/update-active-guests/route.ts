@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
     const body = await request.json()
-    const { resident_id, active_guests } = body
+    const { resident_id, active_guests, current_location } = body
 
     if (!resident_id || active_guests === undefined) {
       return NextResponse.json(
@@ -19,29 +19,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[V10.2] Updating resident active_guests:', { resident_id, active_guests })
+    console.log('[V10.3] Updating resident state:', { resident_id, active_guests, current_location })
+
+    // V10.3 Fix #4: Update both active_guests and optionally current_location
+    const updateData: any = { active_guests }
+    if (current_location) {
+      updateData.current_location = current_location
+    }
 
     // Update profiles table
     const { data, error } = await adminClient
       .from('profiles')
-      .update({ active_guests })
+      .update(updateData)
       .eq('id', resident_id)
       .select()
       .single()
 
     if (error) {
-      console.error('[V10.2] Error updating active_guests:', error)
+      console.error('[V10.3] Error updating resident state:', error)
       return NextResponse.json(
-        { error: 'Failed to update active_guests' },
+        { error: 'Failed to update resident state' },
         { status: 500 }
       )
     }
 
-    console.log('[V10.2] Active guests updated successfully:', data.active_guests)
+    console.log('[V10.3] Resident state updated successfully:', { 
+      active_guests: data.active_guests, 
+      current_location: data.current_location 
+    })
 
     return NextResponse.json({
       success: true,
-      active_guests: data.active_guests
+      active_guests: data.active_guests,
+      current_location: data.current_location
     }, { status: 200 })
 
   } catch (error) {

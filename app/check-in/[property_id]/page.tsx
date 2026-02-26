@@ -51,6 +51,10 @@ export default function CheckInPage() {
   const [checkingIn, setCheckingIn] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showLivePass, setShowLivePass] = useState(false)
+  
+  // V10.3 Fix #4: Partial check-out state
+  const [residentCheckingOut, setResidentCheckingOut] = useState(true)
+  const [guestsCheckingOut, setGuestsCheckingOut] = useState(0)
 
   // V10.1 Fix #3: Check for ?code= URL parameter
   useEffect(() => {
@@ -298,17 +302,29 @@ export default function CheckInPage() {
       setShowLivePass(true)
       setCheckingIn(false)
 
-      // V10.2 Fix #2: Update resident location and active_guests in database
+      // V10.3 Fix #4: Partial check-out logic for residents
       if (resident) {
-        const newActiveGuests = action === 'ENTRY' 
-          ? (resident.active_guests ?? 0) + guestCount
-          : Math.max(0, (resident.active_guests ?? 0) - guestCount)
+        let newActiveGuests: number
+        let newLocation: 'INSIDE' | 'OUTSIDE'
         
-        console.log('[V10.2] Updating active_guests:', {
+        if (action === 'ENTRY') {
+          // Check-in: Add guests, resident goes inside
+          newActiveGuests = (resident.active_guests ?? 0) + guestCount
+          newLocation = 'INSIDE'
+        } else {
+          // Check-out: Subtract guests, optionally update resident location
+          newActiveGuests = Math.max(0, (resident.active_guests ?? 0) - guestsCheckingOut)
+          newLocation = residentCheckingOut ? 'OUTSIDE' : resident.current_location
+        }
+        
+        console.log('[V10.3] Partial check-out update:', {
           action,
-          before: resident.active_guests,
-          guestCount,
-          after: newActiveGuests
+          residentCheckingOut,
+          guestsCheckingOut,
+          before_guests: resident.active_guests,
+          after_guests: newActiveGuests,
+          before_location: resident.current_location,
+          after_location: newLocation
         })
 
         // Update profiles table via API
@@ -318,7 +334,8 @@ export default function CheckInPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               resident_id: resident.id,
-              active_guests: newActiveGuests
+              active_guests: newActiveGuests,
+              current_location: newLocation
             })
           })
           
@@ -326,16 +343,16 @@ export default function CheckInPage() {
             // Update local state
             const updatedResident = { 
               ...resident, 
-              current_location: location_after as 'INSIDE' | 'OUTSIDE',
+              current_location: newLocation,
               active_guests: newActiveGuests
             }
             localStorage.setItem('resident_profile', JSON.stringify(updatedResident))
             setResident(updatedResident)
           }
         } catch (error) {
-          console.error('[V10.2] Error updating active_guests:', error)
+          console.error('[V10.3] Error updating resident state:', error)
           // Still update location even if active_guests update fails
-          const updatedResident = { ...resident, current_location: location_after as 'INSIDE' | 'OUTSIDE' }
+          const updatedResident = { ...resident, current_location: newLocation }
           localStorage.setItem('resident_profile', JSON.stringify(updatedResident))
           setResident(updatedResident)
         }
@@ -561,8 +578,89 @@ export default function CheckInPage() {
           </div>
         )}
 
-        {/* V10.2 Fix #3: Guest Count Selector with clarity */}
-        {resident && (
+        {/* V10.3 Fix #4: Scenario-based UI */}
+        {resident && !isInside && activeGuests > 0 && (
+          /* Scenario B: Resident OUTSIDE with guests still inside */
+          <div className="mb-6">
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-6 text-center mb-6">
+              <p className="text-lg font-semibold text-orange-900 mb-2">
+                ⚠️ You have {activeGuests} guest{activeGuests > 1 ? 's' : ''} still inside
+              </p>
+              <p className="text-sm text-orange-700">
+                Check out your remaining guests before checking back in
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setGuestsCheckingOut(activeGuests)
+                setResidentCheckingOut(false)
+                performCheckInOut('EXIT')
+              }}
+              disabled={checkingIn}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 shadow-lg disabled:opacity-50"
+            >
+              {checkingIn ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <LogOut className="w-6 h-6" />
+                  Check Out Remaining Guests
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {resident && isInside && (
+          /* Scenario A: Resident INSIDE - Partial check-out */
+          <div className="mb-6 space-y-4">
+            {/* Resident checkout checkbox */}
+            <label className="flex items-center gap-3 p-4 bg-navy-50 rounded-lg cursor-pointer hover:bg-navy-100 transition-all">
+              <input
+                type="checkbox"
+                checked={residentCheckingOut}
+                onChange={(e) => setResidentCheckingOut(e.target.checked)}
+                className="w-5 h-5 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+              />
+              <span className="text-navy-900 font-semibold">I am checking out</span>
+            </label>
+
+            {/* Guests checking out slider */}
+            {activeGuests > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-navy-900 mb-3">
+                  Guests checking out
+                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setGuestsCheckingOut(Math.max(0, guestsCheckingOut - 1))}
+                    className="bg-navy-200 hover:bg-navy-300 text-navy-900 w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50"
+                    disabled={guestsCheckingOut === 0}
+                  >
+                    −
+                  </button>
+                  <div className="flex-1 text-center">
+                    <div className="text-3xl font-bold text-navy-900 mb-1">{guestsCheckingOut}</div>
+                    <p className="text-sm text-navy-600">of {activeGuests} guest{activeGuests > 1 ? 's' : ''}</p>
+                  </div>
+                  <button
+                    onClick={() => setGuestsCheckingOut(Math.min(activeGuests, guestsCheckingOut + 1))}
+                    className="bg-teal-600 hover:bg-teal-700 text-white w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50"
+                    disabled={guestsCheckingOut >= activeGuests}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {resident && (!isInside && activeGuests === 0) && (
+          /* Scenario C: Check-in (resident outside, no guests inside) */
           <div className="mb-6">
             <label className="block text-sm font-semibold text-navy-900 mb-3">
               Additional Guests (Not including you)
@@ -570,7 +668,7 @@ export default function CheckInPage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setGuestCount(Math.max(0, guestCount - 1))}
-                className="bg-navy-200 hover:bg-navy-300 text-navy-900 w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-navy-200 hover:bg-navy-300 text-navy-900 w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50"
                 disabled={guestCount === 0}
               >
                 −
@@ -579,16 +677,11 @@ export default function CheckInPage() {
                 <div className="text-3xl font-bold text-navy-900 mb-1">
                   {guestCount === 0 ? 'Just Me' : `Me + ${guestCount} Guest${guestCount > 1 ? 's' : ''}`}
                 </div>
-                <p className="text-sm text-navy-600">
-                  {isInside 
-                    ? `Can check out up to ${maxGuests} guest${maxGuests !== 1 ? 's' : ''}`
-                    : `${maxGuests} guest${maxGuests !== 1 ? 's' : ''} available`
-                  }
-                </p>
+                <p className="text-sm text-navy-600">{maxGuests} guest{maxGuests !== 1 ? 's' : ''} available</p>
               </div>
               <button
                 onClick={() => setGuestCount(Math.min(maxGuests, guestCount + 1))}
-                className="bg-teal-600 hover:bg-teal-700 text-white w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-teal-600 hover:bg-teal-700 text-white w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50"
                 disabled={guestCount >= maxGuests}
               >
                 +
@@ -598,37 +691,45 @@ export default function CheckInPage() {
         )}
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4">
+        {resident && !isInside && activeGuests === 0 && (
           <button
             onClick={() => performCheckInOut('ENTRY')}
-            disabled={checkingIn || isInside}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-semibold transition-all flex flex-col items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={checkingIn}
+            className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 shadow-lg disabled:opacity-50"
           >
             {checkingIn ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <>
+                <Loader2 className="w-8 h-8 animate-spin" />
+                Checking In...
+              </>
             ) : (
               <>
                 <LogIn className="w-8 h-8" />
-                <span>Check In</span>
+                Check In
               </>
             )}
           </button>
+        )}
 
+        {resident && isInside && (
           <button
             onClick={() => performCheckInOut('EXIT')}
-            disabled={checkingIn || !isInside}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold transition-all flex flex-col items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={checkingIn}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 shadow-lg disabled:opacity-50"
           >
             {checkingIn ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <>
+                <Loader2 className="w-8 h-8 animate-spin" />
+                Checking Out...
+              </>
             ) : (
               <>
                 <LogOut className="w-8 h-8" />
-                <span>Check Out</span>
+                Check Out
               </>
             )}
           </button>
-        </div>
+        )}
 
         {/* Info */}
         <div className="mt-6 p-4 bg-navy-50 rounded-lg">
