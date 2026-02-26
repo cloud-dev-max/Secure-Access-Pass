@@ -3237,34 +3237,47 @@ export default function DashboardPage() {
               Display this QR code at your entrance gate. Residents and visitors can scan to check in/out.
             </p>
 
-            {/* V10.1 Fix #1: Professional Single-Page Print Layout */}
-            <div id="gate-sign-printable" className="bg-navy-50 rounded-xl p-6 text-center print:bg-white print:rounded-none print:p-0 print:w-full print:h-full print:flex print:flex-col print:items-center print:justify-center">
-              {/* Shield Icon - Print Only */}
-              <div className="hidden print:block print:mb-8">
-                <Shield className="w-24 h-24 mx-auto text-teal-600" />
+            {/* V10.2 Fix #1: Bulletproof Single-Page Print Layout with Logo */}
+            <div className="print-container bg-navy-50 rounded-xl p-6 text-center print:bg-white print:rounded-none print:p-8">
+              {/* V10.2 Fix #1: Branding Logo - Above property name */}
+              <div className="mb-6 print:mb-8">
+                <img 
+                  src="/logo.png" 
+                  alt="Secure Access Pass Logo" 
+                  className="h-16 mx-auto object-contain print:h-24"
+                  onError={(e) => {
+                    // Fallback to Shield icon if logo not found
+                    e.currentTarget.style.display = 'none'
+                    const shieldFallback = document.getElementById('shield-fallback')
+                    if (shieldFallback) shieldFallback.style.display = 'block'
+                  }}
+                />
+                <div id="shield-fallback" className="hidden">
+                  <Shield className="w-16 h-16 mx-auto text-teal-600 print:w-24 print:h-24" />
+                </div>
               </div>
 
               {/* Property Name - Large and Bold */}
-              <h1 className="text-3xl font-bold text-navy-900 mb-8 print:text-6xl print:mb-12">
+              <h1 className="text-2xl font-bold text-navy-900 mb-6 print:text-5xl print:mb-8">
                 {propertyName || 'Secure Access Pass'}
               </h1>
 
               {/* QR Code - Large for distance scanning */}
-              <div className="bg-white inline-block p-6 rounded-xl shadow-lg mb-6 print:shadow-none print:mb-12">
+              <div className="bg-white inline-block p-4 rounded-xl shadow-lg mb-6 print:shadow-none print:mb-8 print:p-6">
                 {gateSignQRCode && (
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(gateSignQRCode)}`}
                     alt="Gate Check-In QR Code"
-                    className="w-64 h-64 print:w-[400px] print:h-[400px]"
+                    className="w-64 h-64 print:w-[350px] print:h-[350px]"
                   />
                 )}
               </div>
 
               {/* Instructions */}
-              <h3 className="text-2xl font-bold text-navy-900 mb-3 print:text-5xl print:mb-6">
+              <h3 className="text-xl font-bold text-navy-900 mb-2 print:text-4xl print:mb-4">
                 Scan with your phone camera
               </h3>
-              <p className="text-xl text-navy-600 print:text-4xl print:font-semibold">
+              <p className="text-lg text-navy-600 print:text-3xl print:font-semibold">
                 to Check In or Out
               </p>
             </div>
@@ -3285,7 +3298,7 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* V10.1 Fix #1: Strict Single-Page Print Styles */}
+            {/* V10.2 Fix #1: Bulletproof Single-Page Print Styles */}
             <style jsx global>{`
               @page {
                 size: letter;
@@ -3293,34 +3306,52 @@ export default function DashboardPage() {
               }
               
               @media print {
-                body {
-                  margin: 0;
-                  padding: 0;
-                  overflow: hidden;
-                  height: 100vh;
-                }
-                
+                /* Hide everything first */
                 body * {
-                  visibility: hidden;
+                  visibility: hidden !important;
                 }
                 
-                #gate-sign-printable,
-                #gate-sign-printable * {
-                  visibility: visible;
+                /* Show only the print container and its children */
+                .print-container,
+                .print-container * {
+                  visibility: visible !important;
                 }
                 
-                #gate-sign-printable {
-                  position: fixed;
-                  top: 0;
-                  left: 0;
-                  width: 100vw;
-                  height: 100vh;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  background: white;
-                  overflow: hidden;
+                /* Aggressive single-page enforcement */
+                .print-container {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  height: 100vh !important;
+                  overflow: hidden !important;
+                  page-break-after: avoid !important;
+                  page-break-before: avoid !important;
+                  page-break-inside: avoid !important;
+                  margin: 0 !important;
+                  padding: 2rem !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                  background: white !important;
+                  box-sizing: border-box !important;
+                }
+                
+                /* Force body constraints */
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: hidden !important;
+                  height: 100vh !important;
+                  width: 100vw !important;
+                }
+                
+                html {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: hidden !important;
+                  height: 100vh !important;
                 }
               }
             `}</style>

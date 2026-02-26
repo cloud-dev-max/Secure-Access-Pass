@@ -13,6 +13,7 @@ interface ResidentProfile {
   current_location: 'INSIDE' | 'OUTSIDE'
   property_name: string
   personal_guest_limit?: number | null
+  active_guests?: number
 }
 
 interface VisitorPass {
@@ -46,7 +47,7 @@ export default function CheckInPage() {
   
   // Check-in state
   const [guestCount, setGuestCount] = useState(0)
-  const [maxGuests, setMaxGuests] = useState(3)
+  const [baseMaxGuests, setBaseMaxGuests] = useState(3) // V10.2: Base limit from settings
   const [checkingIn, setCheckingIn] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showLivePass, setShowLivePass] = useState(false)
@@ -85,19 +86,20 @@ export default function CheckInPage() {
             const profile: ResidentProfile = JSON.parse(storedResident)
             setResident(profile)
             
-            // V10.1 Fix #2: Dual-layer guest limit logic
+            // V10.2 Fix #2: Dual-layer guest limit logic
             // Priority: personal_guest_limit → max_guests_per_resident
             const guestLimit = profile.personal_guest_limit ?? data.max_guests_per_resident ?? 3
-            console.log('[V10.1] Guest limit:', {
+            console.log('[V10.2] Guest limit:', {
               personal: profile.personal_guest_limit,
               property: data.max_guests_per_resident,
+              active_guests: profile.active_guests,
               final: guestLimit
             })
-            setMaxGuests(guestLimit)
+            setBaseMaxGuests(guestLimit)
             setLoading(false)
           } else {
             // No session - show identity fork
-            setMaxGuests(data.max_guests_per_resident ?? 3)
+            setBaseMaxGuests(data.max_guests_per_resident ?? 3)
             setShowIdentityFork(true)
             setLoading(false)
           }
@@ -105,13 +107,13 @@ export default function CheckInPage() {
           throw new Error('Failed to fetch property settings')
         }
       } catch (error) {
-        console.error('[V10.1] Error loading property settings:', error)
+        console.error('[V10.2] Error loading property settings:', error)
         // Fallback: check session without property settings
         const storedResident = localStorage.getItem('resident_profile')
         if (storedResident) {
           const profile: ResidentProfile = JSON.parse(storedResident)
           setResident(profile)
-          setMaxGuests(profile.personal_guest_limit ?? 3)
+          setBaseMaxGuests(profile.personal_guest_limit ?? 3)
         } else {
           setShowIdentityFork(true)
         }
@@ -296,11 +298,47 @@ export default function CheckInPage() {
       setShowLivePass(true)
       setCheckingIn(false)
 
-      // Update resident location in localStorage
+      // V10.2 Fix #2: Update resident location and active_guests in database
       if (resident) {
-        const updatedResident = { ...resident, current_location: location_after as 'INSIDE' | 'OUTSIDE' }
-        localStorage.setItem('resident_profile', JSON.stringify(updatedResident))
-        setResident(updatedResident)
+        const newActiveGuests = action === 'ENTRY' 
+          ? (resident.active_guests ?? 0) + guestCount
+          : Math.max(0, (resident.active_guests ?? 0) - guestCount)
+        
+        console.log('[V10.2] Updating active_guests:', {
+          action,
+          before: resident.active_guests,
+          guestCount,
+          after: newActiveGuests
+        })
+
+        // Update profiles table via API
+        try {
+          const updateResponse = await fetch('/api/residents/update-active-guests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              resident_id: resident.id,
+              active_guests: newActiveGuests
+            })
+          })
+          
+          if (updateResponse.ok) {
+            // Update local state
+            const updatedResident = { 
+              ...resident, 
+              current_location: location_after as 'INSIDE' | 'OUTSIDE',
+              active_guests: newActiveGuests
+            }
+            localStorage.setItem('resident_profile', JSON.stringify(updatedResident))
+            setResident(updatedResident)
+          }
+        } catch (error) {
+          console.error('[V10.2] Error updating active_guests:', error)
+          // Still update location even if active_guests update fails
+          const updatedResident = { ...resident, current_location: location_after as 'INSIDE' | 'OUTSIDE' }
+          localStorage.setItem('resident_profile', JSON.stringify(updatedResident))
+          setResident(updatedResident)
+        }
       }
 
       // Auto-hide live pass after 10 seconds
@@ -433,10 +471,10 @@ export default function CheckInPage() {
     )
   }
 
-  // V10.0: Live Pass (Anti-Screenshot)
+  // V10.2 Fix #3: Live Pass with clarity on resident + guests
   if (showLivePass) {
-    const totalPeople = 1 + guestCount
     const name = resident?.name || 'Visitor'
+    const isResident = !!resident
 
     return (
       <div className="min-h-screen bg-teal-500 animate-pulse flex items-center justify-center p-4">
@@ -451,9 +489,15 @@ export default function CheckInPage() {
             {name}
           </h1>
 
-          {/* Group Count */}
+          {/* V10.2 Fix #3: Explicit "Resident + X Guests" or "Visitor" */}
           <p className="text-3xl font-semibold mb-8">
-            Group of {totalPeople}
+            {isResident ? (
+              guestCount === 0 
+                ? 'Resident Only'
+                : `Resident + ${guestCount} Guest${guestCount > 1 ? 's' : ''}`
+            ) : (
+              `Visitor Group of ${1 + guestCount}`
+            )}
           </p>
 
           {/* Digital Clock */}
@@ -475,6 +519,20 @@ export default function CheckInPage() {
   const isInside = resident 
     ? resident.current_location === 'INSIDE'
     : visitorPass?.is_inside === true
+
+  // V10.2 Fix #2: Strict check-out math with active_guests binding
+  const activeGuests = resident?.active_guests ?? 0
+  const maxGuests = isInside 
+    ? activeGuests // Check-out mode: Can only check out guests they brought in
+    : Math.max(0, baseMaxGuests - activeGuests) // Check-in mode: Limit minus guests already inside
+
+  console.log('[V10.2] Guest limits:', {
+    isInside,
+    activeGuests,
+    baseMaxGuests,
+    maxGuests,
+    mode: isInside ? 'CHECK-OUT' : 'CHECK-IN'
+  })
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 flex items-center justify-center p-4">
@@ -503,27 +561,34 @@ export default function CheckInPage() {
           </div>
         )}
 
-        {/* Guest Count Selector */}
+        {/* V10.2 Fix #3: Guest Count Selector with clarity */}
         {resident && (
           <div className="mb-6">
             <label className="block text-sm font-semibold text-navy-900 mb-3">
-              Number of Guests
+              Additional Guests (Not including you)
             </label>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setGuestCount(Math.max(0, guestCount - 1))}
-                className="bg-navy-200 hover:bg-navy-300 text-navy-900 w-12 h-12 rounded-lg font-bold text-xl transition-all"
+                className="bg-navy-200 hover:bg-navy-300 text-navy-900 w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={guestCount === 0}
               >
                 −
               </button>
               <div className="flex-1 text-center">
-                <div className="text-4xl font-bold text-navy-900">{guestCount}</div>
-                <p className="text-sm text-navy-600 mt-1">of {maxGuests} allowed</p>
+                <div className="text-3xl font-bold text-navy-900 mb-1">
+                  {guestCount === 0 ? 'Just Me' : `Me + ${guestCount} Guest${guestCount > 1 ? 's' : ''}`}
+                </div>
+                <p className="text-sm text-navy-600">
+                  {isInside 
+                    ? `Can check out up to ${maxGuests} guest${maxGuests !== 1 ? 's' : ''}`
+                    : `${maxGuests} guest${maxGuests !== 1 ? 's' : ''} available`
+                  }
+                </p>
               </div>
               <button
                 onClick={() => setGuestCount(Math.min(maxGuests, guestCount + 1))}
-                className="bg-teal-600 hover:bg-teal-700 text-white w-12 h-12 rounded-lg font-bold text-xl transition-all"
+                className="bg-teal-600 hover:bg-teal-700 text-white w-12 h-12 rounded-lg font-bold text-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={guestCount >= maxGuests}
               >
                 +
