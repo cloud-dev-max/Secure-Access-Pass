@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await adminClient
       .from('properties')
-      .select('id, name, property_name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, max_visitor_passes, is_maintenance_mode, maintenance_reason')
+      .select('id, name, property_name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, max_visitor_passes, is_maintenance_mode, maintenance_reason, stripe_account_id, stripe_connected')
       .eq('id', propertyId)
       .single()
 
@@ -77,6 +77,8 @@ export async function PATCH(request: NextRequest) {
       max_visitor_passes, // V7.2
       is_maintenance_mode,
       maintenance_reason,
+      stripe_account_id, // V10.6
+      stripe_connected, // V10.6
     } = body
 
     console.log('Updating settings for property:', propertyId)
@@ -100,6 +102,8 @@ export async function PATCH(request: NextRequest) {
     if (max_visitor_passes !== undefined) updates.max_visitor_passes = max_visitor_passes // V7.2
     if (is_maintenance_mode !== undefined) updates.is_maintenance_mode = is_maintenance_mode
     if (maintenance_reason !== undefined) updates.maintenance_reason = maintenance_reason
+    if (stripe_account_id !== undefined) updates.stripe_account_id = stripe_account_id // V10.6
+    if (stripe_connected !== undefined) updates.stripe_connected = stripe_connected // V10.6
 
     // If property doesn't have required fields, add defaults
     if (!updates.name && !updates.property_name) {

@@ -61,6 +61,14 @@ export default function ResidentPortalPage() {
   const [guestPassError, setGuestPassError] = useState('') // V7.3: Error handling
   const [showPassHistory, setShowPassHistory] = useState(false) // V7.1: Show expired/used passes
   const [latestGuestPassPrice, setLatestGuestPassPrice] = useState(5.00) // V5: Track latest price
+  
+  // V10.6: Demo Mode Checkout
+  const [showDemoCheckout, setShowDemoCheckout] = useState(false)
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpMonth, setCardExpMonth] = useState('')
+  const [cardExpYear, setCardExpYear] = useState('')
+  const [cardCvc, setCardCvc] = useState('')
+  const [processingPayment, setProcessingPayment] = useState(false)
 
   useEffect(() => {
     // Check if resident is already logged in (stored in localStorage)
@@ -417,6 +425,58 @@ export default function ResidentPortalPage() {
     }
   }
 
+  // V10.6: Demo Mode Checkout Handler
+  const processDemoCheckout = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!resident) return
+
+    setGuestPassError('')
+    setProcessingPayment(true)
+
+    try {
+      const response = await fetch('/api/stripe/demo-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          card_number: cardNumber,
+          card_exp_month: cardExpMonth,
+          card_exp_year: cardExpYear,
+          card_cvc: cardCvc,
+          amount: latestGuestPassPrice,
+          property_id: process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
+          guest_count: 1,
+          resident_id: resident.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        setGuestPassError(data.error || 'Payment failed')
+        return
+      }
+
+      // Success - Reset form
+      setCardNumber('')
+      setCardExpMonth('')
+      setCardExpYear('')
+      setCardCvc('')
+      setGuestPassError('')
+      setShowDemoCheckout(false)
+      setShowGuestPassForm(false)
+
+      alert(`✅ Demo Payment Successful!\n\nPass ID: ${data.pass.id}\nQR Code: ${data.pass.qr_code}\n\nThis is a test transaction. No real charges were made.`)
+
+      // Reload guest passes
+      await loadGuestPasses(resident.id)
+    } catch (error) {
+      console.error('Error processing demo checkout:', error)
+      setGuestPassError('Network error. Please check your connection and try again.')
+    } finally {
+      setProcessingPayment(false)
+    }
+  }
+
   const shareGuestPass = async (passId: string) => {
     // V10.1 Fix #3: Find the pass to get the QR code
     const pass = guestPasses.find(p => p.id === passId)
@@ -666,11 +726,19 @@ export default function ResidentPortalPage() {
           </p>
 
           {/* V7.3 Bug Fix #4 & #5: Guest Pass Purchase Form */}
-          {showGuestPassForm && (
-            <form onSubmit={createGuestPass} className="bg-navy-50 p-4 rounded-lg mb-4">
+          {showGuestPassForm && !showDemoCheckout && (
+            <div className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Purchase Guest Pass (${latestGuestPassPrice.toFixed(2)})
               </h3>
+              
+              {/* V10.6: Demo Mode Indicator */}
+              <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                <p className="text-sm text-blue-800 font-semibold">🧪 Demo Mode Active</p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Test the checkout flow with Stripe test cards. No real charges will be made.
+                </p>
+              </div>
               
               {/* V7.3: Error message display */}
               {guestPassError && (
@@ -680,44 +748,146 @@ export default function ResidentPortalPage() {
               )}
               
               <div className="space-y-3">
-                {/* V7.4 Issue #7: Name required, Email/Phone optional */}
-                <input
-                  type="text"
-                  placeholder="Guest Name"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="email"
-                  placeholder="Guest Email (optional)"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="tel"
-                  placeholder="Guest Phone (optional)"
-                  value={guestPhone}
-                  onChange={(e) => setGuestPhone(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowDemoCheckout(true)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <DollarSign className="w-5 h-5" />
+                  Proceed to Demo Checkout
+                </button>
                 
-                <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGuestPassForm(false)}
+                  className="w-full bg-gray-300 hover:bg-gray-400 text-gray-900 px-4 py-2 rounded-lg font-semibold"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* V10.6: Demo Mode Checkout Form */}
+          {showGuestPassForm && showDemoCheckout && (
+            <form onSubmit={processDemoCheckout} className="bg-navy-50 p-4 rounded-lg mb-4">
+              <h3 className="font-semibold text-navy-900 mb-3">
+                Demo Checkout - ${latestGuestPassPrice.toFixed(2)}
+              </h3>
+              
+              {/* Demo Mode Banner */}
+              <div className="mb-4 p-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <p className="text-sm text-yellow-900 font-semibold">🔒 Test Mode - No Real Charges</p>
+                <p className="text-xs text-yellow-800 mt-1">
+                  Use test card: <code className="bg-yellow-100 px-1 rounded font-mono">4242 4242 4242 4242</code>
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Any future date, any CVC
+                </p>
+              </div>
+              
+              {/* Error message */}
+              {guestPassError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600 font-semibold">{guestPassError}</p>
+                </div>
+              )}
+              
+              <div className="space-y-3">
+                {/* Card Number */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-1">
+                    Card Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="4242 4242 4242 4242"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim())}
+                    maxLength={19}
+                    required
+                    className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 font-mono"
+                  />
+                </div>
+                
+                {/* Expiry and CVC */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-navy-900 mb-1">
+                      Month
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="12"
+                      value={cardExpMonth}
+                      onChange={(e) => setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      maxLength={2}
+                      required
+                      className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-navy-900 mb-1">
+                      Year
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="2026"
+                      value={cardExpYear}
+                      onChange={(e) => setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      maxLength={4}
+                      required
+                      className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-navy-900 mb-1">
+                      CVC
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="123"
+                      value={cardCvc}
+                      onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      maxLength={4}
+                      required
+                      className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder-gray-500"
+                    />
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
-                    disabled={creatingPass}
-                    className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+                    disabled={processingPayment}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {creatingPass ? 'Creating...' : 'Create Pass'}
+                    {processingPayment ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="w-5 h-5" />
+                        Pay ${latestGuestPassPrice.toFixed(2)}
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowGuestPassForm(false)}
+                    onClick={() => {
+                      setShowDemoCheckout(false)
+                      setCardNumber('')
+                      setCardExpMonth('')
+                      setCardExpYear('')
+                      setCardCvc('')
+                      setGuestPassError('')
+                    }}
                     className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 px-4 py-2 rounded-lg font-semibold"
                   >
-                    Cancel
+                    Back
                   </button>
                 </div>
               </div>

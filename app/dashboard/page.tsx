@@ -134,6 +134,11 @@ export default function DashboardPage() {
   const [showGateSignModal, setShowGateSignModal] = useState(false);
   const [gateSignQRCode, setGateSignQRCode] = useState('');
 
+  // V10.6: Stripe Connect & Payments
+  const [stripeAccountId, setStripeAccountId] = useState('');
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
+
   // V7: Revenue Analytics
   const [revenueData, setRevenueData] = useState<any>(null);
   const [revenueLoading, setRevenueLoading] = useState(false);
@@ -787,6 +792,8 @@ export default function DashboardPage() {
         setGuestPassPrice(data.guest_pass_price || 5.0);
         setMaxGuestsPerResident(data.max_guests_per_resident || 3);
         setMaxVisitorPasses(data.max_visitor_passes || 100); // V7.2
+        setStripeAccountId(data.stripe_account_id || ''); // V10.6
+        setStripeConnected(data.stripe_connected || false); // V10.6
         setSettingsCached(true); // Mark as cached
       }
     } catch (error) {
@@ -840,6 +847,57 @@ export default function DashboardPage() {
   // V10.0: Print Gate Sign
   const printGateSign = () => {
     window.print();
+  };
+
+  // V10.6: Connect Stripe Account
+  const connectStripeAccount = async () => {
+    setConnectingStripe(true);
+    try {
+      const response = await fetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to connect Stripe account');
+      }
+
+      const data = await response.json();
+      setStripeAccountId(data.account_id);
+      setStripeConnected(true);
+      alert(`✅ Stripe Connected!\n\nDemo Account ID: ${data.account_id}\n\nYou can now accept payments in Demo Mode.`);
+      await loadFacilitySettings(true); // Reload to get updated data
+    } catch (error) {
+      console.error('Error connecting Stripe:', error);
+      alert('Failed to connect Stripe account');
+    } finally {
+      setConnectingStripe(false);
+    }
+  };
+
+  // V10.6: Disconnect Stripe Account
+  const disconnectStripeAccount = async () => {
+    if (!confirm('Are you sure you want to disconnect your Stripe account?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/stripe/connect', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect Stripe account');
+      }
+
+      setStripeAccountId('');
+      setStripeConnected(false);
+      alert('Stripe account disconnected successfully');
+      await loadFacilitySettings(true);
+    } catch (error) {
+      console.error('Error disconnecting Stripe:', error);
+      alert('Failed to disconnect Stripe account');
+    }
   };
 
   // V7: Load Revenue Data
@@ -2264,6 +2322,62 @@ export default function DashboardPage() {
                   <QrCode className="w-5 h-5" />
                   Generate Gate Sign
                 </button>
+              </div>
+
+              {/* V10.6: Stripe Connect Payment Integration */}
+              <div className="mt-6 pt-6 border-t border-navy-200">
+                <h3 className="text-lg font-semibold text-navy-900 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-teal-600" />
+                  Payment Integration
+                </h3>
+                <p className="text-sm text-navy-600 mb-4">
+                  Connect your Stripe account to accept visitor pass payments. Demo Mode is active for testing.
+                </p>
+                
+                {stripeConnected ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-green-900">Stripe Connected (Demo Mode)</p>
+                        <p className="text-xs text-green-700 mt-1">Account: {stripeAccountId}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={disconnectStripeAccount}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-semibold transition-colors"
+                    >
+                      <XCircle className="w-5 h-5" />
+                      Disconnect Stripe
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={connectStripeAccount}
+                    disabled={connectingStripe}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {connectingStripe ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="w-5 h-5" />
+                        Connect with Stripe (Demo)
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-800">
+                    <strong>💡 Demo Mode:</strong> Test payments with card <code className="bg-blue-100 px-1 rounded">4242 4242 4242 4242</code>. No real charges will be made.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
