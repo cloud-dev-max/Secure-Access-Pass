@@ -418,15 +418,25 @@ export default function ResidentPortalPage() {
   }
 
   const shareGuestPass = async (passId: string) => {
-    const shareUrl = `${window.location.origin}/guest-pass/${passId}`
+    // V10.1 Fix #3: Find the pass to get the QR code
+    const pass = guestPasses.find(p => p.id === passId)
+    const qrCode = pass?.qr_code
+    
+    // V10.1 Fix #3: Magic link with ?code= parameter
+    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    const magicLink = qrCode 
+      ? `${window.location.origin}/check-in/${propertyId}?code=${qrCode}`
+      : `${window.location.origin}/guest-pass/${passId}`
+    
+    console.log('[V10.1] Magic link generated:', magicLink)
 
     // Try native share API first (mobile)
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Pool Guest Pass',
-          text: 'Here is your guest pass for pool access!',
-          url: shareUrl,
+          text: `Here is your guest pass! Click this link to check in: ${magicLink}`,
+          url: magicLink,
         })
         return
       } catch (error) {
@@ -437,11 +447,11 @@ export default function ResidentPortalPage() {
 
     // Fallback: Copy to clipboard
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      alert('Guest pass link copied to clipboard!')
+      await navigator.clipboard.writeText(magicLink)
+      alert('Magic link copied to clipboard! Send this to your guest - they can click it to check in instantly.')
     } catch (error) {
       console.error('Failed to copy:', error)
-      alert(`Share this link with your guest:\n\n${shareUrl}`)
+      alert(`Share this magic link with your guest:\n\n${magicLink}\n\nThey can click it to check in instantly!`)
     }
   }
 

@@ -3227,37 +3227,49 @@ export default function DashboardPage() {
 
       {/* V10.0: Gate Sign Modal */}
       {showGateSignModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl">
-            <h2 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:bg-white print:p-0">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl print:rounded-none print:max-w-none print:shadow-none print:h-screen print:flex print:items-center print:justify-center">
+            <h2 className="text-2xl font-bold text-navy-900 mb-2 flex items-center gap-2 print:hidden">
               <QrCode className="w-7 h-7 text-teal-600" />
               Gate Check-In Sign
             </h2>
-            <p className="text-navy-600 mb-6">
+            <p className="text-navy-600 mb-6 print:hidden">
               Display this QR code at your entrance gate. Residents and visitors can scan to check in/out.
             </p>
 
-            <div className="bg-navy-50 rounded-xl p-6 mb-6 text-center">
-              <div className="bg-white inline-block p-6 rounded-xl shadow-lg mb-4">
-                <div id="gate-sign-qr" className="flex items-center justify-center">
-                  {gateSignQRCode && (
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(gateSignQRCode)}`}
-                      alt="Gate Check-In QR Code"
-                      className="w-64 h-64"
-                    />
-                  )}
-                </div>
+            {/* V10.1 Fix #1: Professional Single-Page Print Layout */}
+            <div id="gate-sign-printable" className="bg-navy-50 rounded-xl p-6 text-center print:bg-white print:rounded-none print:p-0 print:w-full print:h-full print:flex print:flex-col print:items-center print:justify-center">
+              {/* Shield Icon - Print Only */}
+              <div className="hidden print:block print:mb-8">
+                <Shield className="w-24 h-24 mx-auto text-teal-600" />
               </div>
-              <h3 className="text-2xl font-bold text-navy-900 mb-2">
-                Scan to Check In or Out
-              </h3>
-              <p className="text-navy-600">
+
+              {/* Property Name - Large and Bold */}
+              <h1 className="text-3xl font-bold text-navy-900 mb-8 print:text-6xl print:mb-12">
                 {propertyName || 'Secure Access Pass'}
+              </h1>
+
+              {/* QR Code - Large for distance scanning */}
+              <div className="bg-white inline-block p-6 rounded-xl shadow-lg mb-6 print:shadow-none print:mb-12">
+                {gateSignQRCode && (
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(gateSignQRCode)}`}
+                    alt="Gate Check-In QR Code"
+                    className="w-64 h-64 print:w-[400px] print:h-[400px]"
+                  />
+                )}
+              </div>
+
+              {/* Instructions */}
+              <h3 className="text-2xl font-bold text-navy-900 mb-3 print:text-5xl print:mb-6">
+                Scan with your phone camera
+              </h3>
+              <p className="text-xl text-navy-600 print:text-4xl print:font-semibold">
+                to Check In or Out
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6 print:hidden">
               <button
                 onClick={printGateSign}
                 className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
@@ -3273,21 +3285,42 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Print styles */}
+            {/* V10.1 Fix #1: Strict Single-Page Print Styles */}
             <style jsx global>{`
+              @page {
+                size: letter;
+                margin: 0;
+              }
+              
               @media print {
+                body {
+                  margin: 0;
+                  padding: 0;
+                  overflow: hidden;
+                  height: 100vh;
+                }
+                
                 body * {
                   visibility: hidden;
                 }
-                #gate-sign-qr,
-                #gate-sign-qr * {
+                
+                #gate-sign-printable,
+                #gate-sign-printable * {
                   visibility: visible;
                 }
-                #gate-sign-qr {
-                  position: absolute;
-                  left: 50%;
-                  top: 50%;
-                  transform: translate(-50%, -50%);
+                
+                #gate-sign-printable {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 100vw;
+                  height: 100vh;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  background: white;
+                  overflow: hidden;
                 }
               }
             `}</style>

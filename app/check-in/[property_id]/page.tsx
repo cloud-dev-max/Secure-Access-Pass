@@ -12,6 +12,7 @@ interface ResidentProfile {
   qr_code: string
   current_location: 'INSIDE' | 'OUTSIDE'
   property_name: string
+  personal_guest_limit?: number | null
 }
 
 interface VisitorPass {
@@ -21,6 +22,11 @@ interface VisitorPass {
   status: string
   valid_date: string
   guest_count: number
+  is_inside?: boolean
+}
+
+interface PropertySettings {
+  max_guests_per_resident: number
 }
 
 export default function CheckInPage() {
@@ -45,29 +51,76 @@ export default function CheckInPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showLivePass, setShowLivePass] = useState(false)
 
-  // Check for existing resident session
+  // V10.1 Fix #3: Check for ?code= URL parameter
   useEffect(() => {
-    const checkSession = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const codeParam = urlParams.get('code')
+      
+      if (codeParam) {
+        console.log('[V10.1] Magic link detected with code:', codeParam)
+        setVisitorQRCode(codeParam)
+        setShowIdentityFork(false)
+        setShowVisitorInput(true)
+        // Auto-verify after a brief delay to ensure UI is ready
+        setTimeout(() => {
+          verifyVisitorPassWithCode(codeParam)
+        }, 500)
+      }
+    }
+  }, [])
+
+  // V10.1 Fix #2: Fetch property settings for dual-layer guest limits
+  useEffect(() => {
+    const fetchPropertySettings = async () => {
       try {
-        const storedResident = localStorage.getItem('resident_profile')
-        if (storedResident) {
-          const profile = JSON.parse(storedResident)
-          setResident(profile)
-          setLoading(false)
+        const response = await fetch(`/api/settings?property_id=${property_id}`)
+        if (response.ok) {
+          const data: PropertySettings = await response.json()
+          console.log('[V10.1] Property settings loaded:', data)
+          
+          // Check resident session
+          const storedResident = localStorage.getItem('resident_profile')
+          if (storedResident) {
+            const profile: ResidentProfile = JSON.parse(storedResident)
+            setResident(profile)
+            
+            // V10.1 Fix #2: Dual-layer guest limit logic
+            // Priority: personal_guest_limit → max_guests_per_resident
+            const guestLimit = profile.personal_guest_limit ?? data.max_guests_per_resident ?? 3
+            console.log('[V10.1] Guest limit:', {
+              personal: profile.personal_guest_limit,
+              property: data.max_guests_per_resident,
+              final: guestLimit
+            })
+            setMaxGuests(guestLimit)
+            setLoading(false)
+          } else {
+            // No session - show identity fork
+            setMaxGuests(data.max_guests_per_resident ?? 3)
+            setShowIdentityFork(true)
+            setLoading(false)
+          }
         } else {
-          // No session - show identity fork
-          setShowIdentityFork(true)
-          setLoading(false)
+          throw new Error('Failed to fetch property settings')
         }
       } catch (error) {
-        console.error('Error checking session:', error)
-        setShowIdentityFork(true)
+        console.error('[V10.1] Error loading property settings:', error)
+        // Fallback: check session without property settings
+        const storedResident = localStorage.getItem('resident_profile')
+        if (storedResident) {
+          const profile: ResidentProfile = JSON.parse(storedResident)
+          setResident(profile)
+          setMaxGuests(profile.personal_guest_limit ?? 3)
+        } else {
+          setShowIdentityFork(true)
+        }
         setLoading(false)
       }
     }
 
-    checkSession()
-  }, [])
+    fetchPropertySettings()
+  }, [property_id])
 
   // Live clock update
   useEffect(() => {
@@ -126,13 +179,8 @@ export default function CheckInPage() {
     */
   }
 
-  // Verify visitor pass
-  const verifyVisitorPass = async () => {
-    if (!visitorQRCode.trim()) {
-      setError('Please enter a visitor pass code')
-      return
-    }
-
+  // V10.1 Fix #3: Verify visitor pass with code parameter (for magic link)
+  const verifyVisitorPassWithCode = async (code: string) => {
     setVerifyingVisitor(true)
     setError('')
 
@@ -140,7 +188,7 @@ export default function CheckInPage() {
       const response = await fetch('/api/visitor-check-in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qr_code: visitorQRCode })
+        body: JSON.stringify({ qr_code: code })
       })
 
       const data = await response.json()
@@ -151,7 +199,8 @@ export default function CheckInPage() {
         return
       }
 
-      // Valid visitor pass
+      // Valid visitor pass - V10.1 Fix #4: Store is_inside state
+      console.log('[V10.1] Visitor pass verified:', data.pass)
       setVisitorPass(data.pass)
       setShowVisitorInput(false)
       setShowIdentityFork(false)
@@ -163,6 +212,16 @@ export default function CheckInPage() {
       setError('Failed to verify visitor pass')
       setVerifyingVisitor(false)
     }
+  }
+
+  // Verify visitor pass
+  const verifyVisitorPass = async () => {
+    if (!visitorQRCode.trim()) {
+      setError('Please enter a visitor pass code')
+      return
+    }
+
+    await verifyVisitorPassWithCode(visitorQRCode)
   }
 
   // Perform check-in or check-out
@@ -206,6 +265,31 @@ export default function CheckInPage() {
         setError(data.error || 'Check-in failed')
         setCheckingIn(false)
         return
+      }
+
+      // V10.1 Fix #4: Update visitor pass is_inside state
+      if (visitorPass) {
+        const isInside = action === 'ENTRY'
+        console.log('[V10.1] Updating visitor is_inside:', isInside)
+        
+        // Update visitor_passes table via API
+        try {
+          const updateResponse = await fetch('/api/visitor-passes/update-location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              qr_code: visitorPass.qr_code,
+              is_inside: isInside
+            })
+          })
+          
+          if (updateResponse.ok) {
+            // Update local state
+            setVisitorPass({ ...visitorPass, is_inside: isInside })
+          }
+        } catch (error) {
+          console.error('[V10.1] Error updating visitor location:', error)
+        }
       }
 
       // Show live pass
@@ -387,8 +471,10 @@ export default function CheckInPage() {
     )
   }
 
-  // Check-In UI
-  const isInside = resident?.current_location === 'INSIDE'
+  // V10.1 Fix #4: Check-In UI - Handle both resident and visitor is_inside state
+  const isInside = resident 
+    ? resident.current_location === 'INSIDE'
+    : visitorPass?.is_inside === true
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 flex items-center justify-center p-4">

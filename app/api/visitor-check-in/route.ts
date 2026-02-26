@@ -38,12 +38,13 @@ export async function POST(request: NextRequest) {
 
     // Check if pass has never been used (used_at is NULL)
     if (!visitorPass.used_at) {
-      // First time use - update used_at and status
+      // V10.1 Fix #4: First time use - update used_at, status, and is_inside (default false)
       const { error: updateError } = await adminClient
         .from('visitor_passes')
         .update({
           used_at: new Date().toISOString(),
-          status: 'used'
+          status: 'used',
+          is_inside: false
         })
         .eq('qr_code', qr_code)
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      console.log('[V10.0] Visitor pass activated (first use):', qr_code)
+      console.log('[V10.1] Visitor pass activated (first use):', qr_code)
 
       return NextResponse.json({
         success: true,
@@ -66,7 +67,8 @@ export async function POST(request: NextRequest) {
           qr_code: visitorPass.qr_code,
           status: 'used',
           valid_date: visitorPass.valid_date,
-          guest_count: visitorPass.guest_count || 0
+          guest_count: visitorPass.guest_count || 0,
+          is_inside: false
         }
       }, { status: 200 })
     }
@@ -91,8 +93,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Valid re-entry for same day
-    console.log('[V10.0] Valid re-entry for visitor pass:', qr_code)
+    // V10.1 Fix #4: Valid re-entry for same day - return is_inside state
+    console.log('[V10.1] Valid re-entry for visitor pass:', qr_code, 'is_inside:', visitorPass.is_inside)
 
     return NextResponse.json({
       success: true,
@@ -103,7 +105,8 @@ export async function POST(request: NextRequest) {
         qr_code: visitorPass.qr_code,
         status: visitorPass.status,
         valid_date: visitorPass.valid_date,
-        guest_count: visitorPass.guest_count || 0
+        guest_count: visitorPass.guest_count || 0,
+        is_inside: visitorPass.is_inside ?? false
       }
     }, { status: 200 })
 
