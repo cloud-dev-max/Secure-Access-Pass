@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
+import { PropertyContext } from "@/app/context/PropertyContext";
 import {
   Users,
   Settings,
@@ -52,6 +53,10 @@ interface Stats {
 }
 
 export default function DashboardPage() {
+  // V10.8.1: Multi-tenancy - Get active property from context
+  const { propertyId, setPropertyId } = useContext(PropertyContext);
+  const [currentPropertyName, setCurrentPropertyName] = useState<string>('');
+  
   const [residents, setResidents] = useState<ProfileWithRules[]>([]);
   const [rules, setRules] = useState<AccessRule[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -145,7 +150,32 @@ export default function DashboardPage() {
   // V8.11 Feature #4: Revenue date filter
   const [revenueFilter, setRevenueFilter] = useState<'all' | 'year' | 'month' | 'week'>('all');
 
+  // V10.8.1: Initialize property from localStorage on mount
   useEffect(() => {
+    const storedPropertyId = localStorage.getItem('selectedPropertyId') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID;
+    if (storedPropertyId && !propertyId) {
+      setPropertyId(storedPropertyId);
+    }
+  }, []);
+
+  // V10.8.1: Load property name when propertyId changes
+  useEffect(() => {
+    if (propertyId) {
+      fetch(`/api/properties?id=${propertyId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.name) {
+            setCurrentPropertyName(data.name);
+          }
+        })
+        .catch(err => console.error('Error loading property name:', err));
+    }
+  }, [propertyId]);
+
+  // V10.8.1: Reload data when property changes
+  useEffect(() => {
+    if (!propertyId) return;
+    
     loadData();
     loadMaintenanceStatus();
     loadOccupancyBreakdown(); // V6
@@ -272,12 +302,14 @@ export default function DashboardPage() {
   };
 
   const loadData = async () => {
+    if (!propertyId) return; // V10.8.1: Require property selection
+    
     setLoading(true);
     try {
       const [residentsRes, rulesRes, statsRes] = await Promise.all([
-        fetch("/api/residents"),
-        fetch("/api/rules"),
-        fetch("/api/stats"),
+        fetch(`/api/residents?property_id=${propertyId}`),
+        fetch(`/api/rules?property_id=${propertyId}`),
+        fetch(`/api/stats?property_id=${propertyId}`),
       ]);
 
       // Check if responses are OK
@@ -1062,6 +1094,7 @@ export default function DashboardPage() {
           unit: newResidentUnit,
           phone: newResidentPhone,
           personal_guest_limit: guestLimit, // V7.4: Send personal limit
+          property_id: propertyId, // V10.8.1: Multi-tenancy
         }),
       });
 
@@ -1318,6 +1351,22 @@ export default function DashboardPage() {
       {/* V9.17 Fix #2 & #3: Tab Navigation Menu - Strict lg breakpoint, centered, compact */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* V10.8.1: Property Switcher */}
+          <div className="flex items-center justify-between py-2 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-teal-400" />
+              <span className="text-sm font-semibold text-white">
+                {currentPropertyName || 'Select Property'}
+              </span>
+            </div>
+            <Link 
+              href="/dashboard/portfolio"
+              className="text-xs text-teal-400 hover:text-teal-300 transition-colors"
+            >
+              Switch Property →
+            </Link>
+          </div>
+          
           {/* V10.7: Mobile dropdown - 850px breakpoint for better responsiveness */}
           <select
             value={activeTab}
@@ -1856,7 +1905,7 @@ export default function DashboardPage() {
                 >
                   {isAddingResident ? "Adding..." : "Add Resident"}
                 </button>
-                <CsvUploader onUploadComplete={loadData} />
+                <CsvUploader onUploadComplete={loadData} propertyId={propertyId || ''} />
               </form>
             </div>
 

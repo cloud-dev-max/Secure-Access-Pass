@@ -5,6 +5,7 @@ import { Upload, X, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-re
 
 interface CsvUploaderProps {
   onUploadComplete: () => void
+  propertyId: string // V10.8.1: Multi-tenancy support
 }
 
 interface ParsedResident {
@@ -86,11 +87,11 @@ export default function CsvUploader({ onUploadComplete }: CsvUploaderProps) {
       // Parse CSV
       const residents = parseCSV(text)
       
-      // Upload to API
+      // V10.8.1: Upload to API with property_id for multi-tenancy
       const response = await fetch('/api/residents', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ residents }),
+        body: JSON.stringify({ residents, property_id: propertyId }),
       })
 
       const data = await response.json()

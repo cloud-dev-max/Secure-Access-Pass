@@ -143,7 +143,7 @@ export async function PUT(request: NextRequest) {
     const adminClient = createAdminClient()
     const body = await request.json()
     
-    const { residents } = body
+    const { residents, property_id } = body
 
     if (!Array.isArray(residents) || residents.length === 0) {
       return NextResponse.json(
@@ -152,8 +152,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Ensure property exists
-    const propertyId = await ensurePropertyExists()
+    // V10.8.1: Use provided property_id or ensure default exists
+    const propertyId = property_id || await ensurePropertyExists()
 
     // Get all active rules for this property
     const { data: activeRules } = await adminClient
