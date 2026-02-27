@@ -494,8 +494,8 @@ export default function ResidentPortalPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Pool Guest Pass',
-          text: `Here is your guest pass! Click this link to check in: ${magicLink}`,
+          title: 'Pool Visitor Pass',
+          text: `Here is your visitor pass! Click this link to check in: ${magicLink}`,
           url: magicLink,
         })
         return
@@ -596,7 +596,7 @@ export default function ResidentPortalPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex max-[850px]:flex-col max-[850px]:gap-4 min-[850px]:flex-row min-[850px]:items-center min-[850px]:justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-teal-500 p-2 rounded-lg">
                 <User className="w-6 h-6" />
@@ -690,7 +690,7 @@ export default function ResidentPortalPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-navy-900 flex items-center gap-2">
               <DollarSign className="w-6 h-6 text-teal-600" />
-              Guest Passes
+              Visitor Passes
             </h2>
             
             {!showGuestPassForm && (
@@ -711,7 +711,7 @@ export default function ResidentPortalPage() {
                 className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
               >
                 <Plus className="w-5 h-5" />
-                Buy Guest Pass
+                Buy Visitor Pass
               </button>
             )}
           </div>
@@ -729,7 +729,7 @@ export default function ResidentPortalPage() {
           {showGuestPassForm && !showDemoCheckout && (
             <div className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
-                Purchase Guest Pass (${latestGuestPassPrice.toFixed(2)})
+                Purchase Visitor Pass (${latestGuestPassPrice.toFixed(2)})
               </h3>
               
               {/* V10.6: Demo Mode Indicator */}
@@ -904,11 +904,11 @@ export default function ResidentPortalPage() {
             </button>
           </div>
 
-          {/* Guest Pass List */}
+          {/* Visitor Pass List */}
           <div className="space-y-3">
             {guestPasses.length === 0 ? (
               <p className="text-center text-navy-500 py-4">
-                No guest passes yet. Purchase one to invite a guest!
+                No visitor passes yet. Purchase one to invite a visitor!
               </p>
             ) : (
               guestPasses.filter((pass) => {
@@ -958,7 +958,7 @@ export default function ResidentPortalPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-semibold text-navy-900">
-                          {pass.guest_name || 'Guest Pass'}
+                          {pass.guest_name || 'Visitor Pass'}
                         </div>
                         <div className="text-sm text-navy-600">
                           <span className={`flex items-center gap-1 ${iconColor}`}>

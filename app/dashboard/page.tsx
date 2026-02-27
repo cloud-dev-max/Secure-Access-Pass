@@ -1318,7 +1318,7 @@ export default function DashboardPage() {
       {/* V9.17 Fix #2 & #3: Tab Navigation Menu - Strict lg breakpoint, centered, compact */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V9.17 Fix #2: Mobile dropdown - strict lg breakpoint to prevent overflow */}
+          {/* V10.7: Mobile dropdown - 850px breakpoint for better responsiveness */}
           <select
             value={activeTab}
             onChange={(e) => {
@@ -1328,7 +1328,7 @@ export default function DashboardPage() {
                 setActiveTab(e.target.value as any);
               }
             }}
-            className="block lg:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
+            className="block max-[850px]:block min-[850px]:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
           >
             <option value="overview" className="bg-navy-800 text-white">📊 Overview</option>
             <option value="residents" className="bg-navy-800 text-white">👥 Residents ({stats.totalResidents})</option>
@@ -1339,8 +1339,8 @@ export default function DashboardPage() {
             <option value="logs" className="bg-navy-800 text-white">🕐 All Activity</option>
           </select>
 
-          {/* V9.17 Fix #2 & #3: Horizontal tabs - strict lg breakpoint, centered, no overflow */}
-          <div className="hidden lg:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
+          {/* V10.7: Horizontal tabs - 850px breakpoint, centered, no overflow */}
+          <div className="hidden max-[850px]:hidden min-[850px]:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
             <button
               onClick={() => setActiveTab("overview")}
               className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
