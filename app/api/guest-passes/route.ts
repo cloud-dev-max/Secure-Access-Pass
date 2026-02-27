@@ -21,9 +21,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // V10.8: Join properties table to get correct property name
     const { data, error } = await adminClient
       .from('visitor_passes')
-      .select('*')
+      .select(`
+        *,
+        property:property_id(name, property_name, address, city, state)
+      `)
       .eq('purchased_by', residentId)
       .order('created_at', { ascending: false })
 

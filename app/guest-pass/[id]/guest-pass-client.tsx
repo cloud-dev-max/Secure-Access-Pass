@@ -28,6 +28,13 @@ interface GuestPassData {
     name: string
     unit: string
   } | null
+  property: {
+    name: string
+    property_name: string
+    address: string
+    city: string
+    state: string
+  } | null
 }
 
 export default function GuestPassPage() {
@@ -136,7 +143,9 @@ export default function GuestPassPage() {
                 : 'text-red-600'
             }`} />
           </div>
-          <h1 className="text-3xl font-bold text-navy-900 mb-2">Pool Visitor Pass</h1>
+          <h1 className="text-3xl font-bold text-navy-900 mb-2">
+            {guestPass.property?.name || guestPass.property?.property_name || 'Pool'} Visitor Pass
+          </h1>
           <p className="text-navy-600">
             {guestPass.guest_name ? `For ${guestPass.guest_name}` : 'Single-Use Access'}
           </p>

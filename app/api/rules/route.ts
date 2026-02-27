@@ -4,16 +4,21 @@ import { createAdminClient, ensurePropertyExists } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * GET /api/rules
- * Fetch all access rules
+ * GET /api/rules?property_id=xxx
+ * V10.8: Fetch all access rules, filtered by property
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    
+    console.log('[V10.8] Fetching rules for property:', propertyId)
     
     const { data, error } = await adminClient
       .from('access_rules')
       .select('*')
+      .eq('property_id', propertyId)
       .order('created_at')
 
     if (error) {

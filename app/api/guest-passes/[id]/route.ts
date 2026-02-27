@@ -15,11 +15,13 @@ export async function GET(
     const adminClient = createAdminClient()
     const { id } = await params
 
+    // V10.8: Join properties table to get correct property name
     const { data, error } = await adminClient
       .from('visitor_passes')
       .select(`
         *,
-        purchaser:purchased_by(name, unit)
+        purchaser:purchased_by(name, unit),
+        property:property_id(name, property_name, address, city, state)
       `)
       .eq('id', id)
       .single()

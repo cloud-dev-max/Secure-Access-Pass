@@ -1,18 +1,21 @@
 export const runtime = 'edge'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * GET /api/stats
- * Fetch dashboard statistics: total residents, occupancy, recent activity
+ * GET /api/stats?property_id=xxx
+ * V10.8: Fetch dashboard statistics, filtered by property
  * Uses Admin Client (Service Role) to bypass RLS
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    // V8.7 Fix #1: Define propertyId before using it
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    const { searchParams } = new URL(request.url)
+    // V10.8: Support multi-tenancy via property_id query parameter
+    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    
+    console.log('[V10.8] Fetching stats for property:', propertyId)
     
     // Initialize default stats (graceful fallback)
     let totalResidents = 0
@@ -27,6 +30,7 @@ export async function GET() {
         .select('*', { count: 'exact', head: true })
         .eq('role', 'resident')
         .eq('is_active', true)
+        .eq('property_id', propertyId)
 
       if (residentsError) {
         console.error('Error fetching residents count:', residentsError)
@@ -45,6 +49,7 @@ export async function GET() {
         .eq('role', 'resident')
         .eq('is_active', true)
         .eq('current_location', 'INSIDE')
+        .eq('property_id', propertyId)
 
       if (occupancyError) {
         console.error('Error fetching occupancy:', occupancyError)
@@ -58,6 +63,7 @@ export async function GET() {
           .eq('role', 'resident')
           .eq('is_active', true)
           .eq('current_location', 'INSIDE')
+          .eq('property_id', propertyId)
         
         const totalGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
         
@@ -80,6 +86,7 @@ export async function GET() {
         .from('access_rules')
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true)
+        .eq('property_id', propertyId)
 
       if (rulesError) {
         console.error('Error fetching rules count:', rulesError)
@@ -109,6 +116,7 @@ export async function GET() {
           scanned_at,
           profiles(name, unit)
         `)
+        .eq('property_id', propertyId)
         .order('scanned_at', { ascending: false })
         .limit(10)
 
