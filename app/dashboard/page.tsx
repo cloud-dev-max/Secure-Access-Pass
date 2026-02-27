@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PropertyContext } from "@/app/context/PropertyContext";
 import {
   Users,
@@ -53,9 +54,12 @@ interface Stats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  
   // V10.8.1: Multi-tenancy - Get active property from context
   const { propertyId, setPropertyId } = useContext(PropertyContext);
   const [currentPropertyName, setCurrentPropertyName] = useState<string>('');
+  const [noPropertySelected, setNoPropertySelected] = useState(false);
   
   const [residents, setResidents] = useState<ProfileWithRules[]>([]);
   const [rules, setRules] = useState<AccessRule[]>([]);
@@ -151,10 +155,18 @@ export default function DashboardPage() {
   const [revenueFilter, setRevenueFilter] = useState<'all' | 'year' | 'month' | 'week'>('all');
 
   // V10.8.1: Initialize property from localStorage on mount
+  // V10.8.2: Handle missing property gracefully - don't get stuck in infinite loading
   useEffect(() => {
-    const storedPropertyId = localStorage.getItem('selectedPropertyId') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID;
+    const storedPropertyId = localStorage.getItem('selectedPropertyId');
+    
     if (storedPropertyId && !propertyId) {
+      // Property found in localStorage - set it
       setPropertyId(storedPropertyId);
+      setLoading(false);
+    } else if (!storedPropertyId && !propertyId) {
+      // V10.8.2 Fix: No property selected - stop loading and show selection prompt
+      setNoPropertySelected(true);
+      setLoading(false);
     }
   }, []);
 
@@ -173,6 +185,7 @@ export default function DashboardPage() {
   }, [propertyId]);
 
   // V10.8.1: Reload data when property changes
+  // V10.8.2: Only load data when propertyId is available
   useEffect(() => {
     if (!propertyId) return;
     
@@ -183,7 +196,7 @@ export default function DashboardPage() {
     loadFacilitySettings(); // V7
     // V7.1: Load revenue after mount to avoid undefined function error
     loadRevenueData();
-  }, []);
+  }, [propertyId]);
 
   useEffect(() => {
     if (activeTab === "revenue") {
@@ -1334,6 +1347,32 @@ export default function DashboardPage() {
     );
     window.location.href = `sms:${resident.phone}?body=${message}`;
   };
+
+  // V10.8.2: Show property selection prompt if no property is selected
+  if (noPropertySelected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-navy-200">
+          <div className="bg-teal-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+            <Building2 className="w-10 h-10 text-teal-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-navy-900 mb-3">
+            Select a Property
+          </h2>
+          <p className="text-navy-600 mb-6">
+            Please select a property from your portfolio to view the dashboard and manage residents.
+          </p>
+          <Link
+            href="/dashboard/portfolio"
+            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
+          >
+            <Building2 className="w-5 h-5" />
+            Go to Portfolio
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
