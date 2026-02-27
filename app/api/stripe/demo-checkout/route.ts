@@ -24,7 +24,16 @@ export async function POST(request: NextRequest) {
       resident_id,
     } = body
     
-    console.log('[V10.6] Demo checkout initiated:', { amount, guest_count, property_id })
+    console.log('[V10.6] Demo checkout initiated:', { amount, guest_count, property_id, resident_id })
+    
+    // V10.6.1: Validate resident_id (purchased_by) is provided
+    if (!resident_id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Resident ID is required',
+        mode: 'demo',
+      }, { status: 400 })
+    }
     
     // Validate Stripe test card numbers
     const validTestCards = [
@@ -78,22 +87,35 @@ export async function POST(request: NextRequest) {
     // Generate demo payment intent ID
     const paymentIntentId = `pi_demo_${Date.now()}_${Math.random().toString(36).substring(7)}`
     
-    // Create visitor pass in database
+    // V10.6.1: Create visitor pass in database with strict schema compliance
     const validDate = new Date().toISOString().split('T')[0]
     const qrCode = `DEMO-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
     
+    // Build insert object matching exact schema from database
+    const insertData = {
+      // Required NOT NULL columns
+      property_id: property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
+      purchased_by: resident_id, // V10.6.1: CRITICAL FIX - Map resident_id to purchased_by
+      qr_code: qrCode,
+      price_paid: amount, // V10.6.1: Use price_paid (NOT amount_paid)
+      status: 'active',
+      
+      // Optional columns
+      guest_count: guest_count || 1,
+      valid_date: validDate,
+      payment_intent_id: paymentIntentId,
+      amount_paid: amount, // Additional tracking field
+      is_demo: true,
+      guest_name: null,
+      guest_email: null,
+      guest_phone: null,
+    }
+    
+    console.log('[V10.6.1] Inserting visitor pass:', insertData)
+    
     const { data: passData, error: passError } = await adminClient
       .from('visitor_passes')
-      .insert({
-        property_id: property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
-        qr_code: qrCode,
-        guest_count: guest_count,
-        valid_date: validDate,
-        status: 'active',
-        payment_intent_id: paymentIntentId,
-        amount_paid: amount,
-        is_demo: true,
-      })
+      .insert(insertData)
       .select()
       .single()
     
