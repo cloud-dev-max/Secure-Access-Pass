@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
     // Generate unique QR code
     const qr_code = `SAP-${Date.now()}-${Math.random().toString(36).substring(7)}`
     
-    // V4: Generate random 4-digit PIN
-    const access_pin = Math.floor(1000 + Math.random() * 9000).toString()
+    // V10.8.4: Generate random 6-digit PIN for enhanced security
+    const access_pin = Math.floor(100000 + Math.random() * 900000).toString()
 
     // Insert resident using admin client (bypasses RLS)
     const { data: resident, error: insertError } = await adminClient
@@ -182,6 +182,9 @@ export async function PUT(request: NextRequest) {
 
         // Generate unique QR code
         const qr_code = `SAP-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        
+        // V10.8.4: Generate random 6-digit PIN for CSV uploads
+        const access_pin = Math.floor(100000 + Math.random() * 900000).toString()
 
         // Insert resident
         const { data: resident, error: insertError } = await adminClient
@@ -192,6 +195,7 @@ export async function PUT(request: NextRequest) {
             unit,
             phone: phone || null,
             qr_code,
+            access_pin,
             property_id: propertyId,
             role: 'resident',
             is_active: true,

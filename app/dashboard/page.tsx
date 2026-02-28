@@ -29,6 +29,7 @@ import {
   Trash2, // V7.5: For delete rule button
   Building2, // V9.0: Portfolio link
   ChevronDown, // V10.8.3: Property dropdown
+  Send, // V10.8.4: Send invite button
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import type { Profile, AccessRule, UserRuleStatus } from "@/lib/types/database";
@@ -65,6 +66,11 @@ export default function DashboardPage() {
   // V10.8.3: Property dropdown state
   const [allProperties, setAllProperties] = useState<any[]>([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  
+  // V10.8.4: Onboarding simulation state
+  const [sendingInvites, setSendingInvites] = useState<Set<string>>(new Set());
+  const [sentInvites, setSentInvites] = useState<Set<string>>(new Set());
+  const [bulkSendingInvites, setBulkSendingInvites] = useState(false);
   
   const [residents, setResidents] = useState<ProfileWithRules[]>([]);
   const [rules, setRules] = useState<AccessRule[]>([]);
@@ -362,6 +368,42 @@ export default function DashboardPage() {
     // Close dropdown
     setShowPropertyDropdown(false);
     // Data will reload automatically via useEffect dependency on propertyId
+  };
+
+  // V10.8.4: Simulate sending invite email to individual resident
+  const sendInviteEmail = async (residentId: string) => {
+    // Add to sending state
+    setSendingInvites(prev => new Set(prev).add(residentId));
+    
+    // Simulate API call delay (1.5 seconds)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Remove from sending, add to sent
+    setSendingInvites(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(residentId);
+      return newSet;
+    });
+    setSentInvites(prev => new Set(prev).add(residentId));
+    
+    // Show success notification (browser alert for MVP)
+    alert('✅ Welcome email sent with Portal Link and PIN!');
+  };
+
+  // V10.8.4: Simulate sending invites to all residents
+  const sendBulkInvites = async () => {
+    setBulkSendingInvites(true);
+    
+    // Simulate API call delay (1.5 seconds)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Mark all residents as sent
+    const allResidentIds = residents.map(r => r.id);
+    setSentInvites(new Set(allResidentIds));
+    setBulkSendingInvites(false);
+    
+    // Show success notification
+    alert(`✅ Welcome emails sent to ${residents.length} residents with Portal Links and PINs!`);
   };
 
   const loadData = async () => {
@@ -1437,18 +1479,45 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V10.8.3: Sleek single-line header with property dropdown */}
+      {/* V10.8.4: Flattened responsive header with nav + property dropdown */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V10.8.3: Single-line header with property dropdown in top-right */}
-          <div className="flex items-center justify-between py-3">
-            {/* Left: Dashboard title */}
-            <div className="flex items-center gap-2">
-              <Shield className="w-6 h-6 text-teal-400" />
-              <h1 className="text-lg font-bold text-white">Manager Dashboard</h1>
-            </div>
+          {/* V10.8.4: Responsive nav bar - 1 line on desktop, 2 rows on mobile */}
+          <div className="py-3">
+            {/* Row 1: Logo + Nav Links + Property Dropdown (desktop) OR Logo + Dropdown (mobile) */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Logo + Title */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Shield className="w-6 h-6 text-teal-400" />
+                <h1 className="text-lg font-bold text-white whitespace-nowrap">Manager Dashboard</h1>
+              </div>
+              
+              {/* Center: Nav Links (hidden on mobile < 768px) */}
+              <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
+                <Link
+                  href="/dashboard"
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/scanner"
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>Scanner</span>
+                </Link>
+                <Link
+                  href="/dashboard/portfolio"
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>Portfolio</span>
+                </Link>
+              </div>
             
-            {/* Right: Property Dropdown */}
+              {/* Right: Property Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
@@ -1510,6 +1579,32 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+            
+            {/* Row 2: Mobile Nav Links (visible only on mobile < 768px) */}
+            <div className="md:hidden flex items-center justify-center gap-2 mt-3 pt-3 border-t border-white/10">
+              <Link
+                href="/dashboard"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+              >
+                <Home className="w-4 h-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link
+                href="/scanner"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Scanner</span>
+              </Link>
+              <Link
+                href="/dashboard/portfolio"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Portfolio</span>
+              </Link>
             </div>
           </div>
           
@@ -2055,6 +2150,33 @@ export default function DashboardPage() {
               </form>
             </div>
 
+            {/* V10.8.4: Bulk Send Invites Button */}
+            <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl shadow-lg p-6 border-2 border-teal-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-navy-900 mb-1">Resident Onboarding</h3>
+                  <p className="text-sm text-navy-600">Send welcome emails with portal links and PINs to all residents</p>
+                </div>
+                <button
+                  onClick={sendBulkInvites}
+                  disabled={bulkSendingInvites || residents.length === 0}
+                  className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                >
+                  {bulkSendingInvites ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Send All Invites ({residents.length})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Residents Table - V7.5 Issue #4: Sticky first column + scrollable */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-navy-200">
               <div className="overflow-x-auto max-h-[600px] relative">
@@ -2087,13 +2209,16 @@ export default function DashboardPage() {
                       <th className="px-6 py-4 text-center text-sm font-bold">
                         QR Code
                       </th>
+                      <th className="px-6 py-4 text-center text-sm font-bold">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-navy-200">
                     {residents.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={rules.length + 5}
+                          colSpan={rules.length + 6}
                           className="px-6 py-12 text-center"
                         >
                           <div className="text-navy-500">
@@ -2247,6 +2372,37 @@ export default function DashboardPage() {
                               className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all"
                             >
                               View QR
+                            </button>
+                          </td>
+                          
+                          {/* V10.8.4: Send Invite Button */}
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => sendInviteEmail(resident.id)}
+                              disabled={sendingInvites.has(resident.id) || sentInvites.has(resident.id)}
+                              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg ${
+                                sentInvites.has(resident.id)
+                                  ? 'bg-green-100 text-green-700 cursor-default'
+                                  : 'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50'
+                              }`}
+                              title={sentInvites.has(resident.id) ? 'Invite already sent' : 'Send welcome email'}
+                            >
+                              {sendingInvites.has(resident.id) ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span className="ml-1">Sending...</span>
+                                </>
+                              ) : sentInvites.has(resident.id) ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span className="ml-1">Sent</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="w-4 h-4" />
+                                  <span className="ml-1">Send Invite</span>
+                                </>
+                              )}
                             </button>
                           </td>
                         </tr>
