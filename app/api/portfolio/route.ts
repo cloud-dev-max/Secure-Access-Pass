@@ -42,20 +42,22 @@ export async function GET(request: NextRequest) {
     // For each property, fetch occupancy and revenue data
     const propertyStats = await Promise.all(
       properties.map(async (property) => {
-        // V9.1 Fix #1: Fetch current occupancy using profiles table (residents currently INSIDE)
+        // V10.8.6 Fix: Fetch current occupancy per property (residents currently INSIDE)
         const { count: residentsInside, error: occupancyError } = await adminClient
           .from('profiles')
           .select('*', { count: 'exact', head: true })
+          .eq('property_id', property.id)
           .eq('role', 'resident')
           .eq('is_active', true)
           .eq('current_location', 'INSIDE')
 
         const residentsInsideCount = residentsInside || 0
         
-        // V9.1 Fix #1: Sum up active_guests for residents inside
+        // V10.8.6 Fix: Sum up active_guests for residents inside this property
         const { data: residentsWithGuests } = await adminClient
           .from('profiles')
           .select('active_guests')
+          .eq('property_id', property.id)
           .eq('role', 'resident')
           .eq('is_active', true)
           .eq('current_location', 'INSIDE')
@@ -71,10 +73,11 @@ export async function GET(request: NextRequest) {
 
         const currentOccupancy = residentsInsideCount + totalGuests + (visitorsInside || 0)
 
-        // V9.1 Fix #1: Fetch active residents count (total, not just inside)
+        // V10.8.6 Fix: Fetch active residents count PER PROPERTY
         const { count: activeResidentsCount, error: residentsError } = await adminClient
           .from('profiles')
           .select('*', { count: 'exact', head: true })
+          .eq('property_id', property.id)
           .eq('role', 'resident')
           .eq('is_active', true)
 

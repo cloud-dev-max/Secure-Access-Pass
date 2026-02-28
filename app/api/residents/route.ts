@@ -248,6 +248,73 @@ export async function PUT(request: NextRequest) {
 }
 
 /**
+ * DELETE /api/residents?id=xxx
+ * V10.8.6: Permanently delete a resident and all associated data
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient()
+    const { searchParams } = new URL(request.url)
+    const residentId = searchParams.get('id')
+
+    if (!residentId) {
+      return NextResponse.json(
+        { error: 'Resident ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // First, delete all related user_rule_status entries
+    const { error: ruleStatusError } = await adminClient
+      .from('user_rule_status')
+      .delete()
+      .eq('user_id', residentId)
+
+    if (ruleStatusError) {
+      console.error('Error deleting rule statuses:', ruleStatusError)
+      // Continue even if this fails (might not have any rule statuses)
+    }
+
+    // Delete all guest passes purchased by this resident
+    const { error: guestPassError } = await adminClient
+      .from('visitor_passes')
+      .delete()
+      .eq('purchased_by', residentId)
+
+    if (guestPassError) {
+      console.error('Error deleting guest passes:', guestPassError)
+      // Continue even if this fails
+    }
+
+    // Finally, delete the resident profile
+    const { error: deleteError } = await adminClient
+      .from('profiles')
+      .delete()
+      .eq('id', residentId)
+      .eq('role', 'resident') // Safety check: only delete residents
+
+    if (deleteError) {
+      console.error('Error deleting resident:', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete resident', details: deleteError.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(
+      { message: 'Resident permanently deleted' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Unexpected error in DELETE /api/residents:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * PATCH /api/residents
  * Update resident information (PIN, location, etc.)
  * V4: Used for PIN regeneration and force checkout

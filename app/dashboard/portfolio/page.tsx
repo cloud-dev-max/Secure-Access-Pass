@@ -90,25 +90,14 @@ export default function PortfolioDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-navy-600" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-navy-900 flex items-center gap-3">
-                  <Building2 className="w-8 h-8 text-navy-600" />
-                  Enterprise Portfolio Command Center
-                </h1>
-                <p className="text-gray-600 mt-1">V9.0 Multi-Property Management Dashboard</p>
-              </div>
-            </div>
-          </div>
+        {/* V10.8.6: Simplified header - removed large title block */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-white border border-gray-200 shadow-sm"
+          >
+            <ArrowLeft className="w-5 h-5 text-navy-600" />
+          </button>
         </div>
 
         {/* Global KPIs */}
@@ -264,11 +253,11 @@ export default function PortfolioDashboard() {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* V10.8.6: Footer - removed V9.0 version text */}
         <div className="bg-gradient-to-r from-navy-800 to-navy-900 rounded-lg shadow-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold">Enterprise Portfolio Edition V9.0</h3>
+              <h3 className="text-lg font-semibold">Enterprise Portfolio Edition</h3>
               <p className="text-navy-200 text-sm mt-1">
                 Multi-facility management • Real-time analytics • Comprehensive auditing
               </p>
