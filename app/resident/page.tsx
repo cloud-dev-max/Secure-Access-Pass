@@ -39,9 +39,9 @@ export default function ResidentPortalPage() {
   const [guestPasses, setGuestPasses] = useState<GuestPass[]>([])
   const [maxGuestsAllowed, setMaxGuestsAllowed] = useState(3) // V4: Guest limit from settings
   
-  // Login form - V4: Added PIN
+  // Login form - V10.8.5: Upgraded to 6-digit PIN with segmented inputs
   const [email, setEmail] = useState('')
-  const [pin, setPin] = useState('')
+  const [pin, setPin] = useState<string[]>(['', '', '', '', '', '']) // 6-digit array
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
 
@@ -142,9 +142,10 @@ export default function ResidentPortalPage() {
     setLoginLoading(true)
     setLoginError('')
 
-    // V4: Validate PIN format
-    if (!/^\d{4}$/.test(pin)) {
-      setLoginError('PIN must be exactly 4 digits')
+    // V10.8.5: Validate 6-digit PIN format
+    const fullPin = pin.join('')
+    if (!/^\d{6}$/.test(fullPin)) {
+      setLoginError('PIN must be exactly 6 digits')
       setLoginLoading(false)
       return
     }
@@ -155,7 +156,7 @@ export default function ResidentPortalPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: email.trim().toLowerCase(),
-          pin: pin.trim()
+          pin: fullPin
         }),
       })
 
@@ -515,22 +516,65 @@ export default function ResidentPortalPage() {
     }
   }
 
-  // Login Screen
+  // V10.8.5: Premium Login Screen with 6-box segmented PIN input
   if (!isLoggedIn) {
+    // Handler for PIN input changes with auto-advance
+    const handlePinChange = (index: number, value: string) => {
+      // Only allow digits
+      if (value && !/^\d$/.test(value)) return
+      
+      const newPin = [...pin]
+      newPin[index] = value
+      setPin(newPin)
+      
+      // Auto-advance to next box
+      if (value && index < 5) {
+        const nextInput = document.getElementById(`pin-${index + 1}`)
+        nextInput?.focus()
+      }
+    }
+    
+    // Handler for backspace navigation
+    const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
+      if (e.key === 'Backspace' && !pin[index] && index > 0) {
+        const prevInput = document.getElementById(`pin-${index - 1}`)
+        prevInput?.focus()
+      }
+    }
+    
+    // Handler for paste
+    const handlePinPaste = (e: React.ClipboardEvent) => {
+      e.preventDefault()
+      const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+      const newPin = [...pin]
+      for (let i = 0; i < pastedData.length; i++) {
+        newPin[i] = pastedData[i]
+      }
+      setPin(newPin)
+      
+      // Focus last filled box or first empty box
+      const nextIndex = Math.min(pastedData.length, 5)
+      const nextInput = document.getElementById(`pin-${nextIndex}`)
+      nextInput?.focus()
+    }
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+        {/* V10.8.5: Premium glassmorphism card */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-10 max-w-lg w-full border border-white/20">
+          {/* Logo & Title */}
           <div className="text-center mb-8">
-            <div className="bg-teal-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-10 h-10 text-white" />
+            <div className="bg-gradient-to-br from-teal-500 to-teal-600 w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Shield className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-navy-900 mb-2">Resident Portal</h1>
-            <p className="text-navy-600">Enter your email and 4-digit PIN</p>
+            <h1 className="text-4xl font-bold text-navy-900 mb-3">Resident Portal</h1>
+            <p className="text-navy-600 text-lg">Enter your credentials to continue</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-6">
+            {/* Email Input */}
             <div>
-              <label className="block text-sm font-semibold text-navy-700 mb-2">
+              <label className="block text-sm font-bold text-navy-700 mb-3">
                 Email Address
               </label>
               <input
@@ -539,48 +583,59 @@ export default function ResidentPortalPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 required
-                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                className="w-full px-5 py-4 border-2 border-navy-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 bg-white text-gray-900 placeholder-gray-400 transition-all text-lg"
               />
             </div>
 
+            {/* V10.8.5: Premium 6-Box Segmented PIN Input */}
             <div>
-              <label className="block text-sm font-semibold text-navy-700 mb-2">
-                4-Digit PIN
+              <label className="block text-sm font-bold text-navy-700 mb-3">
+                6-Digit PIN
               </label>
-              <input
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="****"
-                required
-                maxLength={4}
-                pattern="\d{4}"
-                className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
-              />
-              <p className="text-xs text-navy-500 mt-1">Your manager provided this PIN when you registered</p>
+              <div className="flex gap-3 justify-center" onPaste={handlePinPaste}>
+                {pin.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`pin-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handlePinChange(index, e.target.value)}
+                    onKeyDown={(e) => handlePinKeyDown(index, e)}
+                    className="w-14 h-16 text-center text-3xl font-bold border-3 border-navy-300 rounded-xl focus:ring-4 focus:ring-teal-500/30 focus:border-teal-500 bg-white text-navy-900 transition-all shadow-sm hover:border-navy-400"
+                    required
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-navy-500 mt-3 text-center">
+                Your manager provided this PIN when you registered
+              </p>
             </div>
 
+            {/* Error Message */}
             {loginError && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">{loginError}</span>
+              <div className="bg-red-50 border-2 border-red-200 text-red-800 p-4 rounded-xl flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 flex-shrink-0" />
+                <span className="text-sm font-medium">{loginError}</span>
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loginLoading}
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              disabled={loginLoading || pin.some(d => !d)}
+              className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white px-6 py-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-3"
             >
               {loginLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Logging in...
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>Logging in...</span>
                 </>
               ) : (
                 <>
-                  <User className="w-5 h-5" />
-                  Access Portal
+                  <User className="w-6 h-6" />
+                  <span>Access Portal</span>
                 </>
               )}
             </button>
