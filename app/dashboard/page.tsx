@@ -28,6 +28,7 @@ import {
   Printer,
   Trash2, // V7.5: For delete rule button
   Building2, // V9.0: Portfolio link
+  ChevronDown, // V10.8.3: Property dropdown
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import type { Profile, AccessRule, UserRuleStatus } from "@/lib/types/database";
@@ -60,6 +61,10 @@ export default function DashboardPage() {
   const { propertyId, setPropertyId } = useContext(PropertyContext);
   const [currentPropertyName, setCurrentPropertyName] = useState<string>('');
   const [noPropertySelected, setNoPropertySelected] = useState(false);
+  
+  // V10.8.3: Property dropdown state
+  const [allProperties, setAllProperties] = useState<any[]>([]);
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   
   const [residents, setResidents] = useState<ProfileWithRules[]>([]);
   const [rules, setRules] = useState<AccessRule[]>([]);
@@ -156,8 +161,12 @@ export default function DashboardPage() {
 
   // V10.8.1: Initialize property from localStorage on mount
   // V10.8.2: Handle missing property gracefully - don't get stuck in infinite loading
+  // V10.8.3: Load all properties for dropdown
   useEffect(() => {
     const storedPropertyId = localStorage.getItem('selectedPropertyId');
+    
+    // Load all properties for dropdown
+    loadAllProperties();
     
     if (storedPropertyId && !propertyId) {
       // Property found in localStorage - set it
@@ -183,6 +192,19 @@ export default function DashboardPage() {
         .catch(err => console.error('Error loading property name:', err));
     }
   }, [propertyId]);
+
+  // V10.8.3: Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showPropertyDropdown && !target.closest('.relative')) {
+        setShowPropertyDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPropertyDropdown]);
 
   // V10.8.1: Reload data when property changes
   // V10.8.2: Only load data when propertyId is available
@@ -312,6 +334,34 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error loading occupancy breakdown:", error);
     }
+  };
+
+  // V10.8.3: Load all properties for dropdown
+  const loadAllProperties = async () => {
+    try {
+      const response = await fetch('/api/portfolio');
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.properties) {
+          setAllProperties(data.properties);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading properties:', error);
+    }
+  };
+
+  // V10.8.3: Switch property from dropdown
+  const switchProperty = (newPropertyId: string, newPropertyName: string) => {
+    // Update context
+    setPropertyId(newPropertyId);
+    // Update localStorage for persistence
+    localStorage.setItem('selectedPropertyId', newPropertyId);
+    // Update displayed name
+    setCurrentPropertyName(newPropertyName);
+    // Close dropdown
+    setShowPropertyDropdown(false);
+    // Data will reload automatically via useEffect dependency on propertyId
   };
 
   const loadData = async () => {
@@ -1387,23 +1437,80 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-teal-50 to-navy-100">
-      {/* V9.17 Fix #2 & #3: Tab Navigation Menu - Strict lg breakpoint, centered, compact */}
+      {/* V10.8.3: Sleek single-line header with property dropdown */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* V10.8.1: Property Switcher */}
-          <div className="flex items-center justify-between py-2 border-b border-white/10">
+          {/* V10.8.3: Single-line header with property dropdown in top-right */}
+          <div className="flex items-center justify-between py-3">
+            {/* Left: Dashboard title */}
             <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-teal-400" />
-              <span className="text-sm font-semibold text-white">
-                {currentPropertyName || 'Select Property'}
-              </span>
+              <Shield className="w-6 h-6 text-teal-400" />
+              <h1 className="text-lg font-bold text-white">Manager Dashboard</h1>
             </div>
-            <Link 
-              href="/dashboard/portfolio"
-              className="text-xs text-teal-400 hover:text-teal-300 transition-colors"
-            >
-              Switch Property →
-            </Link>
+            
+            {/* Right: Property Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all border border-white/20"
+              >
+                <Building2 className="w-4 h-4 text-teal-400" />
+                <span className="text-sm font-semibold text-white max-w-[200px] truncate">
+                  {currentPropertyName || 'Select Property'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-white transition-transform ${showPropertyDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Property Dropdown Menu */}
+              {showPropertyDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl border border-navy-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="text-xs font-semibold text-navy-600 px-3 py-2 border-b border-navy-100">
+                      Select Property
+                    </div>
+                    {allProperties.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-navy-500 text-center">
+                        No properties found
+                      </div>
+                    ) : (
+                      allProperties.map((property) => (
+                        <button
+                          key={property.id}
+                          onClick={() => switchProperty(property.id, property.name)}
+                          className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${
+                            property.id === propertyId
+                              ? 'bg-teal-50 text-teal-900 font-semibold'
+                              : 'text-navy-700 hover:bg-navy-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Building2 className={`w-4 h-4 mt-0.5 ${property.id === propertyId ? 'text-teal-600' : 'text-navy-400'}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{property.name}</div>
+                              <div className="text-xs text-navy-500 mt-0.5">
+                                {property.currentOccupancy || 0}/{property.maxCapacity || 0} occupancy
+                              </div>
+                            </div>
+                            {property.id === propertyId && (
+                              <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <div className="border-t border-navy-100 p-2">
+                    <Link
+                      href="/dashboard/portfolio"
+                      className="block w-full text-center px-3 py-2 text-sm text-teal-600 hover:bg-teal-50 rounded-lg transition-all font-medium"
+                      onClick={() => setShowPropertyDropdown(false)}
+                    >
+                      View Full Portfolio →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
           {/* V10.7: Mobile dropdown - 850px breakpoint for better responsiveness */}

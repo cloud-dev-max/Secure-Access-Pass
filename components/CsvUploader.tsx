@@ -15,7 +15,7 @@ interface ParsedResident {
   phone?: string
 }
 
-export default function CsvUploader({ onUploadComplete }: CsvUploaderProps) {
+export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [results, setResults] = useState<{
