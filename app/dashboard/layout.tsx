@@ -49,11 +49,12 @@ function DashboardHeader() {
         <div className="py-3">
           {/* V10.8.7: Streamlined navigation - Logo as Home, Scanner only */}
           <div className="flex items-center justify-between gap-4">
-            {/* V10.8.8: Clickable Logo resets to Overview tab */}
-            <Link href="/dashboard?tab=overview" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
+            {/* V10.8.10: Force full navigation with standard anchor (not Next.js Link) */}
+            {/* This ensures tab=overview query param is processed and Overview tab loads */}
+            <a href="/dashboard?tab=overview" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
               <Shield className="w-6 h-6 text-teal-400" />
               <h1 className="text-lg font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
-            </Link>
+            </a>
             
             {/* Center: Scanner Link Only (hidden on mobile < 768px) */}
             <div className="hidden md:flex items-center gap-2 flex-1 justify-center">

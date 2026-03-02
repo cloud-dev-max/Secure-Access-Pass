@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/rules
- * Create a new access rule with auto-property creation and resident initialization
+ * V10.8.10: Create a new access rule tied to the active property
+ * CRITICAL: Frontend must pass property_id from PropertyContext
  */
 export async function POST(request: NextRequest) {
   try {
@@ -58,8 +59,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Ensure property exists (creates it if missing)
+    // V10.8.10: Use explicitly passed property_id, fallback only for legacy calls
     const finalPropertyId = property_id || await ensurePropertyExists()
+    console.log('[V10.8.10] Creating rule for property:', finalPropertyId)
 
     // Insert rule using admin client (bypasses RLS)
     const { data: rule, error: insertError } = await adminClient

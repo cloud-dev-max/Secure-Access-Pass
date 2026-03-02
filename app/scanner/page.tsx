@@ -25,6 +25,10 @@ export default function ScannerPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   
+  // V10.8.10: Property context for multi-tenancy
+  const [propertyId, setPropertyId] = useState<string>('')
+  const [propertyName, setPropertyName] = useState<string>('Secure Access Scanner')
+  
   // V6: Group entry/exit modal state
   const [showGroupModal, setShowGroupModal] = useState(false)
   const [scannedQR, setScannedQR] = useState<string>('')
@@ -48,6 +52,24 @@ export default function ScannerPage() {
   
   // V7.9 Fix #2: Trigger for occupancy refresh
   const [occupancyRefreshTrigger, setOccupancyRefreshTrigger] = useState(0)
+  
+  // V10.8.10: Load active property name from localStorage
+  useEffect(() => {
+    const storedPropertyId = localStorage.getItem('selectedPropertyId')
+    if (storedPropertyId) {
+      setPropertyId(storedPropertyId)
+      // Fetch property name
+      fetch(`/api/properties?id=${storedPropertyId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.name) {
+            setPropertyName(data.name + ' Scanner')
+            console.log('[V10.8.10] Scanner loaded for property:', data.name)
+          }
+        })
+        .catch(err => console.error('Error loading property name:', err))
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -188,13 +210,15 @@ export default function ScannerPage() {
 
     try {
       // V6: First check user info (don't process group logic in API yet)
+      // V10.8.10: Pass active property_id for multi-tenancy
       const response = await fetch('/api/check-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           qr_code: decodedText,
           scan_type: mode,
-          check_only: true // V6: Just check, don't log yet
+          check_only: true, // V6: Just check, don't log yet
+          scanner_property_id: propertyId || undefined // V10.8.10: Pass active property
         }),
       })
 
@@ -265,13 +289,15 @@ export default function ScannerPage() {
     setProcessingGroup(true)
     
     try {
+      // V10.8.10: Pass active property_id for multi-tenancy
       const response = await fetch('/api/check-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           qr_code: scannedQR,
           scan_type: mode,
-          guest_count: guestCount
+          guest_count: guestCount,
+          scanner_property_id: propertyId || undefined // V10.8.10
         }),
       })
 
@@ -307,13 +333,15 @@ export default function ScannerPage() {
   const commitVisitorPassScan = async (qrCode: string, userName: string, isReEntry: boolean) => {
     try {
       // Fire the actual scan with check_only:false (default)
+      // V10.8.10: Pass active property_id for multi-tenancy
       const response = await fetch('/api/check-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           qr_code: qrCode,
           scan_type: mode,
-          guest_count: 0 // Visitor passes always 0 guests
+          guest_count: 0, // Visitor passes always 0 guests
+          scanner_property_id: propertyId || undefined // V10.8.10
         }),
       })
 
@@ -682,7 +710,8 @@ export default function ScannerPage() {
                 <Camera className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Secure Access Scanner</h1>
+                {/* V10.8.10: Display active property name */}
+                <h1 className="text-xl font-bold">{propertyName}</h1>
                 <p className="text-sm text-white/70">Staff Mode</p>
               </div>
             </div>

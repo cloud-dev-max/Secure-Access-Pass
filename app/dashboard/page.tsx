@@ -1272,12 +1272,21 @@ function DashboardPageContent() {
     e.preventDefault();
     setIsAddingRule(true);
 
+    // V10.8.10: Critical fix - explicitly pass active propertyId from context
+    if (!propertyId) {
+      alert('Please select a property first');
+      setIsAddingRule(false);
+      return;
+    }
+
     try {
+      console.log('[V10.8.10] Adding rule to property:', propertyId);
       const response = await fetch("/api/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rule_name: newRuleName,
+          property_id: propertyId, // V10.8.10: Pass active property from context
         }),
       });
 
