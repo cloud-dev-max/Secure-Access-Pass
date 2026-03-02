@@ -1,183 +1,131 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Shield, QrCode, Users, Lock, CheckCircle2, Waves } from 'lucide-react'
+import { Shield, Lock, Loader2, Building2 } from 'lucide-react'
 
-export default function Home() {
+export default function ManagerLoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // V10.8.11: Mock manager login - accepts any input
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!email.trim() || !password.trim()) {
+      alert('Please enter email and password')
+      return
+    }
+    
+    setIsLoading(true)
+    
+    // Simulate 1-second loading
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Route to dashboard with overview tab
+    router.push('/dashboard?tab=overview')
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900">
-      {/* Header */}
-      <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-teal-500 p-2 rounded-lg">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white">Secure Access Pass</span>
+    <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900 flex items-center justify-center p-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
+      
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-teal-500 rounded-2xl mb-4 shadow-2xl">
+            <Shield className="w-12 h-12 text-white" />
           </div>
-          <div className="flex gap-3">
-            <Link
-              href="/dashboard"
-              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg font-semibold transition-all"
-            >
-              Manager Dashboard
-            </Link>
-            <Link
-              href="/scanner"
-              className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-semibold transition-all"
-            >
-              Open Scanner
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-6 py-20">
-        <div className="text-center mb-16">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <Waves className="w-12 h-12 text-teal-400" />
-            <h1 className="text-6xl font-bold text-white">
-              Secure Access Pass
-            </h1>
-          </div>
-          <p className="text-2xl text-white/80 mb-8">
-            Resort-Grade Digital Entry Solution for Swimming Pool Access
-          </p>
-          <p className="text-lg text-white/60 max-w-3xl mx-auto">
-            Replace physical key fobs with mobile QR codes. Instantly manage access with custom rules.
-            Monitor who's in your pool in real-time.
-          </p>
+          <h1 className="text-3xl font-bold text-white mb-2">Secure Access Pass</h1>
+          <p className="text-white/70 text-sm">Manager Portal</p>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all">
-            <div className="bg-teal-500 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-              <QrCode className="w-8 h-8 text-white" />
+        {/* Login Card */}
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-teal-500/20 rounded-lg">
+              <Building2 className="w-6 h-6 text-teal-400" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-3">QR Code Access</h3>
-            <p className="text-white/70">
-              No more physical key fobs. Every resident gets a unique QR code that can't be shared or duplicated.
+            <h2 className="text-2xl font-bold text-white">Manager Login</h2>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@secureaccess.com"
+                required
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Logging in...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-5 h-5" />
+                  <span>Login</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-center text-white/60 text-sm">
+              Demo credentials: <span className="text-white/80 font-mono">admin@secureaccess.com</span> / <span className="text-white/80 font-mono">demo</span>
             </p>
           </div>
-
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all">
-            <div className="bg-navy-500 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-              <Lock className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-3">Dynamic Rules</h3>
-            <p className="text-white/70">
-              Create custom access rules like "Rent Paid" or "Lease Compliant". Instantly revoke access with one click.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all">
-            <div className="bg-teal-500 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-              <Users className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-3">Anti-Passback</h3>
-            <p className="text-white/70">
-              Prevents residents from sharing access. Once inside, their QR code is locked until they exit.
-            </p>
-          </div>
         </div>
 
-        {/* How It Works */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 border border-white/20">
-          <h2 className="text-3xl font-bold text-white mb-8 text-center">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-teal-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white">
-                1
-              </div>
-              <h4 className="text-xl font-semibold text-white mb-2">Create Custom Rules</h4>
-              <p className="text-white/70">
-                Define access requirements like "Rent Paid", "Pet Deposit", or any custom rule.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="bg-teal-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white">
-                2
-              </div>
-              <h4 className="text-xl font-semibold text-white mb-2">Manage Residents</h4>
-              <p className="text-white/70">
-                Add residents and toggle their access rules on/off with a simple click.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="bg-teal-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-white">
-                3
-              </div>
-              <h4 className="text-xl font-semibold text-white mb-2">Scan & Control</h4>
-              <p className="text-white/70">
-                Use the scanner app to verify access. The system enforces all rules automatically.
-              </p>
-            </div>
-          </div>
+        {/* Resident Access Link */}
+        <div className="mt-6 text-center">
+          <Link
+            href="/resident"
+            className="text-white/70 hover:text-white text-sm font-medium transition-colors inline-flex items-center gap-1"
+          >
+            <Shield className="w-4 h-4" />
+            Resident Access Portal →
+          </Link>
         </div>
 
-        {/* Key Benefits */}
-        <div className="mt-16 bg-gradient-to-r from-teal-500 to-navy-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-8 text-center">Key Benefits</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex items-start gap-4">
-              <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Instant Access Control</h4>
-                <p className="text-white/90">Revoke or grant access in seconds, not days.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">No Physical Keys</h4>
-                <p className="text-white/90">Eliminate the cost and hassle of physical key fobs.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Complete Audit Trail</h4>
-                <p className="text-white/90">Track every entry and exit with detailed logs.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <CheckCircle2 className="w-6 h-6 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Flexible Rules Engine</h4>
-                <p className="text-white/90">Create unlimited custom rules for any scenario.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="mt-16 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">Ready to Get Started?</h2>
-          <div className="flex gap-4 justify-center">
-            <Link
-              href="/dashboard"
-              className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
-            >
-              Open Manager Dashboard
-            </Link>
-            <Link
-              href="/scanner"
-              className="bg-white/20 hover:bg-white/30 text-white px-8 py-4 rounded-xl text-lg font-semibold border-2 border-white/40 transition-all transform hover:scale-105"
-            >
-              Launch Scanner App
-            </Link>
-          </div>
-        </div>
+        {/* Footer */}
+        <p className="mt-8 text-center text-white/40 text-xs">
+          © 2024 Secure Access Pass • Resort-grade digital entry solution
+        </p>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-white/5 backdrop-blur-md border-t border-white/10 mt-20">
-        <div className="max-w-7xl mx-auto px-6 py-8 text-center text-white/60">
-          <p>© 2024 Secure Access Pass. Resort-grade digital entry solution.</p>
-        </div>
-      </footer>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, TrendingUp, Users, DollarSign, ArrowLeft, Activity } from 'lucide-react'
+import { Building2, TrendingUp, Users, DollarSign, ArrowLeft, Activity, Plus, X } from 'lucide-react'
 
 interface GlobalKPIs {
   totalOccupancy: number
@@ -32,6 +32,12 @@ export default function PortfolioDashboard() {
   const router = useRouter()
   const [data, setData] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // V10.8.11: Add Property modal state
+  const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
+  const [newPropertyName, setNewPropertyName] = useState('')
+  const [newPropertyCapacity, setNewPropertyCapacity] = useState('50')
+  const [isCreatingProperty, setIsCreatingProperty] = useState(false)
 
   const loadPortfolioData = async (silent = false) => {
     try {
@@ -65,6 +71,51 @@ export default function PortfolioDashboard() {
     localStorage.setItem('selectedPropertyId', propertyId)
     router.push('/dashboard')
   }
+  
+  // V10.8.11: Create new property
+  const createProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!newPropertyName.trim() || !newPropertyCapacity) {
+      alert('Please fill in all fields')
+      return
+    }
+    
+    setIsCreatingProperty(true)
+    
+    try {
+      const response = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newPropertyName.trim(),
+          max_capacity: parseInt(newPropertyCapacity)
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create property')
+      }
+      
+      const newProperty = await response.json()
+      console.log('[V10.8.11] Created property:', newProperty.name)
+      
+      // Reset form
+      setNewPropertyName('')
+      setNewPropertyCapacity('50')
+      setShowAddPropertyModal(false)
+      
+      // Reload portfolio data
+      await loadPortfolioData()
+      
+      alert(`Property "${newProperty.name}" created successfully!`)
+    } catch (error) {
+      console.error('Error creating property:', error)
+      alert('Failed to create property. Please try again.')
+    } finally {
+      setIsCreatingProperty(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -91,12 +142,21 @@ export default function PortfolioDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* V10.8.6: Simplified header - removed large title block */}
-        <div className="flex items-center gap-4">
+        {/* V10.8.11: Added Add Property button */}
+        <div className="flex items-center justify-between gap-4">
           <button
             onClick={() => router.push('/dashboard')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-white border border-gray-200 shadow-sm"
           >
             <ArrowLeft className="w-5 h-5 text-navy-600" />
+          </button>
+          
+          <button
+            onClick={() => setShowAddPropertyModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add New Property</span>
           </button>
         </div>
 
@@ -266,6 +326,75 @@ export default function PortfolioDashboard() {
           </div>
         </div>
       </div>
+      
+      {/* V10.8.11: Add Property Modal */}
+      {showAddPropertyModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-navy-900 flex items-center gap-2">
+                <Plus className="w-6 h-6 text-teal-600" />
+                Add New Property
+              </h2>
+              <button
+                onClick={() => setShowAddPropertyModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={createProperty} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Property Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newPropertyName}
+                  onChange={(e) => setNewPropertyName(e.target.value)}
+                  placeholder="e.g., Willow Creek Community Pool"
+                  required
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Max Capacity <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={newPropertyCapacity}
+                  onChange={(e) => setNewPropertyCapacity(e.target.value)}
+                  placeholder="50"
+                  required
+                  min="1"
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPropertyModal(false)}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  disabled={isCreatingProperty}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingProperty}
+                  className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+                >
+                  {isCreatingProperty ? 'Creating...' : 'Create Property'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

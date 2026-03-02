@@ -4,16 +4,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * GET /api/settings
- * Fetch facility settings for a property
+ * GET /api/settings?property_id=xxx
+ * V10.8.11: Fetch facility settings for a property (multi-tenancy fix)
  * Uses Admin Client to bypass RLS
  */
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
 
-    console.log('Fetching settings for property:', propertyId)
+    console.log('[V10.8.11] Fetching settings for property:', propertyId)
 
     const { data, error } = await adminClient
       .from('properties')
@@ -57,15 +58,15 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/settings
- * Update facility settings for a property
+ * V10.8.11: Update facility settings for a property (multi-tenancy fix)
  * Uses UPSERT to handle missing property gracefully
  * Uses Admin Client to bypass RLS
  */
 export async function PATCH(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
     const body = await request.json()
+    const propertyId = body.property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
 
     const {
       property_name, // V5

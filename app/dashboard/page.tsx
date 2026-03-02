@@ -953,14 +953,21 @@ function DashboardPageContent() {
 
   // V7: Load Facility Settings
   // V8.12 Fix #3: Optimized settings load with caching
+  // V10.8.11: Pass property_id for multi-tenancy isolation
   const loadFacilitySettings = async (force = false) => {
     // Skip if already cached and not forcing reload
     if (settingsCached && !force) {
       return;
     }
     
+    if (!propertyId) {
+      console.log('[V10.8.11] No propertyId, skipping settings load');
+      return;
+    }
+    
     try {
-      const response = await fetch("/api/settings");
+      console.log('[V10.8.11] Loading settings for property:', propertyId);
+      const response = await fetch(`/api/settings?property_id=${propertyId}`);
       if (response.ok) {
         const data = await response.json();
         setPropertyName(data.property_name || "");
@@ -980,15 +987,24 @@ function DashboardPageContent() {
   };
 
   // V7: Save Facility Settings
+  // V10.8.11: Pass property_id and refresh header dropdown
   const saveFacilitySettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingSettings(true);
 
+    if (!propertyId) {
+      alert('No property selected');
+      setSavingSettings(false);
+      return;
+    }
+
     try {
+      console.log('[V10.8.11] Saving settings for property:', propertyId);
       const response = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          property_id: propertyId, // V10.8.11: Pass active property
           property_name: propertyName,
           operating_hours_start: operatingHoursStart,
           operating_hours_end: operatingHoursEnd,
@@ -1006,6 +1022,9 @@ function DashboardPageContent() {
       alert("Settings saved successfully!");
       setSettingsCached(false); // V8.12: Invalidate cache
       await loadFacilitySettings(true); // Force reload
+      
+      // V10.8.11: Refresh header dropdown to show updated property name
+      await loadAllProperties();
     } catch (error) {
       console.error("Error saving settings:", error);
       alert("Failed to save settings");

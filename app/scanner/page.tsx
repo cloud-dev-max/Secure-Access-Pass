@@ -650,6 +650,12 @@ export default function ScannerPage() {
 
   // V7.5 Issue #9: Prompt for reason when closing pool
   const togglePoolStatus = async () => {
+    // V10.8.11: Critical fix - pass property_id to prevent closing all pools
+    if (!propertyId) {
+      alert('No property selected. Please refresh and try again.');
+      return;
+    }
+    
     let reason = ''
     
     // V7.5: Prompt for reason when closing
@@ -669,10 +675,12 @@ export default function ScannerPage() {
       // V7.6 Fix #2: Correct logic - maintenance_mode TRUE = CLOSED, FALSE = OPEN
       // When isPoolOpen=true (currently open), we want to CLOSE it, so send TRUE
       // When isPoolOpen=false (currently closed), we want to OPEN it, so send FALSE
+      console.log('[V10.8.11] Toggling pool status for property:', propertyId);
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          property_id: propertyId, // V10.8.11: Pass active property to prevent global update
           is_maintenance_mode: isPoolOpen, // When pool is open and we click, we want to close it (set TRUE)
           maintenance_reason: isPoolOpen ? reason : '',
         }),
