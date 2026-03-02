@@ -106,10 +106,31 @@ export async function PATCH(request: NextRequest) {
     if (stripe_account_id !== undefined) updates.stripe_account_id = stripe_account_id // V10.6
     if (stripe_connected !== undefined) updates.stripe_connected = stripe_connected // V10.6
 
-    // V10.8.12: Only add defaults for new properties (when no updates provided)
-    // Don't override existing properties with defaults
-    const isNewProperty = Object.keys(updates).length === 1 // Only has 'id'
-    if (isNewProperty) {
+    // V10.8.13 Fix: Check if property exists first to determine update vs insert
+    const { data: existingProperty } = await adminClient
+      .from('properties')
+      .select('id, name, property_name, address, city, state, zip_code')
+      .eq('id', propertyId)
+      .single()
+    
+    let data, error;
+    
+    // V10.8.13: Use UPDATE for existing properties, INSERT for new ones
+    if (existingProperty) {
+      console.log('[V10.8.13] Updating existing property:', existingProperty.name)
+      // For existing properties, use UPDATE (don't include 'id' in the updates)
+      const { id, ...updateFields } = updates;
+      const result = await adminClient
+        .from('properties')
+        .update(updateFields)
+        .eq('id', propertyId)
+        .select()
+        .single()
+      data = result.data
+      error = result.error
+    } else {
+      console.log('[V10.8.13] Creating new property with defaults')
+      // For new properties, add defaults and use INSERT
       if (!updates.name && !updates.property_name) {
         updates.name = 'Default Property'
         updates.property_name = 'Default Property'
@@ -118,19 +139,17 @@ export async function PATCH(request: NextRequest) {
       updates.city = 'Default City'
       updates.state = 'CA'
       updates.zip_code = '00000'
+      
+      const result = await adminClient
+        .from('properties')
+        .insert(updates)
+        .select()
+        .single()
+      data = result.data
+      error = result.error
     }
 
-    console.log('Performing upsert with updates:', updates)
-
-    // Use UPSERT to update if exists, insert if not
-    const { data, error } = await adminClient
-      .from('properties')
-      .upsert(updates, { 
-        onConflict: 'id',
-        ignoreDuplicates: false 
-      })
-      .select()
-      .single()
+    console.log('Operation result:', { success: !error, data })
 
     if (error) {
       console.error('Error upserting settings:', error)
