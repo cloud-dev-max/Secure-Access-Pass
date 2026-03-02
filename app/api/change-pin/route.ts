@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate new PIN format (4 digits)
-    if (!/^\d{4}$/.test(new_pin)) {
+    // V10.8.8: Validate new PIN format (6 digits)
+    if (!/^\d{6}$/.test(new_pin)) {
       return NextResponse.json(
-        { error: 'New PIN must be exactly 4 digits' },
+        { error: 'New PIN must be exactly 6 digits' },
         { status: 400 }
       )
     }

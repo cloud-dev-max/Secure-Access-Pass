@@ -47,10 +47,12 @@ function DashboardHeader() {
       .catch(err => console.error('Failed to load properties:', err))
   }, [])
 
-  // V10.8.6: Switch property
+  // V10.8.8: Switch property - immediate name update
   const switchProperty = (newPropertyId: string, newPropertyName: string) => {
-    setPropertyId(newPropertyId)
+    console.log('[Header] Switching to property:', newPropertyName)
+    // Update name FIRST for immediate visual feedback
     setCurrentPropertyName(newPropertyName)
+    setPropertyId(newPropertyId)
     localStorage.setItem('selectedPropertyId', newPropertyId)
     setShowPropertyDropdown(false)
   }
@@ -62,8 +64,8 @@ function DashboardHeader() {
         <div className="py-3">
           {/* V10.8.7: Streamlined navigation - Logo as Home, Scanner only */}
           <div className="flex items-center justify-between gap-4">
-            {/* Left: Clickable Logo + Title (acts as Home) */}
-            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
+            {/* V10.8.8: Clickable Logo resets to Overview tab */}
+            <Link href="/dashboard?tab=overview" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
               <Shield className="w-6 h-6 text-teal-400" />
               <h1 className="text-lg font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
             </Link>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, X, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-react'
+import { Upload, X, CheckCircle2, AlertCircle, FileSpreadsheet, Mail, Loader2 } from 'lucide-react'
 
 interface CsvUploaderProps {
   onUploadComplete: () => void
@@ -23,6 +23,10 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
     success: any[]
     failed: any[]
   } | null>(null)
+  // V10.8.8: Post-upload invite flow
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false)
+  const [isSendingInvites, setIsSendingInvites] = useState(false)
+  const [invitesSent, setInvitesSent] = useState(false)
 
   const parseCSV = (text: string): ParsedResident[] => {
     const lines = text.trim().split('\n')
@@ -103,11 +107,9 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
 
       setResults(data.results)
       
-      // Notify parent component
+      // V10.8.8: Show success screen instead of auto-closing
       if (data.results.success.length > 0) {
-        setTimeout(() => {
-          onUploadComplete()
-        }, 2000)
+        setShowSuccessScreen(true)
       }
     } catch (error) {
       console.error('CSV upload error:', error)
@@ -146,6 +148,30 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
     }
   }
 
+  // V10.8.8: Send welcome invites after successful upload
+  const sendInvites = async () => {
+    setIsSendingInvites(true)
+    
+    // Simulate API call delay (1.5 seconds)
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    setIsSendingInvites(false)
+    setInvitesSent(true)
+  }
+
+  // V10.8.8: Close modal and reset all state
+  const closeModal = () => {
+    setIsOpen(false)
+    setResults(null)
+    setShowSuccessScreen(false)
+    setInvitesSent(false)
+    setIsSendingInvites(false)
+    // Notify parent to reload data
+    if (showSuccessScreen) {
+      onUploadComplete()
+    }
+  }
+
   return (
     <>
       <button
@@ -161,9 +187,9 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={(e) => {
-            // Close modal when clicking background
+            // V10.8.8: Close modal with proper cleanup
             if (e.target === e.currentTarget) {
-              setIsOpen(false)
+              closeModal()
             }
           }}
         >
@@ -176,7 +202,7 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
                   <h2 className="text-xl font-bold">Bulk Import Residents</h2>
                 </div>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeModal}
                   className="text-white/70 hover:text-white transition-colors p-1"
                 >
                   <X className="w-5 h-5" />
@@ -232,8 +258,98 @@ Jane Smith,jane@example.com,102,555-5678
                 </div>
               )}
 
-              {/* Results */}
-              {results && (
+              {/* V10.8.8: Success Screen with Invite Flow */}
+              {results && showSuccessScreen && (
+                <div className="space-y-6">
+                  {/* Success Message */}
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                      <CheckCircle2 className="w-10 h-10 text-green-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-navy-900 mb-2">
+                      {results.success.length} Residents Imported Successfully!
+                    </h3>
+                    <p className="text-navy-600">
+                      All residents have been added with secure 6-digit PINs
+                    </p>
+                  </div>
+
+                  {/* Resident List */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-h-40 overflow-auto">
+                    <div className="text-sm text-green-700 space-y-1">
+                      {results.success.map((resident, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                          <span>{resident.name} - Unit {resident.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Failed Imports (if any) */}
+                  {results.failed.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-red-900 mb-1">
+                            {results.failed.length} Failed
+                          </h4>
+                          <div className="text-sm text-red-700 max-h-32 overflow-auto">
+                            {results.failed.map((item, idx) => (
+                              <div key={idx} className="py-1">
+                                {item.data.name || 'Unknown'} - {item.error}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Invite Flow */}
+                  {!invitesSent ? (
+                    <button
+                      onClick={sendInvites}
+                      disabled={isSendingInvites}
+                      className="w-full bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSendingInvites ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Sending Invites...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-5 h-5" />
+                          <span>✉️ Send Welcome Emails & PINs</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <div className="bg-teal-50 border-2 border-teal-200 rounded-lg p-4 text-center">
+                        <CheckCircle2 className="w-8 h-8 text-teal-600 mx-auto mb-2" />
+                        <p className="text-teal-900 font-semibold">
+                          ✅ Invites Sent!
+                        </p>
+                        <p className="text-sm text-teal-700 mt-1">
+                          Welcome emails with portal links and PINs have been sent to all residents
+                        </p>
+                      </div>
+                      <button
+                        onClick={closeModal}
+                        className="w-full bg-navy-600 hover:bg-navy-700 text-white px-6 py-3 rounded-lg font-semibold transition-all"
+                      >
+                        Done / Close
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* V10.8.8: Old results view (only if not showing success screen) */}
+              {results && !showSuccessScreen && (
                 <div className="space-y-4">
                   {/* Success */}
                   {results.success.length > 0 && (

@@ -84,6 +84,17 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "residents" | "rules" | "settings" | "revenue" | "occupancy"
   >("overview");
+  
+  // V10.8.8: Listen for tab query parameter from logo click (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam === 'overview') {
+        setActiveTab('overview');
+      }
+    }
+  }, []);
   const [selectedResident, setSelectedResident] =
     useState<ProfileWithRules | null>(null);
   
@@ -774,14 +785,15 @@ export default function DashboardPage() {
     }
   };
 
-  // V4: Regenerate PIN for resident
+  // V10.8.8: Regenerate PIN for resident - upgraded to 6 digits
   const regeneratePin = async (residentId: string) => {
-    if (!confirm("Generate a new 4-digit PIN for this resident?")) {
+    if (!confirm("Generate a new secure 6-digit PIN for this resident?")) {
       return;
     }
 
     try {
-      const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+      // V10.8.8: Generate 6-digit PIN (100000-999999)
+      const newPin = Math.floor(100000 + Math.random() * 900000).toString();
       const response = await fetch("/api/residents", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -793,7 +805,7 @@ export default function DashboardPage() {
 
       if (!response.ok) throw new Error("Failed to regenerate PIN");
 
-      alert(`New PIN generated: ${newPin}`);
+      alert(`✅ 6-digit PIN created successfully: ${newPin}`);
       await loadData();
     } catch (error) {
       console.error("Error regenerating PIN:", error);
