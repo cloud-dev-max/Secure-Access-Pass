@@ -18,6 +18,7 @@ interface ParsedResident {
 export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isDragging, setIsDragging] = useState(false) // V10.8.7: Drag-and-drop state
   const [results, setResults] = useState<{
     success: any[]
     failed: any[]
@@ -73,8 +74,8 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
     return residents
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  // V10.8.7: Unified file processing for both click and drag-and-drop
+  const processFile = async (file: File) => {
     if (!file) return
 
     setIsProcessing(true)
@@ -113,8 +114,35 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
       alert(error instanceof Error ? error.message : 'Failed to process CSV file')
     } finally {
       setIsProcessing(false)
-      // Reset file input
-      event.target.value = ''
+    }
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    await processFile(file!)
+    event.target.value = '' // Reset file input
+  }
+
+  // V10.8.7: Drag-and-drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type === 'text/csv') {
+      await processFile(file)
+    } else {
+      alert('Please drop a valid CSV file')
     }
   }
 
@@ -128,54 +156,64 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
         Import CSV
       </button>
 
-      {/* Modal */}
+      {/* V10.8.7: Polished Modal with click-outside-to-close */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white p-6 rounded-t-2xl">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking background
+            if (e.target === e.currentTarget) {
+              setIsOpen(false)
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* V10.8.7: Sticky Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-navy-900 to-navy-800 text-white p-5 z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="w-6 h-6" />
-                  <h2 className="text-2xl font-bold">Bulk Import Residents</h2>
+                  <FileSpreadsheet className="w-5 h-5" />
+                  <h2 className="text-xl font-bold">Bulk Import Residents</h2>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-white/70 hover:text-white transition-colors"
+                  className="text-white/70 hover:text-white transition-colors p-1"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="p-6">
-              {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-navy-900 mb-2">CSV Format Requirements</h3>
+            {/* Scrollable Content */}
+            <div className="overflow-auto p-6">
+              {/* V10.8.7: Compact Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-navy-700 mb-2">
-                  Your CSV file must have the following columns (in any order):
+                  <strong>Required columns:</strong> name, email, unit (phone is optional)
                 </p>
-                <ul className="text-sm text-navy-700 space-y-1 ml-4">
-                  <li>• <strong>name</strong> - Full name (required)</li>
-                  <li>• <strong>email</strong> - Email address (required)</li>
-                  <li>• <strong>unit</strong> - Unit number (required)</li>
-                  <li>• <strong>phone</strong> - Phone number (optional)</li>
-                </ul>
-                <div className="mt-3 text-sm text-navy-700">
-                  <strong>Example CSV:</strong>
-                  <pre className="bg-white p-2 rounded mt-1 text-xs">
+                <details className="text-xs text-navy-600">
+                  <summary className="cursor-pointer hover:text-navy-900 font-medium">View example CSV format</summary>
+                  <pre className="bg-white p-2 rounded mt-2 text-xs">
 name,email,unit,phone{'\n'}
 John Doe,john@example.com,101,555-1234{'\n'}
 Jane Smith,jane@example.com,102,555-5678
                   </pre>
-                </div>
+                </details>
               </div>
 
-              {/* Upload Section */}
+              {/* V10.8.7: Drag-and-Drop Upload Section */}
               {!results && (
-                <div className="border-2 border-dashed border-navy-300 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-navy-400 mx-auto mb-4" />
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+                    isDragging 
+                      ? 'border-teal-500 bg-teal-50' 
+                      : 'border-navy-300 bg-white'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-teal-600' : 'text-navy-400'}`} />
                   <label className="cursor-pointer">
                     <input
                       type="file"
@@ -189,7 +227,7 @@ Jane Smith,jane@example.com,102,555-5678
                     </span>
                   </label>
                   <p className="text-sm text-navy-600 mt-3">
-                    Click to select a CSV file from your computer
+                    or drag and drop your CSV file here
                   </p>
                 </div>
               )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { PropertyProvider } from '@/app/context/PropertyContext'
-import { Building2, Home, QrCode, Shield, ChevronDown, CheckCircle2 } from 'lucide-react'
+import { Building2, QrCode, Shield, ChevronDown, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { useContext, useState, useEffect } from 'react'
 import { PropertyContext } from '@/app/context/PropertyContext'
@@ -12,21 +12,30 @@ function DashboardHeader() {
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false)
   const [allProperties, setAllProperties] = useState<any[]>([])
 
-  // V10.8.6: Load property name
+  // V10.8.7: Load property name whenever propertyId changes (fixes stuck dropdown)
   useEffect(() => {
+    // Check localStorage first to sync on mount
+    const storedPropertyId = localStorage.getItem('selectedPropertyId')
+    if (storedPropertyId && !propertyId) {
+      setPropertyId(storedPropertyId)
+      return
+    }
+    
     if (!propertyId) return
     
     fetch(`/api/properties?id=${propertyId}`)
       .then(res => res.json())
       .then(data => {
         if (data && data.length > 0) {
-          setCurrentPropertyName(data[0].property_name || data[0].name)
+          const propName = data[0].property_name || data[0].name
+          setCurrentPropertyName(propName)
+          console.log('[Header] Property name updated:', propName)
         }
       })
       .catch(err => console.error('Failed to load property name:', err))
-  }, [propertyId])
+  }, [propertyId, setPropertyId])
 
-  // V10.8.6: Load all properties for dropdown
+  // V10.8.7: Load all properties for dropdown
   useEffect(() => {
     fetch('/api/portfolio')
       .then(res => res.json())
@@ -51,36 +60,22 @@ function DashboardHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* V10.8.6: Unified responsive header */}
         <div className="py-3">
-          {/* Row 1: Logo + Nav (desktop) OR Logo + Dropdown (mobile) */}
+          {/* V10.8.7: Streamlined navigation - Logo as Home, Scanner only */}
           <div className="flex items-center justify-between gap-4">
-            {/* Left: Logo + Title */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Left: Clickable Logo + Title (acts as Home) */}
+            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
               <Shield className="w-6 h-6 text-teal-400" />
               <h1 className="text-lg font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
-            </div>
+            </Link>
             
-            {/* Center: Nav Links (hidden on mobile < 768px) */}
+            {/* Center: Scanner Link Only (hidden on mobile < 768px) */}
             <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
-              >
-                <Home className="w-4 h-4" />
-                <span>Dashboard</span>
-              </Link>
               <Link
                 href="/scanner"
                 className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
               >
                 <QrCode className="w-4 h-4" />
                 <span>Scanner</span>
-              </Link>
-              <Link
-                href="/dashboard/portfolio"
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
-              >
-                <Building2 className="w-4 h-4" />
-                <span>Portfolio</span>
               </Link>
             </div>
           
@@ -149,28 +144,14 @@ function DashboardHeader() {
             </div>
           </div>
           
-          {/* Row 2: Mobile Nav Links (visible only on mobile < 768px) */}
+          {/* V10.8.7: Mobile Scanner Link (visible only on mobile < 768px) */}
           <div className="md:hidden flex items-center justify-center gap-2 mt-3 pt-3 border-t border-white/10">
-            <Link
-              href="/dashboard"
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
-            >
-              <Home className="w-4 h-4" />
-              <span>Dashboard</span>
-            </Link>
             <Link
               href="/scanner"
               className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
             >
               <QrCode className="w-4 h-4" />
               <span>Scanner</span>
-            </Link>
-            <Link
-              href="/dashboard/portfolio"
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-1.5"
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Portfolio</span>
             </Link>
           </div>
         </div>

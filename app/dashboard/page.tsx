@@ -1983,72 +1983,107 @@ export default function DashboardPage() {
         {/* RESIDENTS TAB */}
         {activeTab === "residents" && (
           <div className="space-y-6">
-            {/* Add Resident Form */}
+            {/* V10.8.7: Polished Add Resident Form with labels and asterisks */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-              <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
                 <Plus className="w-5 h-5 text-teal-600" />
                 Add New Resident
               </h2>
               <form
                 onSubmit={addResident}
-                className="grid grid-cols-1 md:grid-cols-6 gap-4"
+                className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4"
               >
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={newResidentName}
-                  onChange={(e) => setNewResidentName(e.target.value)}
-                  required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newResidentEmail}
-                  onChange={(e) => setNewResidentEmail(e.target.value)}
-                  required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Unit #"
-                  value={newResidentUnit}
-                  onChange={(e) => setNewResidentUnit(e.target.value)}
-                  required
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone (optional)"
-                  value={newResidentPhone}
-                  onChange={(e) => setNewResidentPhone(e.target.value)}
-                  className="px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
-                />
-                {/* V8.5 Fix #4: Guest Limit with proper vertical alignment */}
-                <div className="flex flex-col justify-end">
+                {/* Full Name */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-navy-700 mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="John Doe"
+                    value={newResidentName}
+                    onChange={(e) => setNewResidentName(e.target.value)}
+                    required
+                    className="px-3 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-navy-700 mb-1.5">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="john@example.com"
+                    value={newResidentEmail}
+                    onChange={(e) => setNewResidentEmail(e.target.value)}
+                    required
+                    className="px-3 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Unit # */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-navy-700 mb-1.5">
+                    Unit # <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="A101"
+                    value={newResidentUnit}
+                    onChange={(e) => setNewResidentUnit(e.target.value)}
+                    required
+                    className="px-3 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-navy-700 mb-1.5">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={newResidentPhone}
+                    onChange={(e) => setNewResidentPhone(e.target.value)}
+                    className="px-3 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Guest Limit */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-navy-700 mb-1.5">
+                    Guest Limit
+                  </label>
                   <input
                     type="number"
-                    placeholder={
-                      maxGuestsPerResident > 0
-                        ? `Default: ${maxGuestsPerResident} guests`
-                        : "Default: ... guests"
-                    }
+                    placeholder={maxGuestsPerResident > 0 ? `${maxGuestsPerResident}` : "2"}
                     value={newResidentGuestLimit}
                     onChange={(e) => setNewResidentGuestLimit(e.target.value)}
                     min="0"
                     max="10"
-                    className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                    className="px-3 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white text-gray-900"
                     title={`Leave blank to use facility default (${maxGuestsPerResident})`}
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={isAddingResident}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
-                >
-                  {isAddingResident ? "Adding..." : "Add Resident"}
-                </button>
-                <CsvUploader onUploadComplete={loadData} propertyId={propertyId || ''} />
+
+                {/* Submit Button */}
+                <div className="flex flex-col justify-end">
+                  <button
+                    type="submit"
+                    disabled={isAddingResident}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                  >
+                    {isAddingResident ? "Adding..." : "Add Resident"}
+                  </button>
+                </div>
+
+                {/* CSV Uploader - Full Width on Mobile */}
+                <div className="md:col-span-3 lg:col-span-6">
+                  <CsvUploader onUploadComplete={loadData} propertyId={propertyId || ''} />
+                </div>
               </form>
             </div>
 
@@ -2272,21 +2307,21 @@ export default function DashboardPage() {
                               </td>
                             );
                           })}
+                          {/* V10.8.7: Compact table buttons - no icons, single line */}
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => setSelectedResident(resident)}
-                              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all"
+                              className="bg-navy-600 hover:bg-navy-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all whitespace-nowrap"
                             >
                               View QR
                             </button>
                           </td>
                           
-                          {/* V10.8.4: Send Invite Button */}
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => sendInviteEmail(resident.id)}
                               disabled={sendingInvites.has(resident.id) || sentInvites.has(resident.id)}
-                              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg ${
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md whitespace-nowrap ${
                                 sentInvites.has(resident.id)
                                   ? 'bg-green-100 text-green-700 cursor-default'
                                   : 'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50'
@@ -2294,33 +2329,22 @@ export default function DashboardPage() {
                               title={sentInvites.has(resident.id) ? 'Invite already sent' : 'Send welcome email'}
                             >
                               {sendingInvites.has(resident.id) ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span className="ml-1">Sending...</span>
-                                </>
+                                'Sending...'
                               ) : sentInvites.has(resident.id) ? (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  <span className="ml-1">Sent</span>
-                                </>
+                                'Sent ✓'
                               ) : (
-                                <>
-                                  <Mail className="w-4 h-4" />
-                                  <span className="ml-1">Send Invite</span>
-                                </>
+                                'Send Invite'
                               )}
                             </button>
                           </td>
 
-                          {/* V10.8.6: Delete Resident Button */}
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => deleteResident(resident.id, resident.name)}
-                              className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition-all shadow-md hover:shadow-lg"
+                              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-all shadow-sm hover:shadow-md whitespace-nowrap"
                               title="Permanently delete resident"
                             >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="ml-1">Delete</span>
+                              Delete
                             </button>
                           </td>
                         </tr>
