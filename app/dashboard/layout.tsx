@@ -8,31 +8,15 @@ import { PropertyContext } from '@/app/context/PropertyContext'
 
 function DashboardHeader() {
   const { propertyId, setPropertyId } = useContext(PropertyContext)
-  const [currentPropertyName, setCurrentPropertyName] = useState<string>('Select Property')
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false)
   const [allProperties, setAllProperties] = useState<any[]>([])
 
-  // V10.8.7: Load property name whenever propertyId changes (fixes stuck dropdown)
+  // V10.8.9: Sync propertyId from localStorage on mount
   useEffect(() => {
-    // Check localStorage first to sync on mount
     const storedPropertyId = localStorage.getItem('selectedPropertyId')
     if (storedPropertyId && !propertyId) {
       setPropertyId(storedPropertyId)
-      return
     }
-    
-    if (!propertyId) return
-    
-    fetch(`/api/properties?id=${propertyId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          const propName = data[0].property_name || data[0].name
-          setCurrentPropertyName(propName)
-          console.log('[Header] Property name updated:', propName)
-        }
-      })
-      .catch(err => console.error('Failed to load property name:', err))
   }, [propertyId, setPropertyId])
 
   // V10.8.7: Load all properties for dropdown
@@ -47,11 +31,12 @@ function DashboardHeader() {
       .catch(err => console.error('Failed to load properties:', err))
   }, [])
 
-  // V10.8.8: Switch property - immediate name update
-  const switchProperty = (newPropertyId: string, newPropertyName: string) => {
-    console.log('[Header] Switching to property:', newPropertyName)
-    // Update name FIRST for immediate visual feedback
-    setCurrentPropertyName(newPropertyName)
+  // V10.8.9: Derive property name from context (single source of truth)
+  const currentPropertyName = allProperties.find(p => p.id === propertyId)?.name || 'Select Property'
+
+  // V10.8.9: Switch property - context is single source of truth
+  const switchProperty = (newPropertyId: string) => {
+    console.log('[Header] Switching to property ID:', newPropertyId)
     setPropertyId(newPropertyId)
     localStorage.setItem('selectedPropertyId', newPropertyId)
     setShowPropertyDropdown(false)
@@ -109,7 +94,7 @@ function DashboardHeader() {
                       allProperties.map((property) => (
                         <button
                           key={property.id}
-                          onClick={() => switchProperty(property.id, property.name)}
+                          onClick={() => switchProperty(property.id)}
                           className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${
                             property.id === propertyId
                               ? 'bg-teal-50 text-teal-900 font-semibold'

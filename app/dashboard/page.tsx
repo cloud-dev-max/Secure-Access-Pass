@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PropertyContext } from "@/app/context/PropertyContext";
@@ -55,7 +55,7 @@ interface Stats {
   };
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   
   // V10.8.1: Multi-tenancy - Get active property from context
@@ -85,16 +85,17 @@ export default function DashboardPage() {
     "overview" | "residents" | "rules" | "settings" | "revenue" | "occupancy"
   >("overview");
   
-  // V10.8.8: Listen for tab query parameter from logo click (client-side only)
+  // V10.8.9: Reactive tab detection - client-side URL check
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
       if (tabParam === 'overview') {
+        console.log('[Dashboard] Logo click detected, resetting to Overview tab');
         setActiveTab('overview');
       }
     }
-  }, []);
+  }, [router]); // Depends on router to detect navigation
   const [selectedResident, setSelectedResident] =
     useState<ProfileWithRules | null>(null);
   
@@ -2132,37 +2133,37 @@ export default function DashboardPage() {
                 <table className="w-full">
                   <thead className="bg-navy-800 text-white sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold sticky left-0 bg-navy-800 z-20">
+                      <th className="px-4 py-2 text-left text-xs font-bold sticky left-0 bg-navy-800 z-20">
                         Resident
                       </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold">
+                      <th className="px-4 py-2 text-left text-xs font-bold">
                         Unit
                       </th>
-                      <th className="px-6 py-4 text-left text-sm font-bold">
+                      <th className="px-4 py-2 text-left text-xs font-bold">
                         Location
                       </th>
-                      <th className="px-6 py-4 text-center text-sm font-bold">
+                      <th className="px-4 py-2 text-center text-xs font-bold">
                         Access PIN
                       </th>
-                      <th className="px-6 py-4 text-center text-sm font-bold">
+                      <th className="px-4 py-2 text-center text-xs font-bold">
                         Guest Limit
                       </th>
                       {rules.map((rule) => (
                         <th
                           key={rule.id}
-                          className="px-6 py-4 text-center text-sm font-bold"
+                          className="px-4 py-2 text-center text-xs font-bold"
                         >
                           {rule.rule_name}
                         </th>
                       ))}
-                      <th className="px-6 py-4 text-center text-sm font-bold">
+                      <th className="px-4 py-2 text-center text-xs font-bold">
                         QR Code
                       </th>
-                      <th className="px-6 py-4 text-center text-sm font-bold">
+                      <th className="px-4 py-2 text-center text-xs font-bold">
                         Actions
                       </th>
                       {/* V10.8.6: Delete column */}
-                      <th className="px-6 py-4 text-center text-sm font-bold">
+                      <th className="px-4 py-2 text-center text-xs font-bold">
                         Remove
                       </th>
                     </tr>
@@ -2192,27 +2193,28 @@ export default function DashboardPage() {
                           className={idx % 2 === 0 ? "bg-white" : "bg-navy-50"}
                         >
                           {/* V7.5 Issue #4: Sticky first column */}
+                          {/* V10.8.9: High-density table - compact padding */}
                           <td
-                            className={`px-6 py-4 sticky left-0 z-10 ${idx % 2 === 0 ? "bg-white" : "bg-navy-50"}`}
+                            className={`px-4 py-1.5 sticky left-0 z-10 ${idx % 2 === 0 ? "bg-white" : "bg-navy-50"}`}
                           >
                             <div>
-                              <div className="font-semibold text-navy-900">
+                              <div className="font-semibold text-navy-900 text-sm leading-tight">
                                 {resident.name}
                               </div>
-                              <div className="text-sm text-navy-600">
+                              <div className="text-xs text-navy-600 leading-tight">
                                 {resident.email}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2 text-navy-700">
-                              <Home className="w-4 h-4" />
-                              <span className="font-medium">
+                          <td className="px-4 py-1.5">
+                            <div className="flex items-center gap-1.5 text-navy-700">
+                              <Home className="w-3.5 h-3.5" />
+                              <span className="font-medium text-sm">
                                 {resident.unit}
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-1.5">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                 resident.current_location === "INSIDE"
@@ -2223,9 +2225,9 @@ export default function DashboardPage() {
                               {resident.current_location}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-4 py-1.5 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <span className="font-mono text-lg font-bold text-navy-900 bg-yellow-100 px-3 py-1 rounded">
+                              <span className="font-mono text-sm font-bold text-navy-900 bg-yellow-100 px-2 py-0.5 rounded">
                                 {(resident as any).access_pin || "----"}
                               </span>
                               <button
@@ -2238,7 +2240,8 @@ export default function DashboardPage() {
                             </div>
                           </td>
                           {/* V7.1: Personal Guest Limit */}
-                          <td className="px-6 py-4 text-center">
+                          {/* V10.8.9: Compact select */}
+                          <td className="px-4 py-1.5 text-center">
                             <select
                               value={
                                 (resident as any).personal_guest_limit || ""
@@ -2250,7 +2253,7 @@ export default function DashboardPage() {
                                   val === "" ? null : parseInt(val),
                                 );
                               }}
-                              className="px-3 py-1 border-2 border-navy-300 rounded-lg text-sm font-semibold text-navy-900 bg-white focus:ring-2 focus:ring-teal-500"
+                              className="px-2 py-1 border border-navy-300 rounded text-xs font-semibold text-navy-900 bg-white focus:ring-1 focus:ring-teal-500"
                             >
                               <option value="">
                                 Default ({maxGuestsPerResident})
@@ -2269,14 +2272,15 @@ export default function DashboardPage() {
                             return (
                               <td
                                 key={rule.id}
-                                className="px-6 py-4 text-center"
+                                className="px-4 py-1.5 text-center"
                               >
                                 {/* V5: Wide Pill Toggle - YES/NO Design */}
+                                {/* V10.8.9: Compact toggle */}
                                 <button
                                   onClick={() =>
                                     toggleRule(resident.id, rule.id, status)
                                   }
-                                  className={`relative inline-flex h-10 w-20 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md ${
+                                  className={`relative inline-flex h-7 w-16 items-center justify-between rounded-full transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 shadow-sm ${
                                     status
                                       ? "bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-400"
                                       : "bg-rose-500 hover:bg-rose-600 focus:ring-rose-400"
@@ -2291,7 +2295,7 @@ export default function DashboardPage() {
                                 >
                                   {/* LEFT Text: YES (visible when TRUE) */}
                                   <span
-                                    className={`absolute left-2 text-xs font-bold text-white transition-opacity duration-200 ${
+                                    className={`absolute left-1.5 text-[10px] font-bold text-white transition-opacity duration-200 ${
                                       status ? "opacity-100" : "opacity-0"
                                     }`}
                                   >
@@ -2300,7 +2304,7 @@ export default function DashboardPage() {
 
                                   {/* RIGHT Text: NO (visible when FALSE) */}
                                   <span
-                                    className={`absolute right-3 text-xs font-bold text-white transition-opacity duration-200 ${
+                                    className={`absolute right-2 text-[10px] font-bold text-white transition-opacity duration-200 ${
                                       !status ? "opacity-100" : "opacity-0"
                                     }`}
                                   >
@@ -2309,10 +2313,10 @@ export default function DashboardPage() {
 
                                   {/* Sliding Knob */}
                                   <span
-                                    className={`inline-block h-8 w-8 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
                                       status
                                         ? "translate-x-1"
-                                        : "translate-x-11"
+                                        : "translate-x-9"
                                     }`}
                                   />
                                 </button>
@@ -2320,20 +2324,21 @@ export default function DashboardPage() {
                             );
                           })}
                           {/* V10.8.7: Compact table buttons - no icons, single line */}
-                          <td className="px-6 py-4 text-center">
+                          {/* V10.8.9: Ultra-compact buttons */}
+                          <td className="px-4 py-1.5 text-center">
                             <button
                               onClick={() => setSelectedResident(resident)}
-                              className="bg-navy-600 hover:bg-navy-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all whitespace-nowrap"
+                              className="bg-navy-600 hover:bg-navy-700 text-white px-2 py-1 rounded text-xs font-medium shadow-sm hover:shadow-md transition-all whitespace-nowrap"
                             >
                               View QR
                             </button>
                           </td>
                           
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-4 py-1.5 text-center">
                             <button
                               onClick={() => sendInviteEmail(resident.id)}
                               disabled={sendingInvites.has(resident.id) || sentInvites.has(resident.id)}
-                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md whitespace-nowrap ${
+                              className={`px-2 py-1 rounded text-xs font-medium transition-all shadow-sm hover:shadow-md whitespace-nowrap ${
                                 sentInvites.has(resident.id)
                                   ? 'bg-green-100 text-green-700 cursor-default'
                                   : 'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50'
@@ -2350,10 +2355,10 @@ export default function DashboardPage() {
                             </button>
                           </td>
 
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-4 py-1.5 text-center">
                             <button
                               onClick={() => deleteResident(resident.id, resident.name)}
-                              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-all shadow-sm hover:shadow-md whitespace-nowrap"
+                              className="px-2 py-1 rounded text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition-all shadow-sm hover:shadow-md whitespace-nowrap"
                               title="Permanently delete resident"
                             >
                               Delete
@@ -3778,5 +3783,21 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// V10.8.9: Export with Suspense wrapper
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-navy-50 to-navy-100">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-navy-600 font-semibold">Loading Dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
