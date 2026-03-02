@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import Link from 'next/link'
+import { PropertyContext } from '@/app/context/PropertyContext'
 import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X, Download } from 'lucide-react'
 
 interface Log {
@@ -27,6 +28,7 @@ interface LogsResponse {
 }
 
 export default function LogsPage() {
+  const { propertyId } = useContext(PropertyContext) // V10.8.12: Multi-tenancy
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -37,20 +39,26 @@ export default function LogsPage() {
   const [endDate, setEndDate] = useState<string>('')
 
   useEffect(() => {
-    loadLogs(page)
-  }, [page, startDate, endDate]) // V9.0: Reload when date range changes
+    if (propertyId) {
+      loadLogs(page)
+    }
+  }, [page, startDate, endDate, propertyId]) // V10.8.12: Reload when property changes
 
   const loadLogs = async (pageNum: number) => {
+    if (!propertyId) return
+    
     try {
       setLoading(true)
       // V9.0 Feature #2: Add date range parameters if set
-      let url = `/api/logs?page=${pageNum}&limit=50`
+      // V10.8.12: Add property_id for multi-tenancy isolation
+      let url = `/api/logs?page=${pageNum}&limit=50&property_id=${propertyId}`
       if (startDate) {
         url += `&startDate=${startDate}`
       }
       if (endDate) {
         url += `&endDate=${endDate}`
       }
+      console.log('[V10.8.12] Loading logs for property:', propertyId)
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch logs')
       
@@ -74,10 +82,16 @@ export default function LogsPage() {
   }
 
   // V9.0 Feature #2 + V9.1 Fix #2: Export activity log to CSV with date range filtering and correct field mapping
+  // V10.8.12: Add property_id for multi-tenancy isolation
   const exportActivityCSV = async () => {
+    if (!propertyId) {
+      alert('No property selected')
+      return
+    }
+    
     try {
       // Build URL with date range if set
-      let url = '/api/activity-logs?limit=5000';
+      let url = `/api/activity-logs?limit=5000&property_id=${propertyId}`;
       if (startDate) {
         url += `&startDate=${startDate}`
       }
@@ -85,6 +99,7 @@ export default function LogsPage() {
         url += `&endDate=${endDate}`
       }
       
+      console.log('[V10.8.12] Exporting logs for property:', propertyId)
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch activity logs');
       

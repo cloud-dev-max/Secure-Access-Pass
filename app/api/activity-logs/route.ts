@@ -18,10 +18,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
     
     // Get pagination parameters from query
     const { searchParams } = new URL(request.url)
+    // V10.8.12: Support property_id query param for multi-tenancy
+    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
       .from('access_logs')
       .select(`
         *,
-        user:user_id(id, name, unit, role)
+        user:user_id(id, name, unit, role),
+        property:property_id(id, name, property_name)
       `)
       .eq('property_id', propertyId)
     

@@ -321,9 +321,12 @@ function DashboardPageContent() {
     };
   }, []);
 
+  // V10.8.12: Pass property_id for multi-tenancy isolation
   const loadMaintenanceStatus = async () => {
+    if (!propertyId) return;
+    
     try {
-      const response = await fetch("/api/settings");
+      const response = await fetch(`/api/settings?property_id=${propertyId}`);
       if (response.ok) {
         const data = await response.json();
         setIsMaintenanceMode(data.is_maintenance_mode || false);
@@ -1653,7 +1656,7 @@ function DashboardPageContent() {
               </div>
             </button>
             <Link
-              href="/logs"
+              href="/dashboard/logs"
               className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-1.5">
@@ -2008,7 +2011,7 @@ function DashboardPageContent() {
               {/* V8.1 Feature #3: View All Activity Button */}
               <div className="mt-6 text-center">
                 <Link
-                  href="/logs"
+                  href="/dashboard/logs"
                   className="inline-flex items-center space-x-2 px-6 py-3 bg-navy-600 text-white rounded-lg hover:bg-navy-700 transition-colors font-medium"
                 >
                   <Clock className="w-5 h-5" />

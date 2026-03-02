@@ -12,6 +12,7 @@ export default function ManagerLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   // V10.8.11: Mock manager login - accepts any input
+  // V10.8.12: Smart routing based on property count
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -22,11 +23,40 @@ export default function ManagerLoginPage() {
     
     setIsLoading(true)
     
-    // Simulate 1-second loading
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Route to dashboard with overview tab
-    router.push('/dashboard?tab=overview')
+    try {
+      // Simulate 1-second loading
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Fetch user's properties to determine routing
+      const response = await fetch('/api/portfolio')
+      if (response.ok) {
+        const data = await response.json()
+        const propertyCount = data.properties?.length || 0
+        
+        console.log('[V10.8.12] Login: Found', propertyCount, 'properties')
+        
+        // Smart routing based on property count
+        if (propertyCount > 1) {
+          // Multiple properties - show portfolio view
+          router.push('/dashboard/portfolio')
+        } else if (propertyCount === 1) {
+          // Single property - go directly to dashboard
+          const firstProperty = data.properties[0]
+          localStorage.setItem('selectedPropertyId', firstProperty.id)
+          router.push('/dashboard?tab=overview')
+        } else {
+          // No properties - still go to dashboard, let it handle the no-property state
+          router.push('/dashboard?tab=overview')
+        }
+      } else {
+        // Fallback to dashboard if API fails
+        router.push('/dashboard?tab=overview')
+      }
+    } catch (error) {
+      console.error('Login routing error:', error)
+      // Fallback to dashboard
+      router.push('/dashboard?tab=overview')
+    }
   }
 
   return (

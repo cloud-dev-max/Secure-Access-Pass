@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext } from 'react'
 import { useRouter } from 'next/navigation'
-import { Building2, TrendingUp, Users, DollarSign, ArrowLeft, Activity, Plus, X } from 'lucide-react'
+import { PropertyContext } from '@/app/context/PropertyContext'
+import { Building2, TrendingUp, Users, DollarSign, ArrowLeft, Activity, Plus, X, Download, Calendar } from 'lucide-react'
 
 interface GlobalKPIs {
   totalOccupancy: number
@@ -30,6 +31,7 @@ interface PortfolioData {
 
 export default function PortfolioDashboard() {
   const router = useRouter()
+  const { setPropertyId } = useContext(PropertyContext) // V10.8.12: For property switching
   const [data, setData] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
   
@@ -38,6 +40,12 @@ export default function PortfolioDashboard() {
   const [newPropertyName, setNewPropertyName] = useState('')
   const [newPropertyCapacity, setNewPropertyCapacity] = useState('50')
   const [isCreatingProperty, setIsCreatingProperty] = useState(false)
+  
+  // V10.8.12: Global Export modal state
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
 
   const loadPortfolioData = async (silent = false) => {
     try {
@@ -66,10 +74,15 @@ export default function PortfolioDashboard() {
     return () => clearInterval(interval)
   }, [])
 
+  // V10.8.12: Switch to property and navigate to dashboard
   const navigateToProperty = (propertyId: string) => {
-    // Store selected property ID and navigate to main dashboard
+    console.log('[V10.8.12] Switching to property:', propertyId)
+    // Update context
+    setPropertyId(propertyId)
+    // Store selected property ID for persistence
     localStorage.setItem('selectedPropertyId', propertyId)
-    router.push('/dashboard')
+    // Navigate to main dashboard with overview tab
+    router.push('/dashboard?tab=overview')
   }
   
   // V10.8.11: Create new property
@@ -116,6 +129,88 @@ export default function PortfolioDashboard() {
       setIsCreatingProperty(false)
     }
   }
+  
+  // V10.8.12: Export global logs across all properties
+  const exportGlobalLogs = async () => {
+    if (!exportStartDate || !exportEndDate) {
+      alert('Please select both start and end dates')
+      return
+    }
+    
+    setIsExporting(true)
+    
+    try {
+      // Fetch logs for ALL properties (no property_id filter)
+      let url = `/api/activity-logs?limit=10000&startDate=${exportStartDate}&endDate=${exportEndDate}`
+      console.log('[V10.8.12] Exporting global logs:', exportStartDate, 'to', exportEndDate)
+      
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch logs')
+      
+      const result = await response.json()
+      const logs = result.logs || []
+      
+      // CSV headers with Property Name column
+      const headers = ['Property Name', 'Timestamp', 'Name', 'Type', 'Action', 'Result', 'Unit', 'Guests']
+      const rows = logs.map((log: any) => {
+        const timestamp = log.scanned_at ? new Date(log.scanned_at).toLocaleString() : 'N/A'
+        const propertyName = log.property?.name || log.property?.property_name || 'Unknown'
+        
+        const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
+        const isSystemEvent = log.qr_code === 'STATUS_CHANGE' || log.qr_code === 'SYSTEM_BROADCAST'
+        
+        let name = isSystemEvent ? 'System' : (log.user?.name || log.profile?.name || 'Unknown')
+        const unit = log.user?.unit || log.profile?.unit || 'N/A'
+        
+        let type = 'Resident'
+        if (isSystemEvent) type = 'System Event'
+        else if (isVisitorPass) type = 'Visitor Pass'
+        
+        let action = log.scan_type || 'SCAN'
+        let result = log.result || 'N/A'
+        
+        if (log.qr_code === 'STATUS_CHANGE') {
+          action = 'Pool Status Change'
+          result = log.denial_reason || 'Status Changed'
+        } else if (log.qr_code === 'SYSTEM_BROADCAST') {
+          action = 'System Broadcast'
+          result = log.denial_reason || `Broadcast to ${log.guest_count || 0} recipients`
+        }
+        
+        const guests = isSystemEvent ? 0 : (log.guest_count || 0)
+        
+        return [propertyName, timestamp, name, type, action, result, unit, guests]
+      })
+      
+      const csvContent = [
+        'Global Portfolio Activity Log',
+        `Generated: ${new Date().toLocaleString()}`,
+        `Date Range: ${exportStartDate} to ${exportEndDate}`,
+        `Total Records: ${logs.length}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = `global-portfolio-logs-${exportStartDate}-to-${exportEndDate}.csv`
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+      
+      setShowExportModal(false)
+      setExportStartDate('')
+      setExportEndDate('')
+      alert(`Exported ${logs.length} records successfully`)
+    } catch (error) {
+      console.error('Error exporting global logs:', error)
+      alert('Failed to export logs. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -151,13 +246,23 @@ export default function PortfolioDashboard() {
             <ArrowLeft className="w-5 h-5 text-navy-600" />
           </button>
           
-          <button
-            onClick={() => setShowAddPropertyModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add New Property</span>
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+            >
+              <Download className="w-5 h-5" />
+              <span>Export Global Logs</span>
+            </button>
+            
+            <button
+              onClick={() => setShowAddPropertyModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add New Property</span>
+            </button>
+          </div>
         </div>
 
         {/* Global KPIs */}
@@ -392,6 +497,88 @@ export default function PortfolioDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* V10.8.12: Global Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-navy-900 flex items-center gap-2">
+                <Download className="w-6 h-6 text-navy-600" />
+                Export Global Logs
+              </h2>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Export activity logs across all properties for a specific date range.
+              </p>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Start Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  End Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  disabled={isExporting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={exportGlobalLogs}
+                  disabled={isExporting || !exportStartDate || !exportEndDate}
+                  className="flex-1 px-4 py-2 bg-navy-600 hover:bg-navy-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isExporting ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      <span>Exporting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Export CSV</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

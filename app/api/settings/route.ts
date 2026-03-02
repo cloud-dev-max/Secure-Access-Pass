@@ -106,15 +106,19 @@ export async function PATCH(request: NextRequest) {
     if (stripe_account_id !== undefined) updates.stripe_account_id = stripe_account_id // V10.6
     if (stripe_connected !== undefined) updates.stripe_connected = stripe_connected // V10.6
 
-    // If property doesn't have required fields, add defaults
-    if (!updates.name && !updates.property_name) {
-      updates.name = 'Default Property'
-      updates.property_name = 'Default Property'
+    // V10.8.12: Only add defaults for new properties (when no updates provided)
+    // Don't override existing properties with defaults
+    const isNewProperty = Object.keys(updates).length === 1 // Only has 'id'
+    if (isNewProperty) {
+      if (!updates.name && !updates.property_name) {
+        updates.name = 'Default Property'
+        updates.property_name = 'Default Property'
+      }
+      updates.address = '123 Main Street'
+      updates.city = 'Default City'
+      updates.state = 'CA'
+      updates.zip_code = '00000'
     }
-    updates.address = '123 Main Street'
-    updates.city = 'Default City'
-    updates.state = 'CA'
-    updates.zip_code = '00000'
 
     console.log('Performing upsert with updates:', updates)
 

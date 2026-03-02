@@ -26,9 +26,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
-    
     const { searchParams } = new URL(request.url)
+    
+    // V10.8.12: Support property_id query param for multi-tenancy
+    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    
     const page = parseInt(searchParams.get('page') || '1')
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const offset = (page - 1) * limit
@@ -37,6 +39,8 @@ export async function GET(request: NextRequest) {
     const dateFilter = searchParams.get('date') // Legacy: single day filter
     const startDate = searchParams.get('startDate') // V9.1: range start
     const endDate = searchParams.get('endDate') // V9.1: range end
+    
+    console.log('[V10.8.12] Fetching logs for property:', propertyId)
 
     // V8.3 Fix #3 + V9.1 Fix #3: Build query with optional date filters
     let countQuery = adminClient
