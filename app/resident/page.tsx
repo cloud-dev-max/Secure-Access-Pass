@@ -89,6 +89,33 @@ export default function ResidentPortalPage() {
     }
   }, [])
 
+  // V10.8.18: Load property settings when resident data is available
+  useEffect(() => {
+    const loadPropertySettings = async () => {
+      if (!resident?.property_id) return; // Early return if no property_id yet
+      
+      try {
+        const settingsResponse = await fetch(`/api/settings?property_id=${resident.property_id}`)
+        if (settingsResponse.ok) {
+          const settings = await settingsResponse.json()
+          setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
+          setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
+          setStripeConnected(settings.stripe_connected || false)
+          console.log('[V10.8.18] Property settings loaded:', {
+            property_id: resident.property_id,
+            max_guests: settings.max_guests_per_resident,
+            price: settings.guest_pass_price,
+            stripe: settings.stripe_connected
+          })
+        }
+      } catch (error) {
+        console.error('Error loading property settings:', error)
+      }
+    }
+    
+    loadPropertySettings()
+  }, [resident?.property_id]) // Re-run when property_id becomes available
+
   // V7.6 Fix #3: Poll for facility status updates every 10 seconds
   useEffect(() => {
     if (!isLoggedIn) return
@@ -106,17 +133,6 @@ export default function ResidentPortalPage() {
       if (response.ok) {
         const data = await response.json()
         setFacilityStatus(data)
-      }
-
-      // V4: Also load max guests setting
-      // V10.8.17: Pass resident's property_id to get correct property settings
-      if (resident?.property_id) {
-        const settingsResponse = await fetch(`/api/settings?property_id=${resident.property_id}`)
-        if (settingsResponse.ok) {
-          const settings = await settingsResponse.json()
-          setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
-          setLatestGuestPassPrice(settings.guest_pass_price || 5.00) // V10.8.17: Load price here too
-        }
       }
     } catch (error) {
       console.error('Error loading facility status:', error)

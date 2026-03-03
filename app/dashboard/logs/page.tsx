@@ -302,8 +302,9 @@ export default function LogsPage() {
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-white to-blue-50">
       {/* V10.8.16: Simplified header - tabs only, no back button or title */}
       {/* V10.8.17: Match dashboard navigation layout exactly for seamless transition */}
-      <div className="bg-gradient-to-r from-navy-900 to-navy-700 border-b border-navy-600">
-        <div className="max-w-7xl mx-auto px-4">
+      {/* V10.8.18: Exact gradient match - from-navy-900 to-navy-800 */}
+      <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* V10.8.17: Exact copy of dashboard tab layout - centered, justified, breakpoint-aware */}
           <div className="hidden max-[850px]:hidden min-[850px]:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
             <button
@@ -357,7 +358,7 @@ export default function LogsPage() {
             >
               <div className="flex items-center gap-1.5">
                 <Activity className="w-4 h-4" />
-                Occupancy
+                Current Occupancy
               </div>
             </button>
             <div className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-teal-400 text-white bg-white/10">

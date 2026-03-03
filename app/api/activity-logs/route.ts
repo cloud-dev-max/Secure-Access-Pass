@@ -21,8 +21,16 @@ export async function GET(request: NextRequest) {
     
     // Get pagination parameters from query
     const { searchParams } = new URL(request.url)
-    // V10.8.12: Support property_id query param for multi-tenancy
-    const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    // V10.8.18: Require property_id query param for multi-tenancy (no fallbacks)
+    const propertyId = searchParams.get('property_id')
+    
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id is required' },
+        { status: 400 }
+      )
+    }
+    
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
