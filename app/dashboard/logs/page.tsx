@@ -301,10 +301,11 @@ export default function LogsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-white to-blue-50">
       {/* V10.8.16: Simplified header - tabs only, no back button or title */}
+      {/* V10.8.17: Match dashboard navigation layout exactly for seamless transition */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-700 border-b border-navy-600">
         <div className="max-w-7xl mx-auto px-4">
-          {/* V10.8.15: Dashboard Navigation Tabs - All Activity is active */}
-          <div className="flex gap-1 whitespace-nowrap pt-4 pb-2 overflow-x-auto">
+          {/* V10.8.17: Exact copy of dashboard tab layout - centered, justified, breakpoint-aware */}
+          <div className="hidden max-[850px]:hidden min-[850px]:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
             <button
               onClick={() => router.push('/dashboard?tab=overview')}
               className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"

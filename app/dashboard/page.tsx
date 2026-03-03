@@ -373,8 +373,11 @@ function DashboardPageContent() {
 
   // V6: Load occupancy breakdown
   const loadOccupancyBreakdown = async () => {
+    // V10.8.17: Pass property_id to occupancy API
+    if (!propertyId) return;
+    
     try {
-      const response = await fetch("/api/occupancy");
+      const response = await fetch(`/api/occupancy?property_id=${propertyId}`);
       if (response.ok) {
         const data = await response.json();
         setStats((prev) => ({

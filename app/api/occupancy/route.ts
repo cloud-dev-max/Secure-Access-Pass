@@ -15,8 +15,16 @@ export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
     
-    // Get property ID from environment or query
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    // V10.8.17: Require property_id from query parameter
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id')
+    
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id is required' },
+        { status: 400 }
+      )
+    }
 
     // Count residents currently INSIDE
     const { count: residentsCount } = await adminClient

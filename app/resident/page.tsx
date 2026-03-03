@@ -30,6 +30,7 @@ interface ResidentProfile {
   qr_code: string
   current_location: 'INSIDE' | 'OUTSIDE'
   property_name: string // V9.14 Fix #3: Actual facility name (required)
+  property_id: string // V10.8.17: Required for fetching property-specific settings
 }
 
 export default function ResidentPortalPage() {
@@ -108,10 +109,14 @@ export default function ResidentPortalPage() {
       }
 
       // V4: Also load max guests setting
-      const settingsResponse = await fetch('/api/settings')
-      if (settingsResponse.ok) {
-        const settings = await settingsResponse.json()
-        setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
+      // V10.8.17: Pass resident's property_id to get correct property settings
+      if (resident?.property_id) {
+        const settingsResponse = await fetch(`/api/settings?property_id=${resident.property_id}`)
+        if (settingsResponse.ok) {
+          const settings = await settingsResponse.json()
+          setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
+          setLatestGuestPassPrice(settings.guest_pass_price || 5.00) // V10.8.17: Load price here too
+        }
       }
     } catch (error) {
       console.error('Error loading facility status:', error)
@@ -754,8 +759,13 @@ export default function ResidentPortalPage() {
                 <button
                   onClick={async () => {
                     // V10.8.16: Fetch latest price and Stripe status before opening form
+                    // V10.8.17: Pass resident's property_id to get correct property settings
+                    if (!resident?.property_id) {
+                      alert('Unable to load property settings');
+                      return;
+                    }
                     try {
-                      const response = await fetch('/api/settings')
+                      const response = await fetch(`/api/settings?property_id=${resident.property_id}`)
                       if (response.ok) {
                         const settings = await response.json()
                         setLatestGuestPassPrice(settings.guest_pass_price || 5.00)

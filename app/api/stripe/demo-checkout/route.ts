@@ -81,6 +81,33 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
+    // V10.8.17: Validate property_id and fetch correct guest_pass_price
+    if (!property_id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Property ID is required',
+        mode: 'demo',
+      }, { status: 400 })
+    }
+    
+    // V10.8.17: Query property's guest_pass_price instead of using hardcoded/passed amount
+    const { data: propertyData, error: propertyError } = await adminClient
+      .from('properties')
+      .select('guest_pass_price')
+      .eq('id', property_id)
+      .single()
+    
+    if (propertyError || !propertyData) {
+      console.error('Error fetching property price:', propertyError)
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch property settings',
+        mode: 'demo',
+      }, { status: 500 })
+    }
+    
+    const correctPrice = propertyData.guest_pass_price || 5.00
+    
     // Simulate payment processing delay
     await new Promise(resolve => setTimeout(resolve, 1500))
     
@@ -88,23 +115,24 @@ export async function POST(request: NextRequest) {
     const paymentIntentId = `pi_demo_${Date.now()}_${Math.random().toString(36).substring(7)}`
     
     // V10.6.1: Create visitor pass in database with strict schema compliance
+    // V10.8.17: Use correctPrice from property instead of passed amount
     const validDate = new Date().toISOString().split('T')[0]
     const qrCode = `DEMO-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
     
     // Build insert object matching exact schema from database
     const insertData = {
       // Required NOT NULL columns
-      property_id: property_id || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
+      property_id: property_id,
       purchased_by: resident_id, // V10.6.1: CRITICAL FIX - Map resident_id to purchased_by
       qr_code: qrCode,
-      price_paid: amount, // V10.6.1: Use price_paid (NOT amount_paid)
+      price_paid: correctPrice, // V10.8.17: Use property's configured price
       status: 'active',
       
       // Optional columns
       guest_count: guest_count || 1,
       valid_date: validDate,
       payment_intent_id: paymentIntentId,
-      amount_paid: amount, // Additional tracking field
+      amount_paid: correctPrice, // V10.8.17: Use property's configured price
       is_demo: true,
       guest_name: null,
       guest_email: null,
