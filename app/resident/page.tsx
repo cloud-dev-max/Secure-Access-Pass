@@ -457,6 +457,7 @@ export default function ResidentPortalPage() {
     setProcessingPayment(true)
 
     try {
+      // V10.8.20: Pass resident's property_id to checkout API (not legacy env var)
       const response = await fetch('/api/stripe/demo-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -466,7 +467,7 @@ export default function ResidentPortalPage() {
           card_exp_year: cardExpYear,
           card_cvc: cardCvc,
           amount: latestGuestPassPrice,
-          property_id: process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID,
+          property_id: resident.property_id,
           guest_count: 1,
           resident_id: resident.id,
         }),
@@ -774,10 +775,10 @@ export default function ResidentPortalPage() {
               <div>
                 <button
                   onClick={async () => {
-                    // V10.8.16: Fetch latest price and Stripe status before opening form
-                    // V10.8.17: Pass resident's property_id to get correct property settings
+                    // V10.8.20: Graceful error handling - no blocking alerts
                     if (!resident?.property_id) {
-                      alert('Unable to load property settings');
+                      console.error('[V10.8.20] Cannot load settings: resident.property_id is missing')
+                      setGuestPassError('Unable to load property settings. Please try logging in again.')
                       return;
                     }
                     try {
@@ -786,11 +787,16 @@ export default function ResidentPortalPage() {
                         const settings = await response.json()
                         setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
                         setStripeConnected(settings.stripe_connected || false)
+                        setGuestPassError('') // Clear any previous errors
+                        setShowGuestPassForm(true)
+                      } else {
+                        console.error('[V10.8.20] Settings API returned non-OK status:', response.status)
+                        setGuestPassError('Unable to load pricing. Please try again.')
                       }
                     } catch (error) {
-                      console.error('Error fetching latest price:', error)
+                      console.error('[V10.8.20] Error fetching latest price:', error)
+                      setGuestPassError('Network error. Please check your connection.')
                     }
-                    setShowGuestPassForm(true)
                   }}
                   disabled={!stripeConnected && showGuestPassForm}
                   className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"

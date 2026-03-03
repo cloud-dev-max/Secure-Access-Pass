@@ -138,6 +138,45 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✓ Visitor pass created:', newPass.id)
+    
+    // V10.8.20: Log pass purchase to activity logs
+    try {
+      // Fetch resident's profile to get name and unit
+      const { data: residentProfile } = await adminClient
+        .from('profiles')
+        .select('name, unit')
+        .eq('id', resident_id)
+        .single()
+      
+      if (residentProfile) {
+        // Insert activity log entry
+        const { error: logError } = await adminClient
+          .from('access_logs')
+          .insert({
+            property_id: propertyIdToUse,
+            user_id: resident_id,
+            qr_code: qrCode,
+            scan_type: 'PURCHASE',
+            result: 'SUCCESS',
+            denial_reason: `Visitor Pass Bought - Guest: ${guest_name}`,
+            scanned_at: new Date().toISOString(),
+          })
+        
+        if (logError) {
+          console.error('[V10.8.20] Failed to log purchase activity (non-blocking):', logError)
+        } else {
+          console.log('[V10.8.20] Purchase logged to activity logs:', {
+            resident: residentProfile.name,
+            unit: residentProfile.unit,
+            guest: guest_name
+          })
+        }
+      }
+    } catch (logErr) {
+      // Non-blocking: log error but don't fail the purchase
+      console.error('[V10.8.20] Activity log insert failed (non-blocking):', logErr)
+    }
+    
     return NextResponse.json(newPass, { status: 201 })
 
   } catch (error) {
