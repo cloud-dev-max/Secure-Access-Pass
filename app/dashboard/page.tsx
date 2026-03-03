@@ -226,14 +226,18 @@ function DashboardPageContent() {
 
   // V10.8.1: Reload data when property changes
   // V10.8.2: Only load data when propertyId is available
+  // V10.8.14: Clear settings cache when property changes to force fresh load
   useEffect(() => {
     if (!propertyId) return;
+    
+    // V10.8.14: Invalidate settings cache to prevent stale data
+    setSettingsCached(false);
     
     loadData();
     loadMaintenanceStatus();
     loadOccupancyBreakdown(); // V6
     loadInsideResidents(); // V8.11 Fix #1: Load occupancy data on mount
-    loadFacilitySettings(); // V7
+    loadFacilitySettings(true); // V10.8.14: Force reload settings for new property
     // V7.1: Load revenue after mount to avoid undefined function error
     loadRevenueData();
   }, [propertyId]);
@@ -553,6 +557,12 @@ function DashboardPageContent() {
   const toggleMaintenanceMode = async () => {
     const newMode = !isMaintenanceMode;
 
+    // V10.8.14: Check for propertyId
+    if (!propertyId) {
+      alert('No property selected');
+      return;
+    }
+
     // V4: Require reason when enabling maintenance mode
     if (newMode) {
       const reason = prompt(
@@ -570,10 +580,12 @@ function DashboardPageContent() {
     setTogglingMaintenance(true);
 
     try {
+      // V10.8.14: Pass property_id to ensure correct property is updated
       const response = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          property_id: propertyId, // V10.8.14: Use current propertyId from context
           is_maintenance_mode: newMode,
           maintenance_reason: newMode ? maintenanceReason : null,
         }),

@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * GET /api/settings?property_id=xxx
- * V10.8.11: Fetch facility settings for a property (multi-tenancy fix)
+ * V10.8.14: Single-table architecture - Fetch from properties table only
+ * All facility settings are columns in properties table (no separate facility_settings table)
  * Uses Admin Client to bypass RLS
  */
 export async function GET(request: NextRequest) {
@@ -14,8 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get('property_id') || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
 
-    console.log('[V10.8.11] Fetching settings for property:', propertyId)
+    console.log('[V10.8.14] Fetching settings for property:', propertyId)
 
+    // V10.8.14: Single query to properties table
     const { data, error } = await adminClient
       .from('properties')
       .select('id, name, property_name, operating_hours_start, operating_hours_end, max_capacity, guest_pass_price, max_guests_per_resident, max_visitor_passes, is_maintenance_mode, maintenance_reason, stripe_account_id, stripe_connected')
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error fetching settings:', error)
+      console.error('[V10.8.14] Error fetching settings:', error)
       return NextResponse.json(
         { error: 'Failed to fetch settings', details: error.message },
         { status: 500 }
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (!data) {
       // If property doesn't exist, return defaults
-      console.log('Property not found, returning defaults')
+      console.log('[V10.8.14] Property not found, returning defaults')
       return NextResponse.json({
         operating_hours_start: '06:00:00',
         operating_hours_end: '22:00:00',
@@ -45,10 +47,10 @@ export async function GET(request: NextRequest) {
       }, { status: 200 })
     }
 
-    console.log('Settings fetched successfully')
+    console.log('[V10.8.14] Settings fetched successfully:', data.name)
     return NextResponse.json(data, { status: 200 })
   } catch (error) {
-    console.error('Unexpected error in GET /api/settings:', error)
+    console.error('[V10.8.14] Unexpected error in GET /api/settings:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -58,8 +60,8 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/settings
- * V10.8.11: Update facility settings for a property (multi-tenancy fix)
- * Uses UPSERT to handle missing property gracefully
+ * V10.8.14: Single-table architecture - UPDATE properties table only
+ * All facility settings are columns in properties table (no separate facility_settings table)
  * Uses Admin Client to bypass RLS
  */
 export async function PATCH(request: NextRequest) {
@@ -82,18 +84,16 @@ export async function PATCH(request: NextRequest) {
       stripe_connected, // V10.6
     } = body
 
-    console.log('Updating settings for property:', propertyId)
-    console.log('Update payload:', body)
+    console.log('[V10.8.14] Updating settings for property:', propertyId)
+    console.log('[V10.8.14] Update payload:', body)
 
-    // Build upsert object with only provided fields
-    const updates: any = {
-      id: propertyId, // Required for upsert
-    }
+    // Build update object with only provided fields
+    const updates: any = {}
 
-    // V9.15 Fix #1: Sync BOTH name and property_name columns (One Source of Truth)
+    // V10.8.14: Sync BOTH name and property_name columns simultaneously (prevent desync)
     if (property_name !== undefined) {
       updates.property_name = property_name
-      updates.name = property_name // Sync name column to match property_name
+      updates.name = property_name // Keep both columns in sync
     }
     if (operating_hours_start !== undefined) updates.operating_hours_start = operating_hours_start
     if (operating_hours_end !== undefined) updates.operating_hours_end = operating_hours_end
@@ -106,63 +106,26 @@ export async function PATCH(request: NextRequest) {
     if (stripe_account_id !== undefined) updates.stripe_account_id = stripe_account_id // V10.6
     if (stripe_connected !== undefined) updates.stripe_connected = stripe_connected // V10.6
 
-    // V10.8.13 Fix: Check if property exists first to determine update vs insert
-    const { data: existingProperty } = await adminClient
+    // V10.8.14: Single UPDATE query on properties table
+    const { data, error } = await adminClient
       .from('properties')
-      .select('id, name, property_name, address, city, state, zip_code')
+      .update(updates)
       .eq('id', propertyId)
+      .select()
       .single()
-    
-    let data, error;
-    
-    // V10.8.13: Use UPDATE for existing properties, INSERT for new ones
-    if (existingProperty) {
-      console.log('[V10.8.13] Updating existing property:', existingProperty.name)
-      // For existing properties, use UPDATE (don't include 'id' in the updates)
-      const { id, ...updateFields } = updates;
-      const result = await adminClient
-        .from('properties')
-        .update(updateFields)
-        .eq('id', propertyId)
-        .select()
-        .single()
-      data = result.data
-      error = result.error
-    } else {
-      console.log('[V10.8.13] Creating new property with defaults')
-      // For new properties, add defaults and use INSERT
-      if (!updates.name && !updates.property_name) {
-        updates.name = 'Default Property'
-        updates.property_name = 'Default Property'
-      }
-      updates.address = '123 Main Street'
-      updates.city = 'Default City'
-      updates.state = 'CA'
-      updates.zip_code = '00000'
-      
-      const result = await adminClient
-        .from('properties')
-        .insert(updates)
-        .select()
-        .single()
-      data = result.data
-      error = result.error
-    }
-
-    console.log('Operation result:', { success: !error, data })
 
     if (error) {
-      console.error('Error upserting settings:', error)
+      console.error('[V10.8.14] Error updating property settings:', error)
       return NextResponse.json(
         { error: 'Failed to update settings', details: error.message },
         { status: 500 }
       )
     }
 
-    console.log('Settings updated successfully:', data)
+    console.log('[V10.8.14] Settings updated successfully:', data.name)
     return NextResponse.json(data, { status: 200 })
   } catch (error) {
-    console.error('Unexpected error in PATCH /api/settings:', error)
+    console.error('[V10.8.14] Unexpected error in PATCH /api/settings:', error)
     return NextResponse.json(
       { 
         error: 'Internal server error',

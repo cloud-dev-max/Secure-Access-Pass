@@ -215,7 +215,7 @@ export default function PortfolioDashboard() {
               className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
             >
               <Plus className="w-5 h-5" />
-              <span>➕ Request New Location</span>
+              <span>Request New Location</span>
             </button>
           </div>
         </div>
