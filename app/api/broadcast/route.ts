@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 /**
  * POST /api/broadcast
  * V6: Broadcast health/safety alert to residents
+ * V10.8.15: CRITICAL - Removed legacy environment variable fallback
+ * Frontend MUST pass property_id explicitly for multi-tenancy
  * 
  * Supports targeting filters:
  * - 'INSIDE': Currently inside (default)
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
     const body = await request.json()
-    const { message, created_by, target_filter = 'INSIDE' } = body
+    const { message, created_by, target_filter = 'INSIDE', property_id } = body
 
     if (!message || message.trim().length === 0) {
       return NextResponse.json(
@@ -25,7 +27,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    // V10.8.15: CRITICAL - Require explicit property_id, no fallback
+    if (!property_id) {
+      return NextResponse.json(
+        { error: 'property_id is required for multi-tenant broadcast' },
+        { status: 400 }
+      )
+    }
+
+    const propertyId = property_id
     const ip = request.headers.get('x-forwarded-for') || 'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
 

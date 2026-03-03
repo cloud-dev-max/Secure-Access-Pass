@@ -184,17 +184,44 @@ function DashboardPageContent() {
     const storedPropertyId = localStorage.getItem('selectedPropertyId');
     
     // Load all properties for dropdown
-    loadAllProperties();
+    // V10.8.15: Auto-select first property if none selected
+    const initializeProperty = async () => {
+      try {
+        const response = await fetch('/api/portfolio');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.properties) {
+            setAllProperties(data.properties);
+            
+            // V10.8.15: If no property selected, auto-select first one
+            if (!storedPropertyId && !propertyId && data.properties.length > 0) {
+              const firstProperty = data.properties[0];
+              console.log('[V10.8.15] Auto-selecting first property:', firstProperty.name);
+              setPropertyId(firstProperty.id);
+              localStorage.setItem('selectedPropertyId', firstProperty.id);
+              setCurrentPropertyName(firstProperty.name);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading properties:', error);
+      }
+      
+      // Original logic
+      if (storedPropertyId && !propertyId) {
+        // Property found in localStorage - set it
+        setPropertyId(storedPropertyId);
+        setLoading(false);
+      } else if (!storedPropertyId && !propertyId) {
+        // V10.8.2 Fix: No property selected - stop loading and show selection prompt
+        setNoPropertySelected(true);
+        setLoading(false);
+      }
+    };
     
-    if (storedPropertyId && !propertyId) {
-      // Property found in localStorage - set it
-      setPropertyId(storedPropertyId);
-      setLoading(false);
-    } else if (!storedPropertyId && !propertyId) {
-      // V10.8.2 Fix: No property selected - stop loading and show selection prompt
-      setNoPropertySelected(true);
-      setLoading(false);
-    }
+    initializeProperty();
   }, []);
 
   // V10.8.1: Load property name when propertyId changes
@@ -637,9 +664,15 @@ function DashboardPageContent() {
   };
 
   // V6: Broadcast health alert
+  // V10.8.15: Pass property_id explicitly (no legacy fallback)
   const sendBroadcastAlert = async () => {
     if (!broadcastMessage || broadcastMessage.trim() === "") {
       alert("Please enter a message");
+      return;
+    }
+
+    if (!propertyId) {
+      alert("No property selected");
       return;
     }
 
@@ -649,6 +682,7 @@ function DashboardPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          property_id: propertyId, // V10.8.15: Explicit property_id required
           message: broadcastMessage.trim(),
           target_filter: broadcastTargetFilter,
         }),

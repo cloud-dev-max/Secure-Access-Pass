@@ -193,12 +193,14 @@ export default function PortfolioDashboard() {
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* V10.8.6: Simplified header - removed large title block */}
         {/* V10.8.11: Added Add Property button */}
+        {/* V10.8.15: Updated back button to explicitly say "Dashboard" */}
         <div className="flex items-center justify-between gap-4">
           <button
             onClick={() => router.push('/dashboard')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-white border border-gray-200 shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors bg-white border border-gray-200 shadow-sm"
           >
             <ArrowLeft className="w-5 h-5 text-navy-600" />
+            <span className="text-navy-900 font-semibold">Dashboard</span>
           </button>
           
           <div className="flex gap-3">

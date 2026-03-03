@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useContext } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { PropertyContext } from '@/app/context/PropertyContext'
-import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X, Download } from 'lucide-react'
+import { Shield, MessageSquare, LogIn, LogOut, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Calendar, X, Download, TrendingUp, Users, Settings as SettingsIcon, DollarSign, Activity } from 'lucide-react'
 
 interface Log {
   id: string
@@ -28,6 +29,7 @@ interface LogsResponse {
 }
 
 export default function LogsPage() {
+  const router = useRouter()
   const { propertyId } = useContext(PropertyContext) // V10.8.12: Multi-tenancy
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
@@ -298,28 +300,92 @@ export default function LogsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-white to-blue-50">
-      {/* Header */}
-      <div className="bg-white border-b border-navy-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
+      {/* Header with Navigation Tabs */}
+      <div className="bg-gradient-to-r from-navy-900 to-navy-700 border-b border-navy-600">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between py-4 mb-2">
             <div className="flex items-center space-x-4">
               <Link
                 href="/dashboard"
-                className="flex items-center space-x-2 text-navy-600 hover:text-navy-900 transition-colors"
+                className="flex items-center space-x-2 text-white/80 hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
-                <span>Back to Dashboard</span>
+                <span>Dashboard</span>
               </Link>
             </div>
-            <h1 className="text-3xl font-bold text-navy-900">Full Activity Log</h1>
+            <h1 className="text-2xl font-bold text-white">Full Activity Log</h1>
             {/* V8.12 UX #4: Export Activity CSV */}
             <button
               onClick={exportActivityCSV}
-              className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export CSV
             </button>
+          </div>
+          
+          {/* V10.8.15: Dashboard Navigation Tabs - All Activity is active */}
+          <div className="flex gap-1 whitespace-nowrap pb-2 overflow-x-auto">
+            <button
+              onClick={() => router.push('/dashboard?tab=overview')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4" />
+                Overview
+              </div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=residents')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Residents
+              </div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=rules')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <Shield className="w-4 h-4" />
+                Access Rules
+              </div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=settings')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <SettingsIcon className="w-4 h-4" />
+                Facility Settings
+              </div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=revenue')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4" />
+                Revenue Analytics
+              </div>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=occupancy')}
+              className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-4 h-4" />
+                Occupancy
+              </div>
+            </button>
+            <div className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-teal-400 text-white bg-white/10">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4" />
+                All Activity
+              </div>
+            </div>
           </div>
         </div>
       </div>

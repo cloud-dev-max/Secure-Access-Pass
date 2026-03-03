@@ -80,11 +80,14 @@ export default function ScannerPage() {
   }, [])
 
   // V7.6 Fix #3: Realtime listener for pool status sync
+  // V10.8.15: Pass property_id to load correct property's status
   useEffect(() => {
     // Load initial pool status
     const loadPoolStatus = async () => {
+      if (!propertyId) return; // V10.8.15: Wait for propertyId
+      
       try {
-        const response = await fetch('/api/settings')
+        const response = await fetch(`/api/settings?property_id=${propertyId}`)
         if (response.ok) {
           const data = await response.json()
           // V7.6: Correct interpretation - maintenance_mode TRUE = CLOSED
@@ -106,7 +109,7 @@ export default function ScannerPage() {
     const interval = setInterval(loadPoolStatus, 60000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [propertyId])
 
   // V7.8 Feature #1: Load real-time occupancy counter
   // V8.10 Fix #1: Removed occupancyRefreshTrigger from deps to prevent exponential polling
@@ -798,13 +801,22 @@ export default function ScannerPage() {
 
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center px-4 pb-8 relative">
-        {/* V8.0 Requirement #3: Pool Closed Overlay */}
+        {/* V10.8.15: Highly visible POOL CLOSED warning - shown BEFORE scanning */}
         {!isPoolOpen && (
-          <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center rounded-2xl">
-            <div className="text-center p-8">
-              <div className="text-8xl mb-6">⛔</div>
-              <h2 className="text-5xl font-bold text-red-500 mb-4">FACILITY CLOSED</h2>
-              <p className="text-white text-xl">{closeReason || 'Pool is currently closed for maintenance'}</p>
+          <div className="w-full max-w-2xl mb-8 bg-red-600 border-4 border-red-700 rounded-2xl p-8 shadow-2xl animate-pulse">
+            <div className="text-center">
+              <div className="text-9xl mb-4">🚫</div>
+              <h1 className="text-6xl font-black text-white mb-4 uppercase tracking-wide">
+                POOL CLOSED
+              </h1>
+              <div className="bg-white/20 rounded-xl p-4 mb-4">
+                <p className="text-2xl font-bold text-white">
+                  {closeReason || 'Facility is currently closed for maintenance'}
+                </p>
+              </div>
+              <p className="text-xl text-white/90">
+                Scanner is disabled until facility reopens
+              </p>
             </div>
           </div>
         )}
