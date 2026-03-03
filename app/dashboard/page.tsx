@@ -1179,9 +1179,12 @@ function DashboardPageContent() {
 
   // V7: Load Revenue Data
   const loadRevenueData = async () => {
+    // V10.8.19: Pass property_id to revenue API for correct filtering
+    if (!propertyId) return;
+    
     setRevenueLoading(true);
     try {
-      const response = await fetch("/api/revenue");
+      const response = await fetch(`/api/revenue?property_id=${propertyId}`);
       if (response.ok) {
         const data = await response.json();
         setRevenueData(data);

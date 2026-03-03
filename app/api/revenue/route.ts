@@ -16,7 +16,18 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    // V10.8.19: Accept property_id from query parameter for multi-tenancy
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id')
+    
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id is required' },
+        { status: 400 }
+      )
+    }
+    
+    console.log('[V10.8.19] Revenue query for property:', propertyId)
 
     // Get current settings for guest pass price
     const { data: settings } = await adminClient
@@ -27,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const guestPassPrice = settings?.guest_pass_price || 5.00
 
-    // Get all visitor passes for this property
+    // V10.8.19: Get all visitor passes for this specific property
     const { data: guestPasses, error } = await adminClient
       .from('visitor_passes')
       .select('id, created_at, status, expires_at, purchased_by, is_inside')

@@ -21,19 +21,15 @@ export async function GET(request: NextRequest) {
     
     // Get pagination parameters from query
     const { searchParams } = new URL(request.url)
-    // V10.8.18: Require property_id query param for multi-tenancy (no fallbacks)
+    // V10.8.19: Make property_id optional to support global Portfolio export
+    // If property_id is provided, filter by it. If null, return all logs (global export)
     const propertyId = searchParams.get('property_id')
-    
-    if (!propertyId) {
-      return NextResponse.json(
-        { error: 'property_id is required' },
-        { status: 400 }
-      )
-    }
     
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
+    
+    console.log('[V10.8.19] Activity logs query:', { propertyId: propertyId || 'ALL', page, limit })
     
     // V9.1 Fix #3: Get date range filters
     const startDate = searchParams.get('startDate') // YYYY-MM-DD
@@ -43,7 +39,11 @@ export async function GET(request: NextRequest) {
     let countQuery = adminClient
       .from('access_logs')
       .select('id', { count: 'exact', head: true })
-      .eq('property_id', propertyId)
+    
+    // V10.8.19: Only filter by property_id if provided (for global export support)
+    if (propertyId) {
+      countQuery = countQuery.eq('property_id', propertyId)
+    }
     
     // V9.1 Fix #3: Apply date range filters
     if (startDate) {
@@ -65,7 +65,11 @@ export async function GET(request: NextRequest) {
         user:user_id(id, name, unit, role),
         property:property_id(id, name, property_name)
       `)
-      .eq('property_id', propertyId)
+    
+    // V10.8.19: Only filter by property_id if provided (for global export support)
+    if (propertyId) {
+      logsQuery = logsQuery.eq('property_id', propertyId)
+    }
     
     // V9.1 Fix #3: Apply date range filters
     if (startDate) {

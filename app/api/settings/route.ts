@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!data) {
-      // If property doesn't exist, return defaults
+      // V10.8.19: Include all fields in defaults response
       console.log('[V10.8.14] Property not found, returning defaults')
       return NextResponse.json({
         operating_hours_start: '06:00:00',
@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
         max_visitor_passes: 100, // V7.2
         is_maintenance_mode: false,
         maintenance_reason: null,
+        stripe_connected: false, // V10.8.19: Include in defaults
+        stripe_account_id: null, // V10.8.19: Include in defaults
       }, { status: 200 })
     }
 
