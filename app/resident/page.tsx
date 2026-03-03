@@ -39,6 +39,7 @@ export default function ResidentPortalPage() {
   const [facilityStatus, setFacilityStatus] = useState<FacilityStatus | null>(null)
   const [guestPasses, setGuestPasses] = useState<GuestPass[]>([])
   const [maxGuestsAllowed, setMaxGuestsAllowed] = useState(3) // V4: Guest limit from settings
+  const [visitorPassLimit, setVisitorPassLimit] = useState(100) // V10.8.21: Visitor pass limit from settings
   
   // Login form - V10.8.5: Upgraded to 6-digit PIN with segmented inputs
   const [email, setEmail] = useState('')
@@ -101,11 +102,13 @@ export default function ResidentPortalPage() {
           setMaxGuestsAllowed(settings.max_guests_per_resident || 3)
           setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
           setStripeConnected(settings.stripe_connected || false)
-          console.log('[V10.8.18] Property settings loaded:', {
+          setVisitorPassLimit(settings.max_visitor_passes || 100) // V10.8.21: Fetch visitor pass limit
+          console.log('[V10.8.21] Property settings loaded:', {
             property_id: resident.property_id,
             max_guests: settings.max_guests_per_resident,
             price: settings.guest_pass_price,
-            stripe: settings.stripe_connected
+            stripe: settings.stripe_connected,
+            visitor_pass_limit: settings.max_visitor_passes
           })
         }
       } catch (error) {
@@ -711,11 +714,6 @@ export default function ResidentPortalPage() {
               {facilityStatus?.is_maintenance_mode && (
                 <p className="text-white/90 mt-1">{facilityStatus.maintenance_reason}</p>
               )}
-              {!facilityStatus?.is_maintenance_mode && !facilityStatus?.is_open && (
-                <p className="text-white/90 mt-1">
-                  Hours: {facilityStatus?.operating_hours.start} - {facilityStatus?.operating_hours.end}
-                </p>
-              )}
             </div>
             {/* V5: Removed Activity icon per requirements */}
           </div>
@@ -798,8 +796,7 @@ export default function ResidentPortalPage() {
                       setGuestPassError('Network error. Please check your connection.')
                     }
                   }}
-                  disabled={!stripeConnected && showGuestPassForm}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
                 >
                   <Plus className="w-5 h-5" />
                   Buy Visitor Pass
@@ -814,13 +811,13 @@ export default function ResidentPortalPage() {
             )}
           </div>
 
-          {/* V7.9 Fix #3: Display guest pass limit - Count 'active' OR 'used' if not expired */}
+          {/* V10.8.21: Display visitor pass limit from database settings */}
           <p className="text-sm text-navy-600 mb-4">
             Active passes: {guestPasses.filter(p => {
               const notExpired = new Date(p.expires_at) > new Date()
               const isValidStatus = p.status === 'active' || p.status === 'used'
               return notExpired && isValidStatus
-            }).length} / {maxGuestsAllowed} allowed
+            }).length} / {visitorPassLimit} allowed
           </p>
 
           {/* V7.3 Bug Fix #4 & #5: Guest Pass Purchase Form */}

@@ -82,21 +82,33 @@ export async function GET(request: NextRequest) {
     
     console.log(`[V7.3] Total Occupancy: ${occupancy} = Residents: ${residentsCount} + Guests: ${accompanyingGuests} + Visitors: ${visitorPassesCount}`)
 
-    // Check if facility is open based on operating hours
+    // V10.8.21: Timezone-independent time comparison using minutes since midnight
     const now = new Date()
-    const currentTime = now.toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    })
-
-    const startTime = property.operating_hours_start
-    const endTime = property.operating_hours_end
-
-    // Simple time comparison (works for same-day hours)
-    const isWithinHours = currentTime >= startTime && currentTime <= endTime
+    
+    // Get current local time in minutes since midnight
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    
+    // Parse database time strings (HH:MM:SS) into minutes since midnight
+    const parseTimeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number)
+      return hours * 60 + minutes
+    }
+    
+    const startMinutes = parseTimeToMinutes(property.operating_hours_start)
+    const endMinutes = parseTimeToMinutes(property.operating_hours_end)
+    
+    // Check if current time falls within operating hours
+    const isWithinHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes
     const isOpen = !property.is_maintenance_mode && isWithinHours
+    
+    console.log('[V10.8.21] Open/closed check:', {
+      currentMinutes,
+      startMinutes,
+      endMinutes,
+      isWithinHours,
+      is_maintenance_mode: property.is_maintenance_mode,
+      isOpen
+    })
 
     const status: FacilityStatus = {
       is_open: isOpen,
