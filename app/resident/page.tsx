@@ -61,6 +61,7 @@ export default function ResidentPortalPage() {
   const [guestPassError, setGuestPassError] = useState('') // V7.3: Error handling
   const [showPassHistory, setShowPassHistory] = useState(false) // V7.1: Show expired/used passes
   const [latestGuestPassPrice, setLatestGuestPassPrice] = useState(5.00) // V5: Track latest price
+  const [stripeConnected, setStripeConnected] = useState(false) // V10.8.16: Track Stripe connection status
   
   // V10.6: Demo Mode Checkout
   const [showDemoCheckout, setShowDemoCheckout] = useState(false)
@@ -749,25 +750,35 @@ export default function ResidentPortalPage() {
             </h2>
             
             {!showGuestPassForm && (
-              <button
-                onClick={async () => {
-                  // V5: Fetch latest price before opening form
-                  try {
-                    const response = await fetch('/api/settings')
-                    if (response.ok) {
-                      const settings = await response.json()
-                      setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
+              <div>
+                <button
+                  onClick={async () => {
+                    // V10.8.16: Fetch latest price and Stripe status before opening form
+                    try {
+                      const response = await fetch('/api/settings')
+                      if (response.ok) {
+                        const settings = await response.json()
+                        setLatestGuestPassPrice(settings.guest_pass_price || 5.00)
+                        setStripeConnected(settings.stripe_connected || false)
+                      }
+                    } catch (error) {
+                      console.error('Error fetching latest price:', error)
                     }
-                  } catch (error) {
-                    console.error('Error fetching latest price:', error)
-                  }
-                  setShowGuestPassForm(true)
-                }}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
-              >
-                <Plus className="w-5 h-5" />
-                Buy Visitor Pass
-              </button>
+                    setShowGuestPassForm(true)
+                  }}
+                  disabled={!stripeConnected && showGuestPassForm}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-5 h-5" />
+                  Buy Visitor Pass
+                </button>
+                {/* V10.8.16: Show message if Stripe not connected */}
+                {showGuestPassForm && !stripeConnected && (
+                  <p className="text-sm text-orange-600 mt-2">
+                    ⚠️ Purchases currently disabled by management
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -781,7 +792,8 @@ export default function ResidentPortalPage() {
           </p>
 
           {/* V7.3 Bug Fix #4 & #5: Guest Pass Purchase Form */}
-          {showGuestPassForm && !showDemoCheckout && (
+          {/* V10.8.16: Only show if Stripe is connected */}
+          {showGuestPassForm && !showDemoCheckout && stripeConnected && (
             <div className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Purchase Visitor Pass (${latestGuestPassPrice.toFixed(2)})
@@ -824,7 +836,8 @@ export default function ResidentPortalPage() {
           )}
 
           {/* V10.6: Demo Mode Checkout Form */}
-          {showGuestPassForm && showDemoCheckout && (
+          {/* V10.8.16: Only show if Stripe is connected */}
+          {showGuestPassForm && showDemoCheckout && stripeConnected && (
             <form onSubmit={processDemoCheckout} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Demo Checkout - ${latestGuestPassPrice.toFixed(2)}

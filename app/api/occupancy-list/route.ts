@@ -4,15 +4,28 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * GET /api/occupancy-list
+ * GET /api/occupancy-list?property_id=xxx
  * V8.0 Requirement #1 & #6: Unified occupancy list
+ * V10.8.16: CRITICAL - Removed legacy environment variable fallback
+ * Frontend MUST pass property_id query parameter for multi-tenancy
  * Returns both residents AND visitor passes currently inside
  * This ensures synchronization across dashboard and scanner
  */
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id')
+
+    // V10.8.16: CRITICAL - Require explicit property_id, no fallback
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id query parameter is required for multi-tenant occupancy list' },
+        { status: 400 }
+      )
+    }
+
+    console.log('[V10.8.16] Fetching occupancy list for property:', propertyId)
 
     // Get residents currently inside
     const { data: residents, error: residentsError } = await adminClient

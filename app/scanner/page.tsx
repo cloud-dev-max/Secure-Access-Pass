@@ -524,11 +524,14 @@ export default function ScannerPage() {
   // V8.0 Requirement #1: Load unified occupancy (residents + visitors)
   // V8.6 Fix #2: Add silent parameter for background polling (no loading spinner)
   const loadOccupancy = async (silent = false) => {
+    if (!propertyId) return; // V10.8.16: Wait for propertyId
+    
     if (!silent) {
       setLoadingOccupancy(true)
     }
     try {
-      const response = await fetch('/api/occupancy-list')
+      // V10.8.16: Pass property_id explicitly
+      const response = await fetch(`/api/occupancy-list?property_id=${propertyId}`)
       if (response.ok) {
         const data = await response.json()
         setInsideResidents(data.occupants || [])

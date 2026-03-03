@@ -300,32 +300,11 @@ export default function LogsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-white to-blue-50">
-      {/* Header with Navigation Tabs */}
+      {/* V10.8.16: Simplified header - tabs only, no back button or title */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-700 border-b border-navy-600">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between py-4 mb-2">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/dashboard"
-                className="flex items-center space-x-2 text-white/80 hover:text-white transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Dashboard</span>
-              </Link>
-            </div>
-            <h1 className="text-2xl font-bold text-white">Full Activity Log</h1>
-            {/* V8.12 UX #4: Export Activity CSV */}
-            <button
-              onClick={exportActivityCSV}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-          </div>
-          
           {/* V10.8.15: Dashboard Navigation Tabs - All Activity is active */}
-          <div className="flex gap-1 whitespace-nowrap pb-2 overflow-x-auto">
+          <div className="flex gap-1 whitespace-nowrap pt-4 pb-2 overflow-x-auto">
             <button
               onClick={() => router.push('/dashboard?tab=overview')}
               className="shrink-0 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-white/70 hover:text-white hover:bg-white/5 transition-colors"
@@ -392,12 +371,22 @@ export default function LogsPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* V9.0 Feature #2: Date Range Filter */}
+        {/* V10.8.16: Date Range Filter with Export button in same row */}
         <div className="bg-white rounded-lg border border-navy-200 p-4 mb-4">
           <div className="flex flex-col space-y-3">
-            <div className="flex items-center space-x-4">
-              <Calendar className="w-5 h-5 text-navy-600" />
-              <span className="text-sm font-semibold text-navy-900">Filter by Date Range:</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Calendar className="w-5 h-5 text-navy-600" />
+                <span className="text-sm font-semibold text-navy-900">Filter by Date Range:</span>
+              </div>
+              {/* V10.8.16: Export CSV button moved here */}
+              <button
+                onClick={exportActivityCSV}
+                className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">

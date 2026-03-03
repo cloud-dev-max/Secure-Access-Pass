@@ -86,13 +86,17 @@ function DashboardPageContent() {
   >("overview");
   
   // V10.8.9: Reactive tab detection - client-side URL check
+  // V10.8.16: Support all tab values from URL parameter
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam === 'overview') {
-        console.log('[Dashboard] Logo click detected, resetting to Overview tab');
-        setActiveTab('overview');
+      if (tabParam) {
+        const validTabs = ['overview', 'residents', 'rules', 'settings', 'revenue', 'occupancy'];
+        if (validTabs.includes(tabParam)) {
+          console.log('[V10.8.16] Setting active tab from URL:', tabParam);
+          setActiveTab(tabParam as any);
+        }
       }
     }
   }, [router]); // Depends on router to detect navigation
@@ -714,12 +718,15 @@ function DashboardPageContent() {
   // V8.4 Fix #1: Load who is inside (residents + visitor passes)
   // V8.6 Fix #2: Add silent parameter for background polling (no loading spinner)
   const loadInsideResidents = async (silent = false) => {
+    if (!propertyId) return; // V10.8.16: Wait for propertyId
+    
     if (!silent) {
       setLoadingInsideResidents(true);
     }
     try {
       // Use unified occupancy endpoint that includes visitors
-      const response = await fetch("/api/occupancy-list");
+      // V10.8.16: Pass property_id explicitly
+      const response = await fetch(`/api/occupancy-list?property_id=${propertyId}`);
       if (response.ok) {
         const data = await response.json();
         // Transform occupants into format expected by the table
@@ -1096,12 +1103,21 @@ function DashboardPageContent() {
   };
 
   // V10.6: Connect Stripe Account
+  // V10.8.16: Pass property_id to preserve context during OAuth
   const connectStripeAccount = async () => {
+    if (!propertyId) {
+      alert('No property selected');
+      return;
+    }
+
     setConnectingStripe(true);
     try {
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: propertyId, // V10.8.16: Preserve property context
+        }),
       });
 
       if (!response.ok) {
@@ -1112,7 +1128,10 @@ function DashboardPageContent() {
       setStripeAccountId(data.account_id);
       setStripeConnected(true);
       alert(`✅ Stripe Connected!\n\nDemo Account ID: ${data.account_id}\n\nYou can now accept payments in Demo Mode.`);
-      await loadFacilitySettings(true); // Reload to get updated data
+      
+      // V10.8.16: Reload property data and refresh allProperties
+      await loadFacilitySettings(true);
+      await loadAllProperties(); // Refresh header dropdown
     } catch (error) {
       console.error('Error connecting Stripe:', error);
       alert('Failed to connect Stripe account');
@@ -1122,13 +1141,19 @@ function DashboardPageContent() {
   };
 
   // V10.6: Disconnect Stripe Account
+  // V10.8.16: Pass property_id query parameter
   const disconnectStripeAccount = async () => {
     if (!confirm('Are you sure you want to disconnect your Stripe account?')) {
       return;
     }
 
+    if (!propertyId) {
+      alert('No property selected');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/stripe/connect', {
+      const response = await fetch(`/api/stripe/connect?property_id=${propertyId}`, {
         method: 'DELETE',
       });
 
@@ -1139,7 +1164,10 @@ function DashboardPageContent() {
       setStripeAccountId('');
       setStripeConnected(false);
       alert('Stripe account disconnected successfully');
+      
+      // V10.8.16: Reload property data and refresh allProperties
       await loadFacilitySettings(true);
+      await loadAllProperties(); // Refresh header dropdown
     } catch (error) {
       console.error('Error disconnecting Stripe:', error);
       alert('Failed to disconnect Stripe account');
