@@ -1187,7 +1187,37 @@ function DashboardPageContent() {
     
     setRevenueLoading(true);
     try {
-      const response = await fetch(`/api/revenue?property_id=${propertyId}`);
+      // V10.8.29: MAJOR REFACTOR - Generate local timezone boundaries on frontend
+      const now = new Date();
+      
+      // Today boundaries (00:00:00 to 23:59:59 in local timezone)
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      
+      // Last 7 days start (7 days ago at 00:00:00)
+      const last7DaysStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+      
+      // This month boundaries
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Build URL with timezone boundaries
+      const url = `/api/revenue?property_id=${propertyId}` +
+        `&todayStart=${todayStart.toISOString()}` +
+        `&todayEnd=${todayEnd.toISOString()}` +
+        `&last7DaysStart=${last7DaysStart.toISOString()}` +
+        `&thisMonthStart=${thisMonthStart.toISOString()}` +
+        `&thisMonthEnd=${thisMonthEnd.toISOString()}`;
+      
+      console.log('[V10.8.29] Local timezone boundaries:', {
+        todayStart: todayStart.toISOString(),
+        todayEnd: todayEnd.toISOString(),
+        last7DaysStart: last7DaysStart.toISOString(),
+        thisMonthStart: thisMonthStart.toISOString(),
+        thisMonthEnd: thisMonthEnd.toISOString()
+      });
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setRevenueData(data);

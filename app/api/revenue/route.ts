@@ -27,7 +27,28 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    console.log('[V10.8.19] Revenue query for property:', propertyId)
+    // V10.8.29: MAJOR REFACTOR - Accept local timezone boundaries from frontend
+    const todayStartParam = searchParams.get('todayStart')
+    const todayEndParam = searchParams.get('todayEnd')
+    const last7DaysStartParam = searchParams.get('last7DaysStart')
+    const thisMonthStartParam = searchParams.get('thisMonthStart')
+    const thisMonthEndParam = searchParams.get('thisMonthEnd')
+    
+    // Frontend dictates time - fallback to UTC only if params missing
+    const todayStart = todayStartParam ? new Date(todayStartParam) : new Date(new Date().setHours(0, 0, 0, 0))
+    const todayEnd = todayEndParam ? new Date(todayEndParam) : new Date(new Date().setHours(23, 59, 59, 999))
+    const last7DaysStart = last7DaysStartParam ? new Date(last7DaysStartParam) : new Date(new Date().setDate(new Date().getDate() - 6))
+    const thisMonthStart = thisMonthStartParam ? new Date(thisMonthStartParam) : new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    const thisMonthEnd = thisMonthEndParam ? new Date(thisMonthEndParam) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59, 999)
+    
+    console.log('[V10.8.29] Revenue query with LOCAL timezone boundaries:', {
+      propertyId,
+      todayStart: todayStart.toISOString(),
+      todayEnd: todayEnd.toISOString(),
+      last7DaysStart: last7DaysStart.toISOString(),
+      thisMonthStart: thisMonthStart.toISOString(),
+      thisMonthEnd: thisMonthEnd.toISOString()
+    })
 
     // Get current settings for guest pass price
     const { data: settings } = await adminClient
@@ -38,10 +59,9 @@ export async function GET(request: NextRequest) {
 
     const guestPassPrice = settings?.guest_pass_price || 5.00
 
-    // V10.8.19: Get all visitor passes for this specific property
-    // V10.8.24: Include price_paid and amount_paid for accurate revenue calculation
+    // V10.8.29: Get all guest passes for this property (corrected table name from V10.8.27)
     const { data: guestPasses, error } = await adminClient
-      .from('visitor_passes')
+      .from('guest_passes')
       .select('id, created_at, status, expires_at, purchased_by, is_inside, price_paid, amount_paid')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
@@ -54,19 +74,17 @@ export async function GET(request: NextRequest) {
     const passes = guestPasses || []
 
     // V10.8.24: Calculate total revenue by summing actual amounts paid
-    // Use amount_paid if available, fallback to price_paid, then guestPassPrice
     const totalPasses = passes.length
     const totalRevenue = passes.reduce((sum, pass) => {
       const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
       return sum + actualAmount
     }, 0)
 
-    // V8.5 Fix #3: Use LOCAL timezone consistently for all date operations
-    const today = new Date()
+    // V10.8.29: Helper to format date for grouping (using passed boundaries)
     const getTodayDateString = () => {
-      const year = today.getFullYear()
-      const month = String(today.getMonth() + 1).padStart(2, '0')
-      const day = String(today.getDate()).padStart(2, '0')
+      const year = todayStart.getFullYear()
+      const month = String(todayStart.getMonth() + 1).padStart(2, '0')
+      const day = String(todayStart.getDate()).padStart(2, '0')
       return `${year}-${month}-${day}`
     }
     const todayStr = getTodayDateString()
@@ -90,9 +108,16 @@ export async function GET(request: NextRequest) {
       revenueByDate[date].revenue += actualAmount
     })
 
-    // V8.5 Fix #3: Calculate TODAY's revenue and passes explicitly
-    const todayRevenue = revenueByDate[todayStr]?.revenue || 0
-    const todayPasses = revenueByDate[todayStr]?.count || 0
+    // V10.8.29: Calculate TODAY's revenue using passed boundaries
+    const todayPassesFiltered = passes.filter(pass => {
+      const passDate = new Date(pass.created_at)
+      return passDate >= todayStart && passDate <= todayEnd
+    })
+    const todayRevenue = todayPassesFiltered.reduce((sum, pass) => {
+      const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
+      return sum + actualAmount
+    }, 0)
+    const todayPasses = todayPassesFiltered.length
 
     // Get last 30 days of data (using local timezone)
     const last30Days = Array.from({ length: 30 }, (_, i) => {
@@ -157,17 +182,24 @@ export async function GET(request: NextRequest) {
       monthlyRevenue.push({ month: monthLabel, count: monthCount, revenue: monthRevenue })
     }
 
-    // Current month stats
-    const currentMonth = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    const currentMonthData = monthlyRevenue[monthlyRevenue.length - 1]
-
-    // V10.8.24: Last 7 days stats (sum actual amounts)
-    const last7Days = passes.filter(pass => {
+    // V10.8.29: Current month stats using passed boundaries
+    const currentMonth = thisMonthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    const thisMonthPassesFiltered = passes.filter(pass => {
       const passDate = new Date(pass.created_at)
-      const daysAgo = (today.getTime() - passDate.getTime()) / (1000 * 60 * 60 * 24)
-      return daysAgo <= 7
+      return passDate >= thisMonthStart && passDate <= thisMonthEnd
     })
-    const last7DaysRevenue = last7Days.reduce((sum, pass) => {
+    const thisMonthRevenue = thisMonthPassesFiltered.reduce((sum, pass) => {
+      const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
+      return sum + actualAmount
+    }, 0)
+    const thisMonthCount = thisMonthPassesFiltered.length
+
+    // V10.8.29: Last 7 days stats using passed boundaries
+    const last7DaysPassesFiltered = passes.filter(pass => {
+      const passDate = new Date(pass.created_at)
+      return passDate >= last7DaysStart && passDate <= todayEnd
+    })
+    const last7DaysRevenue = last7DaysPassesFiltered.reduce((sum, pass) => {
       const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
       return sum + actualAmount
     }, 0)
@@ -208,12 +240,12 @@ export async function GET(request: NextRequest) {
         guestPassPrice,
         currentMonth: {
           label: currentMonth,
-          revenue: currentMonthData.revenue,
-          count: currentMonthData.count,
+          revenue: thisMonthRevenue,
+          count: thisMonthCount,
         },
         last7Days: {
           revenue: last7DaysRevenue,
-          count: last7Days.length,
+          count: last7DaysPassesFiltered.length,
         },
       },
       charts: {

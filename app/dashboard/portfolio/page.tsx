@@ -48,7 +48,14 @@ export default function PortfolioDashboard() {
     try {
       if (!silent) setLoading(true)
       
-      const response = await fetch('/api/portfolio')
+      // V10.8.29: MAJOR REFACTOR - Generate local timezone boundaries on frontend
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      
+      const url = `/api/portfolio?todayStart=${todayStart.toISOString()}&todayEnd=${todayEnd.toISOString()}`;
+      
+      const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch portfolio data')
       
       const result = await response.json()

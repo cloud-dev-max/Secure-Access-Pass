@@ -12,6 +12,20 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
+    
+    // V10.8.29: MAJOR REFACTOR - Accept local timezone boundaries from frontend
+    const { searchParams } = new URL(request.url)
+    const todayStartParam = searchParams.get('todayStart')
+    const todayEndParam = searchParams.get('todayEnd')
+    
+    // Frontend dictates time - fallback to UTC only if params missing
+    const todayStart = todayStartParam ? new Date(todayStartParam) : new Date(new Date().setHours(0, 0, 0, 0))
+    const todayEnd = todayEndParam ? new Date(todayEndParam) : new Date(new Date().setHours(23, 59, 59, 999))
+    
+    console.log('[V10.8.29] Portfolio query with LOCAL timezone boundaries:', {
+      todayStart: todayStart.toISOString(),
+      todayEnd: todayEnd.toISOString()
+    })
 
     // Fetch all properties
     const { data: properties, error: propertiesError } = await adminClient
@@ -87,19 +101,15 @@ export async function GET(request: NextRequest) {
           .select('id, created_at, amount_paid, price_paid')
           .eq('property_id', property.id)
 
-        // V10.8.27: Calculate today's revenue by summing actual amounts paid
+        // V10.8.29: Calculate today's revenue using passed boundaries
         let todaysRevenue = 0
         if (allPasses && allPasses.length > 0) {
           const passPrice = property.guest_pass_price || 5.00
-          const today = new Date()
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
           
-          // Sum actual amounts paid for passes created today
+          // Filter passes within today's boundaries and sum actual amounts
           allPasses.forEach(pass => {
             const passDate = new Date(pass.created_at)
-            const passDateStr = `${passDate.getFullYear()}-${String(passDate.getMonth() + 1).padStart(2, '0')}-${String(passDate.getDate()).padStart(2, '0')}`
-            if (passDateStr === todayStr) {
-              // V10.8.27: Use actual amount paid instead of multiplying by current price
+            if (passDate >= todayStart && passDate <= todayEnd) {
               const actualAmount = pass.amount_paid || pass.price_paid || passPrice
               todaysRevenue += actualAmount
             }

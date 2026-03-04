@@ -95,7 +95,7 @@ export default function ManagerLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@secureaccess.com"
+                placeholder="admin@secureaccesspass.com"
                 required
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
               />
@@ -146,7 +146,7 @@ export default function ManagerLoginPage() {
 
           <div className="mt-6 pt-6 border-t border-white/10">
             <p className="text-center text-white/60 text-sm">
-              Demo credentials: <span className="text-white/80 font-mono">admin@secureaccess.com</span> / <span className="text-white/80 font-mono">demo</span>
+              Demo credentials: <span className="text-white/80 font-mono">admin@secureaccesspass.com</span> / <span className="text-white/80 font-mono">demo</span>
             </p>
           </div>
         </div>
