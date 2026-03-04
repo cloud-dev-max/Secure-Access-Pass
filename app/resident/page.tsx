@@ -158,26 +158,39 @@ export default function ResidentPortalPage() {
     loadPropertySettings()
   }, [resident?.property_id]) // Re-run when property_id becomes available
 
-  // V7.6 Fix #3: Poll for facility status updates every 10 seconds
+  // V10.8.23: Poll for facility status with property_id
   useEffect(() => {
-    if (!isLoggedIn) return
+    if (!isLoggedIn || !resident?.property_id) return
 
+    // Initial load
+    loadFacilityStatus()
+    
+    // Poll every 10 seconds
     const interval = setInterval(() => {
       loadFacilityStatus()
-    }, 10000) // Poll every 10 seconds
+    }, 10000)
 
     return () => clearInterval(interval)
-  }, [isLoggedIn])
+  }, [isLoggedIn, resident?.property_id])
 
   const loadFacilityStatus = async () => {
+    // V10.8.23: Require property_id for correct facility hours
+    if (!resident?.property_id) {
+      console.warn('[V10.8.23] Cannot load facility status: property_id missing')
+      return
+    }
+    
     try {
-      const response = await fetch('/api/facility-status')
+      const response = await fetch(`/api/facility-status?property_id=${resident.property_id}`)
       if (response.ok) {
         const data = await response.json()
         setFacilityStatus(data)
+        console.log('[V10.8.23] Facility status loaded for property:', resident.property_id)
+      } else {
+        console.error('[V10.8.23] Facility status API error:', response.status)
       }
     } catch (error) {
-      console.error('Error loading facility status:', error)
+      console.error('[V10.8.23] Error loading facility status:', error)
     }
   }
 
@@ -856,12 +869,6 @@ export default function ResidentPortalPage() {
                   <Plus className="w-5 h-5" />
                   Buy Visitor Pass
                 </button>
-                {/* V10.8.16: Show message if Stripe not connected */}
-                {showGuestPassForm && !stripeConnected && (
-                  <p className="text-sm text-orange-600 mt-2">
-                    ⚠️ Purchases currently disabled by management
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -876,8 +883,8 @@ export default function ResidentPortalPage() {
           </p>
 
           {/* V7.3 Bug Fix #4 & #5: Guest Pass Purchase Form */}
-          {/* V10.8.16: Only show if Stripe is connected */}
-          {showGuestPassForm && !showDemoCheckout && stripeConnected && (
+          {/* V10.8.23: Always show Demo Checkout (removed stripeConnected requirement) */}
+          {showGuestPassForm && !showDemoCheckout && (
             <div className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Purchase Visitor Pass (${latestGuestPassPrice.toFixed(2)})
@@ -920,8 +927,8 @@ export default function ResidentPortalPage() {
           )}
 
           {/* V10.6: Demo Mode Checkout Form */}
-          {/* V10.8.16: Only show if Stripe is connected */}
-          {showGuestPassForm && showDemoCheckout && stripeConnected && (
+          {/* V10.8.23: Always show Demo Checkout (removed stripeConnected requirement) */}
+          {showGuestPassForm && showDemoCheckout && (
             <form onSubmit={processDemoCheckout} className="bg-navy-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold text-navy-900 mb-3">
                 Demo Checkout - ${latestGuestPassPrice.toFixed(2)}

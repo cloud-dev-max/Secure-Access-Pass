@@ -11,7 +11,18 @@ import type { FacilityStatus } from '@/lib/types/database'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    // V10.8.23: Accept property_id from query parameter for correct property context
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id')
+    
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id is required' },
+        { status: 400 }
+      )
+    }
+    
+    console.log('[V10.8.23] Facility status query for property:', propertyId)
 
     // Fetch property settings
     const { data: property, error: propertyError } = await adminClient
