@@ -50,20 +50,14 @@ export async function GET(request: NextRequest) {
       .select('*, profile:user_id(id, name, unit)')
       .eq('property_id', propertyId)
     
-    // Apply date range filters
+    // Apply date range filters - V10.8.31: Fix date bomb with proper Date parsing
     if (dateFilter) {
-      const startOfDay = `${dateFilter}T00:00:00.000Z`
-      const endOfDay = `${dateFilter}T23:59:59.999Z`
+      const startOfDay = new Date(dateFilter).toISOString()
+      const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
       accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
     } else {
-      if (startDate) {
-        const startOfDay = `${startDate}T00:00:00.000Z`
-        accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay)
-      }
-      if (endDate) {
-        const endOfDay = `${endDate}T23:59:59.999Z`
-        accessLogsQuery = accessLogsQuery.lte('scanned_at', endOfDay)
-      }
+      if (startDate) accessLogsQuery = accessLogsQuery.gte('scanned_at', new Date(startDate).toISOString())
+      if (endDate) accessLogsQuery = accessLogsQuery.lte('scanned_at', new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString())
     }
     
     const { data: accessLogs, error: accessError } = await accessLogsQuery
@@ -83,20 +77,14 @@ export async function GET(request: NextRequest) {
       .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
       .eq('property_id', propertyId)
     
-    // Apply date range filters
+    // Apply date range filters - V10.8.31: Fix date bomb with proper Date parsing
     if (dateFilter) {
-      const startOfDay = `${dateFilter}T00:00:00.000Z`
-      const endOfDay = `${dateFilter}T23:59:59.999Z`
+      const startOfDay = new Date(dateFilter).toISOString()
+      const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
       purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay).lte('created_at', endOfDay)
     } else {
-      if (startDate) {
-        const startOfDay = `${startDate}T00:00:00.000Z`
-        purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay)
-      }
-      if (endDate) {
-        const endOfDay = `${endDate}T23:59:59.999Z`
-        purchaseLogsQuery = purchaseLogsQuery.lte('created_at', endOfDay)
-      }
+      if (startDate) purchaseLogsQuery = purchaseLogsQuery.gte('created_at', new Date(startDate).toISOString())
+      if (endDate) purchaseLogsQuery = purchaseLogsQuery.lte('created_at', new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString())
     }
     
     const { data: guestPasses, error: passesError } = await purchaseLogsQuery
