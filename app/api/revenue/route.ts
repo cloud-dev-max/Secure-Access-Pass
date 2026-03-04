@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
     }, 0)
 
     // V8.9 Fix #2: Active passes - count where status='active' OR is_inside=true (handles null expires_at)
-    const now = new Date()
+    // V10.8.36: Reuse now variable from line 123 (no redeclaration)
     const activePasses = passes.filter(p => {
       // Pass is active if: status is 'active' OR currently inside
       if (p.status === 'active' || p.is_inside === true) {
