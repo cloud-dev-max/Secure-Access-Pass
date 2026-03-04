@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       console.warn('[V9.15] No property_id for resident:', profile.email)
     }
 
-    // Return resident profile (client will store in localStorage)
+    // V10.8.22: Return resident profile including property_id (client will store in localStorage)
     return NextResponse.json({
       id: profile.id,
       name: profile.name,
@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       phone: profile.phone,
       qr_code: profile.qr_code,
       current_location: profile.current_location,
+      property_id: profile.property_id, // V10.8.22: CRITICAL - Include property_id for API calls
       property_name: propertyName // V9.15 Fix #1: From property_name column only
     }, { status: 200 })
   } catch (error) {

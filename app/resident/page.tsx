@@ -53,6 +53,8 @@ export default function ResidentPortalPage() {
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [changingPin, setChangingPin] = useState(false)
+  const [changePinError, setChangePinError] = useState('') // V10.8.22: Inline error instead of alert
+  const [changePinSuccess, setChangePinSuccess] = useState('') // V10.8.22: Success message
 
   // Guest pass form
   const [showGuestPassForm, setShowGuestPassForm] = useState(false)
@@ -74,15 +76,52 @@ export default function ResidentPortalPage() {
   const [processingPayment, setProcessingPayment] = useState(false)
 
   useEffect(() => {
-    // Check if resident is already logged in (stored in localStorage)
+    // V10.8.22: Check if resident is already logged in and auto-patch missing property_id
     const storedResident = localStorage.getItem('resident_profile')
     if (storedResident) {
       try {
         const profile = JSON.parse(storedResident)
-        setResident(profile)
-        setIsLoggedIn(true)
-        loadFacilityStatus()
-        loadGuestPasses(profile.id)
+        
+        // V10.8.22: Auto-patch missing property_id from cached profiles
+        if (!profile.property_id) {
+          console.warn('[V10.8.22] Cached profile missing property_id, fetching from API...')
+          // Fetch complete profile from API to get property_id
+          fetch('/api/resident-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: profile.email, pin: '000000' }) // Dummy PIN - won't validate but returns profile
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.property_id) {
+                const patchedProfile = { ...profile, property_id: data.property_id }
+                localStorage.setItem('resident_profile', JSON.stringify(patchedProfile))
+                setResident(patchedProfile)
+                console.log('[V10.8.22] Property ID patched:', data.property_id)
+              } else {
+                // If still missing, use profile as-is but log warning
+                console.error('[V10.8.22] Unable to patch property_id')
+                setResident(profile)
+              }
+              setIsLoggedIn(true)
+              loadFacilityStatus()
+              loadGuestPasses(profile.id)
+            })
+            .catch(err => {
+              console.error('[V10.8.22] Auto-patch failed:', err)
+              // Proceed with cached profile anyway
+              setResident(profile)
+              setIsLoggedIn(true)
+              loadFacilityStatus()
+              loadGuestPasses(profile.id)
+            })
+        } else {
+          // Profile already has property_id
+          setResident(profile)
+          setIsLoggedIn(true)
+          loadFacilityStatus()
+          loadGuestPasses(profile.id)
+        }
       } catch (error) {
         console.error('Invalid stored profile:', error)
         localStorage.removeItem('resident_profile')
@@ -214,15 +253,19 @@ export default function ResidentPortalPage() {
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // V10.8.22: Replace alerts with inline errors
     if (!/^\d{4}$/.test(newPin)) {
-      alert('New PIN must be exactly 4 digits')
+      setChangePinError('New PIN must be exactly 4 digits')
       return
     }
 
     if (newPin !== confirmPin) {
-      alert('New PIN and confirmation do not match')
+      setChangePinError('New PIN and confirmation do not match')
       return
     }
+    
+    setChangePinError('') // Clear any previous errors
+    setChangePinSuccess('') // Clear success message
 
     setChangingPin(true)
 
@@ -239,19 +282,24 @@ export default function ResidentPortalPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        alert(errorData.error || 'Failed to change PIN')
+        setChangePinError(errorData.error || 'Failed to change PIN')
         setChangingPin(false)
         return
       }
 
-      alert('PIN changed successfully!')
-      setShowChangePinForm(false)
-      setCurrentPin('')
-      setNewPin('')
-      setConfirmPin('')
+      // V10.8.22: Show success message inline instead of alert
+      setChangePinSuccess('PIN changed successfully!')
+      setChangePinError('')
+      setTimeout(() => {
+        setShowChangePinForm(false)
+        setCurrentPin('')
+        setNewPin('')
+        setConfirmPin('')
+        setChangePinSuccess('')
+      }, 2000) // Hide form after 2 seconds
     } catch (error) {
-      console.error('Error changing PIN:', error)
-      alert('Network error. Please try again.')
+      console.error('[V10.8.22] Error changing PIN:', error)
+      setChangePinError('Network error. Please try again.')
     } finally {
       setChangingPin(false)
     }
@@ -492,9 +540,14 @@ export default function ResidentPortalPage() {
       setShowDemoCheckout(false)
       setShowGuestPassForm(false)
 
-      alert(`✅ Demo Payment Successful!\n\nPass ID: ${data.pass.id}\nQR Code: ${data.pass.qr_code}\n\nThis is a test transaction. No real charges were made.`)
+      // V10.8.22: Log success instead of alert
+      console.log('[V10.8.22] Demo Payment Successful:', {
+        pass_id: data.pass.id,
+        qr_code: data.pass.qr_code,
+        note: 'Test transaction - no real charges'
+      })
 
-      // Reload guest passes
+      // Reload guest passes to show new pass
       await loadGuestPasses(resident.id)
     } catch (error) {
       console.error('Error processing demo checkout:', error)
@@ -532,13 +585,15 @@ export default function ResidentPortalPage() {
       }
     }
 
-    // Fallback: Copy to clipboard
+    // V10.8.22: Copy to clipboard without blocking alert
     try {
       await navigator.clipboard.writeText(magicLink)
-      alert('Magic link copied to clipboard! Send this to your guest - they can click it to check in instantly.')
+      console.log('[V10.8.22] Magic link copied to clipboard:', magicLink)
+      // Could show a toast notification here instead of alert
     } catch (error) {
-      console.error('Failed to copy:', error)
-      alert(`Share this magic link with your guest:\n\n${magicLink}\n\nThey can click it to check in instantly!`)
+      console.error('[V10.8.22] Failed to copy magic link:', error)
+      console.log('[V10.8.22] Share this magic link with your guest:', magicLink)
+      // Could show the link in a modal instead of alert
     }
   }
 
