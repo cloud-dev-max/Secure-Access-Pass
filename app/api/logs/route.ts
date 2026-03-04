@@ -40,82 +40,121 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') // V9.1: range start
     const endDate = searchParams.get('endDate') // V9.1: range end
     
-    console.log('[V10.8.12] Fetching logs for property:', propertyId)
+    console.log('[V10.8.28] Foolproof logs query for property:', propertyId)
 
-    // V8.3 Fix #3 + V9.1 Fix #3: Build query with optional date filters
-    let countQuery = adminClient
+    // V10.8.28: Foolproof approach - fetch access_logs and guest_passes separately, merge in JS
+    
+    // Step 1: Fetch access_logs
+    let accessLogsQuery = adminClient
       .from('access_logs')
-      .select('*', { count: 'exact', head: true })
+      .select('*, profile:user_id(id, name, unit)')
       .eq('property_id', propertyId)
     
-    // V9.1 Fix #3: Apply date range filters
+    // Apply date range filters
     if (dateFilter) {
-      // Legacy: single day filter (00:00:00 to 23:59:59)
       const startOfDay = `${dateFilter}T00:00:00.000Z`
       const endOfDay = `${dateFilter}T23:59:59.999Z`
-      countQuery = countQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
+      accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
     } else {
-      // V9.1: date range filter
       if (startDate) {
         const startOfDay = `${startDate}T00:00:00.000Z`
-        countQuery = countQuery.gte('scanned_at', startOfDay)
+        accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay)
       }
       if (endDate) {
         const endOfDay = `${endDate}T23:59:59.999Z`
-        countQuery = countQuery.lte('scanned_at', endOfDay)
-      }
-    }
-
-    const { count } = await countQuery
-
-    // V8.2 Fix #2: Get paginated logs with correct column names (name, unit)
-    let logsQuery = adminClient
-      .from('access_logs')
-      .select(`
-        *,
-        profile:user_id(
-          id,
-          name,
-          unit
-        )
-      `)
-      .eq('property_id', propertyId)
-    
-    // V9.1 Fix #3: Apply date filters
-    if (dateFilter) {
-      // Legacy: single day filter
-      const startOfDay = `${dateFilter}T00:00:00.000Z`
-      const endOfDay = `${dateFilter}T23:59:59.999Z`
-      logsQuery = logsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
-    } else {
-      // V9.1: date range filter
-      if (startDate) {
-        const startOfDay = `${startDate}T00:00:00.000Z`
-        logsQuery = logsQuery.gte('scanned_at', startOfDay)
-      }
-      if (endDate) {
-        const endOfDay = `${endDate}T23:59:59.999Z`
-        logsQuery = logsQuery.lte('scanned_at', endOfDay)
+        accessLogsQuery = accessLogsQuery.lte('scanned_at', endOfDay)
       }
     }
     
-    const { data: logs, error } = await logsQuery
+    const { data: accessLogs, error: accessError } = await accessLogsQuery
       .order('scanned_at', { ascending: false })
-      .range(offset, offset + limit - 1)
 
-    if (error) {
-      console.error('Error fetching logs:', error)
+    if (accessError) {
+      console.error('[V10.8.28] Error fetching access_logs:', accessError)
       return NextResponse.json(
-        { error: 'Failed to fetch logs', details: error.message },
+        { error: 'Failed to fetch access logs', details: accessError.message },
         { status: 500 }
       )
     }
 
-    const totalPages = Math.ceil((count || 0) / limit)
+    // Step 2: Fetch recent guest_passes as virtual purchase logs
+    let purchaseLogsQuery = adminClient
+      .from('guest_passes')
+      .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
+      .eq('property_id', propertyId)
+    
+    // Apply date range filters
+    if (dateFilter) {
+      const startOfDay = `${dateFilter}T00:00:00.000Z`
+      const endOfDay = `${dateFilter}T23:59:59.999Z`
+      purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay).lte('created_at', endOfDay)
+    } else {
+      if (startDate) {
+        const startOfDay = `${startDate}T00:00:00.000Z`
+        purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay)
+      }
+      if (endDate) {
+        const endOfDay = `${endDate}T23:59:59.999Z`
+        purchaseLogsQuery = purchaseLogsQuery.lte('created_at', endOfDay)
+      }
+    }
+    
+    const { data: guestPasses, error: passesError } = await purchaseLogsQuery
+      .order('created_at', { ascending: false })
+
+    if (passesError) {
+      console.error('[V10.8.28] Error fetching guest_passes:', passesError)
+      // Continue without purchase logs if this fails
+    }
+
+    // Step 3: Fetch profiles for purchased_by mapping
+    const residentIds = [...new Set((guestPasses || []).map(p => p.purchased_by).filter(Boolean))]
+    const { data: profiles } = await adminClient
+      .from('profiles')
+      .select('id, name, unit')
+      .in('id', residentIds.length > 0 ? residentIds : ['00000000-0000-0000-0000-000000000000'])
+
+    const profileMap = new Map()
+    ;(profiles || []).forEach(profile => {
+      profileMap.set(profile.id, profile)
+    })
+
+    // Step 4: Map guest_passes to log-like objects
+    const virtualPurchaseLogs = (guestPasses || []).map(pass => {
+      const profile = pass.purchased_by ? profileMap.get(pass.purchased_by) : null
+      const amount = pass.amount_paid || pass.price_paid || 0
+      return {
+        id: `purchase_${pass.id}`,
+        property_id: propertyId,
+        user_id: pass.purchased_by,
+        qr_code: pass.qr_code,
+        scan_type: 'PURCHASE',
+        result: 'SUCCESS',
+        denial_reason: `Pass Purchased - $${amount.toFixed(2)}`,
+        guest_count: pass.guest_count || 0,
+        scanned_at: pass.created_at,
+        profile: profile ? { id: profile.id, name: profile.name, unit: profile.unit } : null,
+        _isPurchase: true // Flag for UI
+      }
+    })
+
+    // Step 5: Merge and sort by timestamp
+    const allLogs = [...(accessLogs || []), ...virtualPurchaseLogs].sort((a, b) => {
+      const timeA = new Date(a.scanned_at).getTime()
+      const timeB = new Date(b.scanned_at).getTime()
+      return timeB - timeA // Descending
+    })
+
+    // Step 6: Apply pagination
+    const total = allLogs.length
+    const paginatedLogs = allLogs.slice(offset, offset + limit)
+    const totalPages = Math.ceil(total / limit)
+
+    console.log(`[V10.8.28] Merged ${accessLogs?.length || 0} access logs + ${virtualPurchaseLogs.length} purchase logs = ${total} total`)
 
     return NextResponse.json({
-      logs: logs || [],
-      total: count || 0,
+      logs: paginatedLogs,
+      total,
       page,
       limit,
       totalPages

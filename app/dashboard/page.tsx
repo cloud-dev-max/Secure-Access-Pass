@@ -1933,7 +1933,7 @@ function DashboardPageContent() {
                 </div>
               </button>
 
-              {/* V10.8.27: Dual-Metric Visitor Pass Card */}
+              {/* V10.8.28: Reverted to Today's Revenue on Overview tab */}
               {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => {
@@ -1943,27 +1943,28 @@ function DashboardPageContent() {
               >
                 <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-green-100 p-3 rounded-lg">
-                    <QrCode className="w-6 h-6 text-green-600" />
+                    <DollarSign className="w-6 h-6 text-green-600" />
                   </div>
                   {revenueLoading ? (
                     <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-                  ) : (
+                  ) : revenueData?.todayRevenue !== undefined && revenueData.todayRevenue > 0 ? (
                     <span className="text-3xl font-bold text-green-600">
-                      {revenueData?.checkedInCount || 0}
+                      ${revenueData.todayRevenue.toFixed(0)}
                     </span>
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-400">$0</span>
                   )}
                 </div>
                 <div className="flex-grow">
                   <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                    Visitor Passes
+                    Today's Revenue
                   </h3>
                   <p className="text-sm text-navy-600">
                     {revenueLoading
                       ? "Loading..."
-                      : "Currently checked in"}
-                  </p>
-                  <p className="text-sm text-teal-600 font-medium mt-1">
-                    {revenueData?.unusedCount || 0} unused passes available
+                      : revenueData?.todayPasses !== undefined && revenueData.todayPasses > 0
+                        ? `${revenueData.todayPasses} passes sold`
+                        : "No sales yet"}
                   </p>
                   <p className="text-xs text-green-600 font-semibold mt-2">
                     View full analytics →
@@ -2955,19 +2956,19 @@ function DashboardPageContent() {
                     </p>
                   </div>
 
-                  {/* 4. Active Passes */}
+                  {/* 4. Visitor Passes - V10.8.28: Moved from Overview, dual metrics */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
-                      <Users className="w-6 h-6 text-green-600" />
+                      <QrCode className="w-6 h-6 text-green-600" />
                       <span className="text-2xl font-bold text-green-600">
-                        {revenueData.summary.activePasses}
+                        {revenueData.summary.checkedInCount || 0}
                       </span>
                     </div>
                     <h3 className="text-sm font-semibold text-navy-900">
-                      Active Passes
+                      Visitor Passes
                     </h3>
                     <p className="text-xs text-navy-600">
-                      Currently valid passes
+                      {revenueData.summary.unusedCount || 0} unused passes
                     </p>
                   </div>
                 </div>

@@ -64,9 +64,9 @@ export async function GET(request: NextRequest) {
         
         const totalGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
         
-        // V9.1 Fix #1: Count visitor passes currently inside
+        // V10.8.28: Count guest passes currently inside (correct table name)
         const { count: visitorsInside } = await adminClient
-          .from('visitor_passes')
+          .from('guest_passes')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
           .eq('is_inside', true)
@@ -81,9 +81,9 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V10.8.27: Get all visitor passes with actual amounts paid (fix lazy math)
+        // V10.8.28: Get all guest passes with actual amounts paid (fix lazy math + correct table)
         const { data: allPasses, error: revenueError } = await adminClient
-          .from('visitor_passes')
+          .from('guest_passes')
           .select('id, created_at, amount_paid, price_paid')
           .eq('property_id', property.id)
 
