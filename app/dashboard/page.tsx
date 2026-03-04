@@ -2992,7 +2992,7 @@ function DashboardPageContent() {
                       <QrCode className="w-6 h-6 text-green-600" />
                       <div className="text-right">
                         <span className="text-2xl font-bold text-green-600 block">
-                          {revenueData.summary.checkedInCount || 0}
+                          {revenueData?.checkedInCount || 0}
                         </span>
                         <span className="text-xs text-green-600 font-semibold">
                           Currently Checked-In
@@ -3003,7 +3003,7 @@ function DashboardPageContent() {
                       Visitor Passes
                     </h3>
                     <p className="text-xs text-navy-600">
-                      {revenueData.summary.unusedCount || 0} unused passes available
+                      {revenueData?.unusedCount || 0} unused passes available
                     </p>
                   </div>
                 </div>
@@ -3162,7 +3162,7 @@ function DashboardPageContent() {
                         ${getFilteredRevenue().revenue.toFixed(2)}
                       </h2>
                       <p className="text-teal-200 text-sm">
-                        {getFilteredRevenue().passes} passes sold • ${revenueData.summary.guestPassPrice.toFixed(2)} per pass
+                        {getFilteredRevenue().passes} passes sold
                       </p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">

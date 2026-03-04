@@ -50,15 +50,14 @@ export async function GET(request: NextRequest) {
       .select('*, profile:user_id(id, name, unit)')
       .eq('property_id', propertyId)
     
-    // V10.8.35: Parse dateFilter locally to avoid UTC timezone shift
+    // V10.8.37: Fix timezone shift with EST offset
     if (dateFilter) {
-      const [y, m, d] = dateFilter.split('-')
-      const startOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 0, 0, 0).toISOString()
-      const endOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 23, 59, 59, 999).toISOString()
+      const startOfDay = new Date(`${dateFilter}T00:00:00-05:00`).toISOString()
+      const endOfDay = new Date(`${dateFilter}T23:59:59.999-05:00`).toISOString()
       accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
     } else {
-      if (startDate) accessLogsQuery = accessLogsQuery.gte('scanned_at', new Date(startDate).toISOString())
-      if (endDate) accessLogsQuery = accessLogsQuery.lte('scanned_at', new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString())
+      if (startDate) accessLogsQuery = accessLogsQuery.gte('scanned_at', new Date(`${startDate}T00:00:00-05:00`).toISOString())
+      if (endDate) accessLogsQuery = accessLogsQuery.lte('scanned_at', new Date(`${endDate}T23:59:59.999-05:00`).toISOString())
     }
     
     const { data: accessLogs, error: accessError } = await accessLogsQuery
@@ -78,15 +77,14 @@ export async function GET(request: NextRequest) {
       .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
       .eq('property_id', propertyId)
     
-    // V10.8.35: Parse dateFilter locally to avoid UTC timezone shift
+    // V10.8.37: Fix timezone shift with EST offset
     if (dateFilter) {
-      const [y, m, d] = dateFilter.split('-')
-      const startOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 0, 0, 0).toISOString()
-      const endOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 23, 59, 59, 999).toISOString()
+      const startOfDay = new Date(`${dateFilter}T00:00:00-05:00`).toISOString()
+      const endOfDay = new Date(`${dateFilter}T23:59:59.999-05:00`).toISOString()
       purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay).lte('created_at', endOfDay)
     } else {
-      if (startDate) purchaseLogsQuery = purchaseLogsQuery.gte('created_at', new Date(startDate).toISOString())
-      if (endDate) purchaseLogsQuery = purchaseLogsQuery.lte('created_at', new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString())
+      if (startDate) purchaseLogsQuery = purchaseLogsQuery.gte('created_at', new Date(`${startDate}T00:00:00-05:00`).toISOString())
+      if (endDate) purchaseLogsQuery = purchaseLogsQuery.lte('created_at', new Date(`${endDate}T23:59:59.999-05:00`).toISOString())
     }
     
     const { data: guestPasses, error: passesError } = await purchaseLogsQuery

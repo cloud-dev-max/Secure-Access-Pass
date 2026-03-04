@@ -92,12 +92,9 @@ export async function GET(request: NextRequest) {
     // V10.8.24: Group by date for daily revenue (using actual amounts paid)
     const revenueByDate: { [key: string]: { count: number; revenue: number } } = {}
     passes.forEach(pass => {
-      // Convert created_at to local date string
+      // V10.8.37: Use America/New_York timezone for date bucketing
       const passDate = new Date(pass.created_at)
-      const year = passDate.getFullYear()
-      const month = String(passDate.getMonth() + 1).padStart(2, '0')
-      const day = String(passDate.getDate()).padStart(2, '0')
-      const date = `${year}-${month}-${day}`
+      const date = passDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
       
       if (!revenueByDate[date]) {
         revenueByDate[date] = { count: 0, revenue: 0 }
