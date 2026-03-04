@@ -1187,7 +1187,7 @@ function DashboardPageContent() {
     
     setRevenueLoading(true);
     try {
-      // V10.8.29: MAJOR REFACTOR - Generate local timezone boundaries on frontend
+      // V10.8.32: Generate local timezone boundaries on frontend using new Date()
       const now = new Date();
       
       // Today boundaries (00:00:00 to 23:59:59 in local timezone)
@@ -1209,7 +1209,7 @@ function DashboardPageContent() {
         `&thisMonthStart=${thisMonthStart.toISOString()}` +
         `&thisMonthEnd=${thisMonthEnd.toISOString()}`;
       
-      console.log('[V10.8.29] Local timezone boundaries:', {
+      console.log('[V10.8.32] Local timezone boundaries:', {
         todayStart: todayStart.toISOString(),
         todayEnd: todayEnd.toISOString(),
         last7DaysStart: last7DaysStart.toISOString(),
@@ -2986,7 +2986,7 @@ function DashboardPageContent() {
                     </p>
                   </div>
 
-                  {/* 4. Visitor Passes - V10.8.30: Added context labels for clarity */}
+                  {/* 4. Visitor Passes - V10.8.32: Context labels verified */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
                       <QrCode className="w-6 h-6 text-green-600" />

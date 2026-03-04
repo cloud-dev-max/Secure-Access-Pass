@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') // V9.1: range start
     const endDate = searchParams.get('endDate') // V9.1: range end
     
-    console.log('[V10.8.30] Admin client with JS merge for complete activity logs:', propertyId)
+    console.log('[V10.8.32] Admin client with proper Date parsing for activity logs:', propertyId)
 
-    // V10.8.30: Admin client bypasses RLS, fetch access_logs and guest_passes separately, merge in JS
+    // V10.8.32: Admin client bypasses RLS, fetch access_logs and guest_passes separately, merge in JS
     
     // Step 1: Fetch access_logs
     let accessLogsQuery = adminClient
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       .select('*, profile:user_id(id, name, unit)')
       .eq('property_id', propertyId)
     
-    // Apply date range filters - V10.8.31: Fix date bomb with proper Date parsing
+    // V10.8.32: Use new Date().toISOString() for all date filters
     if (dateFilter) {
       const startOfDay = new Date(dateFilter).toISOString()
       const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       .order('scanned_at', { ascending: false })
 
     if (accessError) {
-      console.error('[V10.8.30] Error fetching access_logs:', accessError)
+      console.error('[V10.8.32] Error fetching access_logs:', accessError)
       return NextResponse.json(
         { error: accessError.message || accessError.toString(), details: JSON.stringify(accessError) },
         { status: 500 }
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
       .eq('property_id', propertyId)
     
-    // Apply date range filters - V10.8.31: Fix date bomb with proper Date parsing
+    // V10.8.32: Use new Date().toISOString() for all date filters
     if (dateFilter) {
       const startOfDay = new Date(dateFilter).toISOString()
       const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (passesError) {
-      console.error('[V10.8.30] Error fetching guest_passes:', passesError)
+      console.error('[V10.8.32] Error fetching guest_passes:', passesError)
       // Continue without purchase logs if this fails
     }
 
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     const paginatedLogs = allLogs.slice(offset, offset + limit)
     const totalPages = Math.ceil(total / limit)
 
-    console.log(`[V10.8.30] Merged ${accessLogs?.length || 0} access logs + ${virtualPurchaseLogs.length} purchase logs = ${total} total`)
+    console.log(`[V10.8.32] Merged ${accessLogs?.length || 0} access logs + ${virtualPurchaseLogs.length} purchase logs = ${total} total`)
 
     return NextResponse.json({
       logs: paginatedLogs,
@@ -149,8 +149,8 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('[V10.8.30] Error in GET /api/logs:', error)
-    // V10.8.30: Return exact error for debugging
+    console.error('[V10.8.32] Error in GET /api/logs:', error)
+    // V10.8.32: Return exact error for debugging
     return NextResponse.json(
       { error: error instanceof Error ? error.message : (error?.toString() || 'Internal server error'), details: JSON.stringify(error) },
       { status: 500 }

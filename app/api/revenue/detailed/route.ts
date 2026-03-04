@@ -30,31 +30,31 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    console.log('[V10.8.30] Admin client with foolproof JS merge:', {
+    console.log('[V10.8.32] Admin client with proper Date parsing:', {
       propertyId,
       startDate,
       endDate
     })
 
-    // V10.8.30: Admin client bypasses RLS, foolproof two-step JS merge
+    // V10.8.32: Admin client bypasses RLS, use new Date().toISOString() for dates
     let passesQuery = adminClient
       .from('guest_passes')
-      .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by')
+      .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by, resident_id')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
 
-    // Apply date filters if provided
+    // V10.8.32: Crucial - Use new Date().toISOString() to format dates for Supabase
     if (startDate) {
-      passesQuery = passesQuery.gte('created_at', `${startDate}T00:00:00`)
+      passesQuery = passesQuery.gte('created_at', new Date(startDate).toISOString())
     }
     if (endDate) {
-      passesQuery = passesQuery.lte('created_at', `${endDate}T23:59:59`)
+      passesQuery = passesQuery.lte('created_at', new Date(endDate).toISOString())
     }
 
     const { data: passes, error: passesError } = await passesQuery
 
     if (passesError) {
-      console.error('[V10.8.28] Error fetching guest passes:', {
+      console.error('[V10.8.32] Error fetching guest passes:', {
         message: passesError.message,
         details: passesError.details,
         hint: passesError.hint,
@@ -70,27 +70,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // V10.8.28: Fetch all resident profiles for the property
-    const residentIds = [...new Set((passes || []).map(p => p.purchased_by).filter(Boolean))]
+    // V10.8.32: Fetch profiles - collect both purchased_by and resident_id
+    const residentIds = [...new Set((passes || []).map(p => p.purchased_by || p.resident_id).filter(Boolean))]
     const { data: profiles, error: profilesError } = await adminClient
       .from('profiles')
       .select('id, name, unit')
       .in('id', residentIds.length > 0 ? residentIds : ['00000000-0000-0000-0000-000000000000'])
 
     if (profilesError) {
-      console.error('[V10.8.28] Error fetching profiles:', profilesError)
+      console.error('[V10.8.32] Error fetching profiles:', profilesError)
       // Continue with unknown residents if profiles fail
     }
 
-    // V10.8.28: Create a map for quick profile lookup
+    // V10.8.32: Create a map for quick profile lookup
     const profileMap = new Map()
     ;(profiles || []).forEach(profile => {
       profileMap.set(profile.id, profile)
     })
 
-    // V10.8.28: Merge in JavaScript - foolproof approach
+    // V10.8.32: Match Logic - Use purchased_by first, fallback to resident_id
     const transactions = (passes || []).map(pass => {
-      const profile = pass.purchased_by ? profileMap.get(pass.purchased_by) : null
+      const residentId = pass.purchased_by || pass.resident_id
+      const profile = residentId ? profileMap.get(residentId) : null
       return {
         id: pass.id,
         created_at: pass.created_at,
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log(`[V10.8.28] Foolproof export returning ${transactions.length} transactions`)
+    console.log(`[V10.8.32] Export with proper date parsing: ${transactions.length} transactions`)
 
     return NextResponse.json({
       success: true,
