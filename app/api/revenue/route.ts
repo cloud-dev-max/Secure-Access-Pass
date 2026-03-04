@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     // V10.8.29: Get all guest passes for this property (corrected table name from V10.8.27)
     const { data: guestPasses, error } = await adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('id, created_at, status, expires_at, purchased_by, is_inside, price_paid, amount_paid')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })

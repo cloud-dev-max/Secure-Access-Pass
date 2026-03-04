@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') // V9.1: range start
     const endDate = searchParams.get('endDate') // V9.1: range end
     
-    console.log('[V10.8.32] Admin client with proper Date parsing for activity logs:', propertyId)
+    console.log('[V10.8.34] Admin client with visitor_passes table for activity logs:', propertyId)
 
     // V10.8.32: Admin client bypasses RLS, fetch access_logs and guest_passes separately, merge in JS
     
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
     // Step 2: Fetch recent guest_passes as virtual purchase logs
     let purchaseLogsQuery = adminClient
-      .from('guest_passes')
+      .from('visitor_passes')
       .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
       .eq('property_id', propertyId)
     

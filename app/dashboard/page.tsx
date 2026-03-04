@@ -3280,7 +3280,7 @@ function DashboardPageContent() {
                         $0.00
                       </h2>
                       <p className="text-teal-200 text-sm">
-                        0 passes sold • $5.00 per pass
+                        0 passes sold
                       </p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">

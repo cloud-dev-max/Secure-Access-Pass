@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         
         // V10.8.28: Count guest passes currently inside (correct table name)
         const { count: visitorsInside } = await adminClient
-          .from('guest_passes')
+          .from('visitor_passes')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
           .eq('is_inside', true)
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
 
         // V10.8.28: Get all guest passes with actual amounts paid (fix lazy math + correct table)
         const { data: allPasses, error: revenueError } = await adminClient
-          .from('guest_passes')
+          .from('visitor_passes')
           .select('id, created_at, amount_paid, price_paid')
           .eq('property_id', property.id)
 

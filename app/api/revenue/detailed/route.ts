@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    console.log('[V10.8.32] Admin client with proper Date parsing:', {
+    console.log('[V10.8.34] Admin client with visitor_passes table:', {
       propertyId,
       startDate,
       endDate
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
 
     // V10.8.32: Admin client bypasses RLS, use new Date().toISOString() for dates
     let passesQuery = adminClient
-      .from('guest_passes')
-      .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by, resident_id')
+      .from('visitor_passes')
+      .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
 
@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // V10.8.32: Fetch profiles - collect both purchased_by and resident_id
-    const residentIds = [...new Set((passes || []).map(p => p.purchased_by || p.resident_id).filter(Boolean))]
+    // V10.8.34: Fetch profiles - use purchased_by only
+    const residentIds = [...new Set((passes || []).map(p => p.purchased_by).filter(Boolean))]
     const { data: profiles, error: profilesError } = await adminClient
       .from('profiles')
       .select('id, name, unit')
@@ -88,9 +88,9 @@ export async function GET(request: NextRequest) {
       profileMap.set(profile.id, profile)
     })
 
-    // V10.8.32: Match Logic - Use purchased_by first, fallback to resident_id
+    // V10.8.34: Match Logic - Use purchased_by only
     const transactions = (passes || []).map(pass => {
-      const residentId = pass.purchased_by || pass.resident_id
+      const residentId = pass.purchased_by
       const profile = residentId ? profileMap.get(residentId) : null
       return {
         id: pass.id,
