@@ -186,11 +186,20 @@ export async function GET(request: NextRequest) {
     }).length
     const expiredPasses = passes.filter(p => p.status === 'expired' || (p.expires_at && new Date(p.expires_at) <= now)).length
 
+    // V10.8.27: Dual-metric visitor pass counts
+    // Checked-in count: passes currently inside (status='used' AND is_inside=true)
+    const checkedInCount = passes.filter(p => p.status === 'used' && p.is_inside === true).length
+    // Unused count: passes that are active but not yet scanned
+    const unusedCount = passes.filter(p => p.status === 'active' && !p.is_inside).length
+
     return NextResponse.json({
       success: true,
       // V8.5 Fix #3: Add top-level today values for Dashboard card
       todayRevenue,
       todayPasses,
+      // V10.8.27: Add dual-metric visitor pass counts
+      checkedInCount,
+      unusedCount,
       summary: {
         totalRevenue,
         totalPasses,

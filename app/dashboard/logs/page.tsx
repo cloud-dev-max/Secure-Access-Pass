@@ -117,7 +117,9 @@ export default function LogsPage() {
         const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
         const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
         const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
-        const isSystemEvent = isStatusChange || isSystemBroadcast
+        // V10.8.27: Handle purchase events in CSV export
+        const isPurchase = log.scan_type === 'PURCHASE'
+        const isSystemEvent = isStatusChange || isSystemBroadcast || isPurchase
         
         // V9.3 Fix #1: System events should show 'System' as name, not 'Unknown'
         let name = log.user?.name || log.profile?.name || 'Unknown'
@@ -148,6 +150,11 @@ export default function LogsPage() {
           action = 'System Broadcast'
           // denial_reason contains the broadcast message
           result = log.denial_reason || `Broadcast to ${log.guest_count || 0} recipients`
+        }
+        // V10.8.27: Handle purchase events in CSV
+        if (isPurchase) {
+          action = 'Pass Purchased'
+          result = log.denial_reason || 'SUCCESS'
         }
         
         // V9.3 Fix #1 + V9.4 Fix #2: System events - use 0 for Guests, N/A for Total People
@@ -211,12 +218,17 @@ export default function LogsPage() {
   const getLogIcon = (log: Log) => {
     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
+    // V10.8.27: Handle purchase events
+    const isPurchase = log.scan_type === 'PURCHASE'
     
     if (isStatusChange) {
       return <Shield className="w-5 h-5 text-indigo-600" />
     }
     if (isSystemBroadcast) {
       return <MessageSquare className="w-5 h-5 text-orange-600" />
+    }
+    if (isPurchase) {
+      return <DollarSign className="w-5 h-5 text-green-600" />
     }
     if (log.scan_type === 'ENTRY') {
       return <LogIn className="w-5 h-5 text-green-600" />
@@ -227,12 +239,17 @@ export default function LogsPage() {
   const getLogStyles = (log: Log) => {
     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
+    // V10.8.27: Handle purchase events
+    const isPurchase = log.scan_type === 'PURCHASE'
     
     if (isStatusChange) {
       return 'bg-indigo-50 border-indigo-200'
     }
     if (isSystemBroadcast) {
       return 'bg-orange-50 border-orange-200'
+    }
+    if (isPurchase) {
+      return 'bg-green-50 border-green-200'
     }
     if (log.result === 'DENIED') {
       return 'bg-red-50 border-red-200'
@@ -248,12 +265,17 @@ export default function LogsPage() {
     const isVisitorPass = log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')
     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
+    // V10.8.27: Handle purchase events
+    const isPurchase = log.scan_type === 'PURCHASE'
     
     if (isStatusChange) {
       return <span className="font-semibold text-indigo-900">Pool Status Change</span>
     }
     if (isSystemBroadcast) {
       return <span className="font-semibold text-orange-900">System Broadcast</span>
+    }
+    if (isPurchase) {
+      return <span className="font-semibold text-green-900">Pass Purchased</span>
     }
     if (isVisitorPass && log.profile) {
       return (

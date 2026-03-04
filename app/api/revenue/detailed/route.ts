@@ -30,27 +30,16 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    console.log('[V10.8.25] Detailed revenue query:', {
+    console.log('[V10.8.27] Detailed revenue query:', {
       propertyId,
       startDate,
       endDate
     })
 
-    // Build query for visitor passes with resident details
+    // V10.8.27: Build query for guest_passes with resident details (simplified join)
     let query = adminClient
-      .from('visitor_passes')
-      .select(`
-        id,
-        created_at,
-        guest_count,
-        price_paid,
-        amount_paid,
-        purchased_by,
-        profiles!visitor_passes_purchased_by_fkey (
-          name,
-          unit
-        )
-      `)
+      .from('guest_passes')
+      .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by, profiles (name, unit)')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
 
@@ -65,9 +54,19 @@ export async function GET(request: NextRequest) {
     const { data: passes, error } = await query
 
     if (error) {
-      console.error('[V10.8.25] Error fetching detailed revenue:', error)
+      // V10.8.27: Surface exact Supabase error details
+      console.error('[V10.8.27] Error fetching detailed revenue:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       return NextResponse.json(
-        { error: 'Failed to fetch detailed revenue data' },
+        { 
+          error: 'Failed to fetch detailed revenue data',
+          details: error.message,
+          hint: error.hint
+        },
         { status: 500 }
       )
     }

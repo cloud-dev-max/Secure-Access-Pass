@@ -1933,7 +1933,7 @@ function DashboardPageContent() {
                 </div>
               </button>
 
-              {/* V7.2: Mini Revenue Widget - Fixed Loading Bug */}
+              {/* V10.8.27: Dual-Metric Visitor Pass Card */}
               {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => {
@@ -1943,28 +1943,27 @@ function DashboardPageContent() {
               >
                 <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-green-100 p-3 rounded-lg">
-                    <DollarSign className="w-6 h-6 text-green-600" />
+                    <QrCode className="w-6 h-6 text-green-600" />
                   </div>
                   {revenueLoading ? (
                     <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-                  ) : revenueData?.todayRevenue !== undefined && revenueData.todayRevenue > 0 ? (
-                    <span className="text-3xl font-bold text-green-600">
-                      ${revenueData.todayRevenue.toFixed(0)}
-                    </span>
                   ) : (
-                    <span className="text-3xl font-bold text-gray-400">$0</span>
+                    <span className="text-3xl font-bold text-green-600">
+                      {revenueData?.checkedInCount || 0}
+                    </span>
                   )}
                 </div>
                 <div className="flex-grow">
                   <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                    Today's Revenue
+                    Visitor Passes
                   </h3>
                   <p className="text-sm text-navy-600">
                     {revenueLoading
                       ? "Loading..."
-                      : revenueData?.todayPasses !== undefined && revenueData.todayPasses > 0
-                        ? `${revenueData.todayPasses} passes sold`
-                        : "No sales yet"}
+                      : "Currently checked in"}
+                  </p>
+                  <p className="text-sm text-teal-600 font-medium mt-1">
+                    {revenueData?.unusedCount || 0} unused passes available
                   </p>
                   <p className="text-xs text-green-600 font-semibold mt-2">
                     View full analytics →

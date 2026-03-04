@@ -81,34 +81,29 @@ export async function GET(request: NextRequest) {
           .eq('role', 'resident')
           .eq('is_active', true)
 
-        // V9.5 Fix #1: Copy EXACT working logic from /api/revenue (lines 19-75)
-        // NO price column - multiply pass count by property's guest_pass_price setting
-        
-        // Get all visitor passes for this property (just IDs and created_at)
+        // V10.8.27: Get all visitor passes with actual amounts paid (fix lazy math)
         const { data: allPasses, error: revenueError } = await adminClient
           .from('visitor_passes')
-          .select('id, created_at')
+          .select('id, created_at, amount_paid, price_paid')
           .eq('property_id', property.id)
 
-        // Calculate today's revenue using local date string matching (EXACT logic from /api/revenue)
+        // V10.8.27: Calculate today's revenue by summing actual amounts paid
         let todaysRevenue = 0
         if (allPasses && allPasses.length > 0) {
           const passPrice = property.guest_pass_price || 5.00
           const today = new Date()
           const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
           
-          // Count passes created today
-          let todayPassCount = 0
+          // Sum actual amounts paid for passes created today
           allPasses.forEach(pass => {
             const passDate = new Date(pass.created_at)
             const passDateStr = `${passDate.getFullYear()}-${String(passDate.getMonth() + 1).padStart(2, '0')}-${String(passDate.getDate()).padStart(2, '0')}`
             if (passDateStr === todayStr) {
-              todayPassCount++
+              // V10.8.27: Use actual amount paid instead of multiplying by current price
+              const actualAmount = pass.amount_paid || pass.price_paid || passPrice
+              todaysRevenue += actualAmount
             }
           })
-          
-          // Revenue = pass count × price (EXACT logic from revenue API)
-          todaysRevenue = todayPassCount * passPrice
         }
 
         return {
