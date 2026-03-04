@@ -59,6 +59,10 @@ export default function ResidentPortalPage() {
   const [changingPin, setChangingPin] = useState(false)
   const [changePinError, setChangePinError] = useState('') // V10.8.22: Inline error instead of alert
   const [changePinSuccess, setChangePinSuccess] = useState('') // V10.8.22: Success message
+  // V10.8.25: Change PIN visibility toggles
+  const [showCurrentPin, setShowCurrentPin] = useState(false)
+  const [showNewPin, setShowNewPin] = useState(false)
+  const [showConfirmPin, setShowConfirmPin] = useState(false)
 
   // Guest pass form
   const [showGuestPassForm, setShowGuestPassForm] = useState(false)

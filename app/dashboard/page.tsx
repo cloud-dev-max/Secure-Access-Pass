@@ -1834,11 +1834,12 @@ function DashboardPageContent() {
             {/* V8.10 Fix #3: Updated grid to fit all 4 cards in one row on desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* V7.1: Total Residents - Clickable */}
+              {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => setActiveTab("residents")}
-                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-blue-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-blue-500 hover:shadow-xl transition-all text-left w-full cursor-pointer flex flex-col h-full"
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-blue-100 p-3 rounded-lg">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
@@ -1846,23 +1847,26 @@ function DashboardPageContent() {
                     {stats.totalResidents}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                  Total Residents
-                </h3>
-                <p className="text-sm text-navy-600">
-                  Active residents in the system
-                </p>
-                <p className="text-xs text-blue-600 font-semibold mt-2">
-                  View all residents →
-                </p>
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold text-navy-900 mb-2">
+                    Total Residents
+                  </h3>
+                  <p className="text-sm text-navy-600">
+                    Active residents in the system
+                  </p>
+                  <p className="text-xs text-blue-600 font-semibold mt-2">
+                    View all residents →
+                  </p>
+                </div>
               </button>
 
               {/* V7.1: Current Occupancy - Goes to Occupancy tab */}
+              {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => setActiveTab("occupancy")}
-                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-teal-500 hover:shadow-xl transition-all text-left w-full cursor-pointer flex flex-col h-full"
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-teal-100 p-3 rounded-lg">
                     <Activity className="w-6 h-6 text-teal-600" />
                   </div>
@@ -1870,42 +1874,45 @@ function DashboardPageContent() {
                     {stats.currentOccupancy}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                  Current Occupancy
-                </h3>
-                {stats.occupancyBreakdown && (
-                  <div className="text-sm text-navy-600 space-y-1 mb-2">
-                    <div>
-                      Residents:{" "}
-                      <span className="font-semibold">
-                        {stats.occupancyBreakdown.residents}
-                      </span>
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold text-navy-900 mb-2">
+                    Current Occupancy
+                  </h3>
+                  {stats.occupancyBreakdown && (
+                    <div className="text-sm text-navy-600 space-y-1 mb-2">
+                      <div>
+                        Residents:{" "}
+                        <span className="font-semibold">
+                          {stats.occupancyBreakdown.residents}
+                        </span>
+                      </div>
+                      <div>
+                        Accompanying Guests:{" "}
+                        <span className="font-semibold">
+                          {stats.occupancyBreakdown.accompanying_guests}
+                        </span>
+                      </div>
+                      <div>
+                        Visitor Passes:{" "}
+                        <span className="font-semibold">
+                          {stats.occupancyBreakdown.visitor_passes}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      Accompanying Guests:{" "}
-                      <span className="font-semibold">
-                        {stats.occupancyBreakdown.accompanying_guests}
-                      </span>
-                    </div>
-                    <div>
-                      Visitor Passes:{" "}
-                      <span className="font-semibold">
-                        {stats.occupancyBreakdown.visitor_passes}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-teal-600 font-semibold mt-2">
-                  View detailed occupancy →
-                </p>
+                  )}
+                  <p className="text-xs text-teal-600 font-semibold mt-2">
+                    View detailed occupancy →
+                  </p>
+                </div>
               </button>
 
               {/* V7.1: Active Rules - Clickable */}
+              {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => setActiveTab("rules")}
-                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-purple-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-purple-500 hover:shadow-xl transition-all text-left w-full cursor-pointer flex flex-col h-full"
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-purple-100 p-3 rounded-lg">
                     <Shield className="w-6 h-6 text-purple-600" />
                   </div>
@@ -1913,25 +1920,28 @@ function DashboardPageContent() {
                     {stats.activeRules}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                  Active Rules
-                </h3>
-                <p className="text-sm text-navy-600">
-                  Access control rules in effect
-                </p>
-                <p className="text-xs text-purple-600 font-semibold mt-2">
-                  Manage rules →
-                </p>
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold text-navy-900 mb-2">
+                    Active Rules
+                  </h3>
+                  <p className="text-sm text-navy-600">
+                    Access control rules in effect
+                  </p>
+                  <p className="text-xs text-purple-600 font-semibold mt-2">
+                    Manage rules →
+                  </p>
+                </div>
               </button>
 
               {/* V7.2: Mini Revenue Widget - Fixed Loading Bug */}
+              {/* V10.8.26: Refactored with flex-col and justify-start for perfect top alignment */}
               <button
                 onClick={() => {
                   setActiveTab("revenue");
                 }}
-                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-500 hover:shadow-xl transition-all text-left w-full cursor-pointer"
+                className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-500 hover:shadow-xl transition-all text-left w-full cursor-pointer flex flex-col h-full"
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between w-full mb-4">
                   <div className="bg-green-100 p-3 rounded-lg">
                     <DollarSign className="w-6 h-6 text-green-600" />
                   </div>
@@ -1945,19 +1955,21 @@ function DashboardPageContent() {
                     <span className="text-3xl font-bold text-gray-400">$0</span>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-2">
-                  Today's Revenue
-                </h3>
-                <p className="text-sm text-navy-600">
-                  {revenueLoading
-                    ? "Loading..."
-                    : revenueData?.todayPasses !== undefined && revenueData.todayPasses > 0
-                      ? `${revenueData.todayPasses} passes sold`
-                      : "No sales yet"}
-                </p>
-                <p className="text-xs text-green-600 font-semibold mt-2">
-                  View full analytics →
-                </p>
+                <div className="flex-grow">
+                  <h3 className="text-lg font-semibold text-navy-900 mb-2">
+                    Today's Revenue
+                  </h3>
+                  <p className="text-sm text-navy-600">
+                    {revenueLoading
+                      ? "Loading..."
+                      : revenueData?.todayPasses !== undefined && revenueData.todayPasses > 0
+                        ? `${revenueData.todayPasses} passes sold`
+                        : "No sales yet"}
+                  </p>
+                  <p className="text-xs text-green-600 font-semibold mt-2">
+                    View full analytics →
+                  </p>
+                </div>
               </button>
             </div>
 
