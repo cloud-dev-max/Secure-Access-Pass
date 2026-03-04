@@ -93,36 +93,15 @@ export async function GET(request: NextRequest) {
     
     console.log(`[V7.3] Total Occupancy: ${occupancy} = Residents: ${residentsCount} + Guests: ${accompanyingGuests} + Visitors: ${visitorPassesCount}`)
 
-    // V10.8.21: Timezone-independent time comparison using minutes since midnight
-    const now = new Date()
-    
-    // Get current local time in minutes since midnight
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    
-    // Parse database time strings (HH:MM:SS) into minutes since midnight
-    const parseTimeToMinutes = (timeStr: string): number => {
-      const [hours, minutes] = timeStr.split(':').map(Number)
-      return hours * 60 + minutes
-    }
-    
-    const startMinutes = parseTimeToMinutes(property.operating_hours_start)
-    const endMinutes = parseTimeToMinutes(property.operating_hours_end)
-    
-    // Check if current time falls within operating hours
-    const isWithinHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes
-    const isOpen = !property.is_maintenance_mode && isWithinHours
-    
-    console.log('[V10.8.21] Open/closed check:', {
-      currentMinutes,
-      startMinutes,
-      endMinutes,
-      isWithinHours,
-      is_maintenance_mode: property.is_maintenance_mode,
-      isOpen
+    // V10.8.24: isOpen calculation moved to frontend to avoid server UTC timezone issues
+    // Backend now only provides raw data; client calculates isOpen using local browser time
+    console.log('[V10.8.24] Facility status for property:', propertyId, {
+      operating_hours: `${property.operating_hours_start} - ${property.operating_hours_end}`,
+      is_maintenance_mode: property.is_maintenance_mode
     })
 
     const status: FacilityStatus = {
-      is_open: isOpen,
+      is_open: false, // V10.8.24: Placeholder - frontend will override with local calculation
       current_occupancy: occupancy || 0,
       max_capacity: property.max_capacity,
       operating_hours: {

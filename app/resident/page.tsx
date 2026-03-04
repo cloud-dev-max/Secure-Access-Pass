@@ -193,6 +193,39 @@ export default function ResidentPortalPage() {
       console.error('[V10.8.23] Error loading facility status:', error)
     }
   }
+  
+  // V10.8.24: Calculate isOpen locally using browser time (avoids server UTC issues)
+  useEffect(() => {
+    if (!facilityStatus?.operating_hours) return
+    
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    
+    // Parse time strings (HH:MM:SS) into minutes since midnight
+    const parseTimeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number)
+      return hours * 60 + minutes
+    }
+    
+    const startMinutes = parseTimeToMinutes(facilityStatus.operating_hours.start)
+    const endMinutes = parseTimeToMinutes(facilityStatus.operating_hours.end)
+    
+    // Calculate if currently within operating hours
+    const isWithinHours = currentMinutes >= startMinutes && currentMinutes <= endMinutes
+    const calculatedIsOpen = !facilityStatus.is_maintenance_mode && isWithinHours
+    
+    // Override backend's is_open with local calculation
+    setFacilityStatus(prev => prev ? { ...prev, is_open: calculatedIsOpen } : null)
+    
+    console.log('[V10.8.24] Local isOpen calculation:', {
+      currentMinutes,
+      startMinutes,
+      endMinutes,
+      isWithinHours,
+      is_maintenance_mode: facilityStatus.is_maintenance_mode,
+      calculatedIsOpen
+    })
+  }, [facilityStatus?.operating_hours, facilityStatus?.is_maintenance_mode])
 
   // V5: Helper to convert 24hr to 12hr format
   const formatTime12Hour = (time24: string) => {
@@ -266,9 +299,9 @@ export default function ResidentPortalPage() {
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // V10.8.22: Replace alerts with inline errors
-    if (!/^\d{4}$/.test(newPin)) {
-      setChangePinError('New PIN must be exactly 4 digits')
+    // V10.8.24: Updated to 6 digits to match login system
+    if (!/^\d{6}$/.test(newPin)) {
+      setChangePinError('New PIN must be exactly 6 digits')
       return
     }
 
@@ -994,7 +1027,7 @@ export default function ResidentPortalPage() {
                       placeholder="2026"
                       value={cardExpYear}
                       onChange={(e) => setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      maxLength={4}
+                      maxLength={6}
                       required
                       className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder-gray-500"
                     />
@@ -1008,7 +1041,7 @@ export default function ResidentPortalPage() {
                       placeholder="123"
                       value={cardCvc}
                       onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      maxLength={4}
+                      maxLength={6}
                       required
                       className="w-full px-4 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder-gray-500"
                     />
@@ -1185,14 +1218,14 @@ export default function ResidentPortalPage() {
                   onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="****"
                   required
-                  maxLength={4}
+                  maxLength={6}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-navy-700 mb-2">
-                  New PIN (4 digits)
+                  New PIN (6 digits)
                 </label>
                 <input
                   type="password"
@@ -1200,7 +1233,7 @@ export default function ResidentPortalPage() {
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="****"
                   required
-                  maxLength={4}
+                  maxLength={6}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
@@ -1215,7 +1248,7 @@ export default function ResidentPortalPage() {
                   onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="****"
                   required
-                  maxLength={4}
+                  maxLength={6}
                   className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
                 />
               </div>

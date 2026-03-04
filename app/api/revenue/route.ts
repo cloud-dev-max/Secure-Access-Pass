@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
     const guestPassPrice = settings?.guest_pass_price || 5.00
 
     // V10.8.19: Get all visitor passes for this specific property
+    // V10.8.24: Include price_paid and amount_paid for accurate revenue calculation
     const { data: guestPasses, error } = await adminClient
       .from('visitor_passes')
-      .select('id, created_at, status, expires_at, purchased_by, is_inside')
+      .select('id, created_at, status, expires_at, purchased_by, is_inside, price_paid, amount_paid')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
 
@@ -52,9 +53,13 @@ export async function GET(request: NextRequest) {
 
     const passes = guestPasses || []
 
-    // Calculate total revenue
+    // V10.8.24: Calculate total revenue by summing actual amounts paid
+    // Use amount_paid if available, fallback to price_paid, then guestPassPrice
     const totalPasses = passes.length
-    const totalRevenue = totalPasses * guestPassPrice
+    const totalRevenue = passes.reduce((sum, pass) => {
+      const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
+      return sum + actualAmount
+    }, 0)
 
     // V8.5 Fix #3: Use LOCAL timezone consistently for all date operations
     const today = new Date()
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
     const todayStr = getTodayDateString()
 
-    // Group by date for daily revenue (using local timezone)
+    // V10.8.24: Group by date for daily revenue (using actual amounts paid)
     const revenueByDate: { [key: string]: { count: number; revenue: number } } = {}
     passes.forEach(pass => {
       // Convert created_at to local date string
@@ -80,7 +85,9 @@ export async function GET(request: NextRequest) {
         revenueByDate[date] = { count: 0, revenue: 0 }
       }
       revenueByDate[date].count++
-      revenueByDate[date].revenue += guestPassPrice
+      // V10.8.24: Use actual amount paid instead of current price
+      const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
+      revenueByDate[date].revenue += actualAmount
     })
 
     // V8.5 Fix #3: Calculate TODAY's revenue and passes explicitly
@@ -154,13 +161,16 @@ export async function GET(request: NextRequest) {
     const currentMonth = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     const currentMonthData = monthlyRevenue[monthlyRevenue.length - 1]
 
-    // Last 7 days stats
+    // V10.8.24: Last 7 days stats (sum actual amounts)
     const last7Days = passes.filter(pass => {
       const passDate = new Date(pass.created_at)
       const daysAgo = (today.getTime() - passDate.getTime()) / (1000 * 60 * 60 * 24)
       return daysAgo <= 7
     })
-    const last7DaysRevenue = last7Days.length * guestPassPrice
+    const last7DaysRevenue = last7Days.reduce((sum, pass) => {
+      const actualAmount = pass.amount_paid || pass.price_paid || guestPassPrice
+      return sum + actualAmount
+    }, 0)
 
     // V8.9 Fix #2: Active passes - count where status='active' OR is_inside=true (handles null expires_at)
     const now = new Date()
