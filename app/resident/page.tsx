@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import type { FacilityStatus, GuestPass } from '@/lib/types/database'
@@ -46,6 +48,8 @@ export default function ResidentPortalPage() {
   const [pin, setPin] = useState<string[]>(['', '', '', '', '', '']) // 6-digit array
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
+  // V10.8.25: PIN visibility toggle
+  const [showPinLogin, setShowPinLogin] = useState(false)
 
   // V4: Change PIN form
   const [showChangePinForm, setShowChangePinForm] = useState(false)
@@ -724,7 +728,7 @@ export default function ResidentPortalPage() {
                   <input
                     key={index}
                     id={`pin-${index}`}
-                    type="text"
+                    type={showPinLogin ? "text" : "password"}
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
@@ -735,7 +739,26 @@ export default function ResidentPortalPage() {
                   />
                 ))}
               </div>
-              <p className="text-sm text-navy-500 mt-3 text-center">
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPinLogin(!showPinLogin)}
+                  className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                >
+                  {showPinLogin ? (
+                    <>
+                      <EyeOff className="w-4 h-4" />
+                      Hide PIN
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      Show PIN
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-sm text-navy-500 mt-2 text-center">
                 Your manager provided this PIN when you registered
               </p>
             </div>
@@ -1212,45 +1235,72 @@ export default function ResidentPortalPage() {
                 <label className="block text-sm font-semibold text-navy-700 mb-2">
                   Current PIN
                 </label>
-                <input
-                  type="password"
-                  value={currentPin}
-                  onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="****"
-                  required
-                  maxLength={6}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showCurrentPin ? "text" : "password"}
+                    value={currentPin}
+                    onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="* * * * * *"
+                    required
+                    maxLength={6}
+                    className="w-full px-4 py-3 pr-12 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPin(!showCurrentPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600"
+                  >
+                    {showCurrentPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-navy-700 mb-2">
                   New PIN (6 digits)
                 </label>
-                <input
-                  type="password"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="****"
-                  required
-                  maxLength={6}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPin ? "text" : "password"}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="* * * * * *"
+                    required
+                    maxLength={6}
+                    className="w-full px-4 py-3 pr-12 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPin(!showNewPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600"
+                  >
+                    {showNewPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-navy-700 mb-2">
                   Confirm New PIN
                 </label>
-                <input
-                  type="password"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="****"
-                  required
-                  maxLength={6}
-                  className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPin ? "text" : "password"}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="* * * * * *"
+                    required
+                    maxLength={6}
+                    className="w-full px-4 py-3 pr-12 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder-gray-500 text-center text-2xl font-mono tracking-widest"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPin(!showConfirmPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600"
+                  >
+                    {showConfirmPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-2">

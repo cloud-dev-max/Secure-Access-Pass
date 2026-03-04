@@ -180,6 +180,9 @@ function DashboardPageContent() {
   const [revenueLoading, setRevenueLoading] = useState(false);
   // V8.11 Feature #4: Revenue date filter
   const [revenueFilter, setRevenueFilter] = useState<'all' | 'year' | 'month' | 'week'>('all');
+  // V10.8.25: Detailed revenue export modal
+  const [showRevenueExportModal, setShowRevenueExportModal] = useState(false);
+  const [exportingRevenue, setExportingRevenue] = useState(false);
 
   // V10.8.1: Initialize property from localStorage on mount
   // V10.8.2: Handle missing property gracefully - don't get stuck in infinite loading
@@ -1281,6 +1284,81 @@ function DashboardPageContent() {
     URL.revokeObjectURL(url);
   };
 
+  // V10.8.25: Export detailed revenue with date range filter
+  const exportDetailedRevenueCSV = async () => {
+    if (!propertyId) {
+      alert('Please select a property');
+      return;
+    }
+
+    setExportingRevenue(true);
+    try {
+      // Build URL with date filters
+      let url = `/api/revenue/detailed?property_id=${propertyId}`;
+      if (exportStartDate) url += `&start_date=${exportStartDate}`;
+      if (exportEndDate) url += `&end_date=${exportEndDate}`;
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch detailed revenue');
+
+      const data = await response.json();
+      const transactions = data.transactions || [];
+
+      // CSV headers
+      const headers = ['Date/Time', 'Resident Name', 'Unit', 'Passes Bought', 'Amount Paid'];
+      
+      // CSV rows
+      const rows = transactions.map((txn: any) => [
+        new Date(txn.created_at).toLocaleString(),
+        txn.resident_name || 'Unknown',
+        txn.unit || 'N/A',
+        txn.guest_count || 1,
+        `$${(txn.amount_paid || txn.price_paid || 0).toFixed(2)}`
+      ]);
+
+      // Calculate totals
+      const totalPasses = transactions.reduce((sum: number, txn: any) => sum + (txn.guest_count || 1), 0);
+      const totalRevenue = transactions.reduce((sum: number, txn: any) => sum + (txn.amount_paid || txn.price_paid || 0), 0);
+
+      // Add summary rows
+      rows.push(['', '', '', '', '']);
+      rows.push(['TOTALS', '', '', totalPasses.toString(), `$${totalRevenue.toFixed(2)}`]);
+
+      const dateRangeLabel = exportStartDate || exportEndDate
+        ? `${exportStartDate || 'Beginning'} to ${exportEndDate || 'Today'}`
+        : 'All Time';
+
+      const csvContent = [
+        `Detailed Revenue Report - ${dateRangeLabel}`,
+        `Property: ${allProperties.find(p => p.id === propertyId)?.name || 'N/A'}`,
+        `Generated: ${new Date().toLocaleString()}`,
+        `Total Transactions: ${transactions.length}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url2 = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url2;
+      a.download = `detailed-revenue-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url2);
+
+      // Close modal and reset
+      setShowRevenueExportModal(false);
+      setExportStartDate('');
+      setExportEndDate('');
+    } catch (error) {
+      console.error('[V10.8.25] Error exporting detailed revenue:', error);
+      alert('Failed to export detailed revenue. Please try again.');
+    } finally {
+      setExportingRevenue(false);
+    }
+  };
+
   // V8.11 Feature #4: Export activity log to CSV
   const exportActivityCSV = async () => {
     try {
@@ -1768,7 +1846,7 @@ function DashboardPageContent() {
                     {stats.totalResidents}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-1">
+                <h3 className="text-lg font-semibold text-navy-900 mb-2">
                   Total Residents
                 </h3>
                 <p className="text-sm text-navy-600">
@@ -1835,7 +1913,7 @@ function DashboardPageContent() {
                     {stats.activeRules}
                   </span>
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-1">
+                <h3 className="text-lg font-semibold text-navy-900 mb-2">
                   Active Rules
                 </h3>
                 <p className="text-sm text-navy-600">
@@ -1867,7 +1945,7 @@ function DashboardPageContent() {
                     <span className="text-3xl font-bold text-gray-400">$0</span>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-navy-900 mb-1">
+                <h3 className="text-lg font-semibold text-navy-900 mb-2">
                   Today's Revenue
                 </h3>
                 <p className="text-sm text-navy-600">
@@ -3017,11 +3095,11 @@ function DashboardPageContent() {
                         <option value="week" className="bg-navy-900">Last 7 Days</option>
                       </select>
                       <button
-                        onClick={exportRevenueCSV}
+                        onClick={() => setShowRevenueExportModal(true)}
                         className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm"
                       >
                         <Download className="w-4 h-4" />
-                        Export CSV
+                        Export Detailed CSV
                       </button>
                     </div>
                   </div>
@@ -3890,6 +3968,79 @@ function DashboardPageContent() {
                 }
               }
             `}</style>
+          </div>
+        </div>
+      )}
+
+      {/* V10.8.25: Detailed Revenue Export Modal */}
+      {showRevenueExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-navy-900">Export Detailed Revenue</h3>
+              <button
+                onClick={() => setShowRevenueExportModal(false)}
+                className="text-navy-400 hover:text-navy-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-navy-900 mb-2">
+                  Start Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-navy-900 mb-2">
+                  End Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-navy-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <p className="text-sm text-navy-600 bg-blue-50 p-3 rounded-lg">
+                Leave dates blank to export all transactions. CSV will include: Date/Time, Resident Name, Unit, Passes Bought, Amount Paid.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRevenueExportModal(false)}
+                className="flex-1 px-6 py-3 border border-navy-300 text-navy-700 rounded-lg font-semibold hover:bg-navy-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={exportDetailedRevenueCSV}
+                disabled={exportingRevenue}
+                className="flex-1 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exportingRevenue ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
