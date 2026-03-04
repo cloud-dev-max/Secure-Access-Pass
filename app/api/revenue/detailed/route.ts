@@ -30,13 +30,13 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    console.log('[V10.8.28] Foolproof detailed revenue query:', {
+    console.log('[V10.8.30] Admin client with foolproof JS merge:', {
       propertyId,
       startDate,
       endDate
     })
 
-    // V10.8.28: Foolproof two-step approach - fetch guest_passes separately to avoid FK join errors
+    // V10.8.30: Admin client bypasses RLS, foolproof two-step JS merge
     let passesQuery = adminClient
       .from('guest_passes')
       .select('id, created_at, guest_count, price_paid, amount_paid, purchased_by')
@@ -111,11 +111,12 @@ export async function GET(request: NextRequest) {
     }, { status: 200 })
 
   } catch (error) {
-    console.error('[V10.8.25] Unexpected error in detailed revenue:', error)
+    console.error('[V10.8.30] Unexpected error in detailed revenue:', error)
+    // V10.8.30: Return exact error for debugging
     return NextResponse.json(
       { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : (error?.toString() || 'Internal server error'),
+        details: error instanceof Error ? error.stack : JSON.stringify(error)
       },
       { status: 500 }
     )

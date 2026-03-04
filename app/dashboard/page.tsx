@@ -2986,19 +2986,24 @@ function DashboardPageContent() {
                     </p>
                   </div>
 
-                  {/* 4. Visitor Passes - V10.8.28: Moved from Overview, dual metrics */}
+                  {/* 4. Visitor Passes - V10.8.30: Added context labels for clarity */}
                   <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200 hover:border-green-400 transition-colors">
                     <div className="flex items-center justify-between mb-2">
                       <QrCode className="w-6 h-6 text-green-600" />
-                      <span className="text-2xl font-bold text-green-600">
-                        {revenueData.summary.checkedInCount || 0}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-green-600 block">
+                          {revenueData.summary.checkedInCount || 0}
+                        </span>
+                        <span className="text-xs text-green-600 font-semibold">
+                          Currently Checked-In
+                        </span>
+                      </div>
                     </div>
                     <h3 className="text-sm font-semibold text-navy-900">
                       Visitor Passes
                     </h3>
                     <p className="text-xs text-navy-600">
-                      {revenueData.summary.unusedCount || 0} unused passes
+                      {revenueData.summary.unusedCount || 0} unused passes available
                     </p>
                   </div>
                 </div>
