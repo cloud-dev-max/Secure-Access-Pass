@@ -119,9 +119,12 @@ export async function GET(request: NextRequest) {
     }, 0)
     const todayPasses = todayPassesFiltered.length
 
+    // V10.8.35: Fix - Add const now for date calculations
+    const now = new Date()
+    
     // Get last 30 days of data (using local timezone)
     const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = new Date(today)
+      const date = new Date(now)
       date.setDate(date.getDate() - (29 - i))
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -138,9 +141,9 @@ export async function GET(request: NextRequest) {
     // Weekly aggregation (last 12 weeks)
     const weeklyRevenue: { week: string; count: number; revenue: number }[] = []
     for (let i = 11; i >= 0; i--) {
-      const weekStart = new Date(today)
+      const weekStart = new Date(now)
       weekStart.setDate(weekStart.getDate() - (i * 7 + 6))
-      const weekEnd = new Date(today)
+      const weekEnd = new Date(now)
       weekEnd.setDate(weekEnd.getDate() - (i * 7))
       
       const weekLabel = `${weekStart.getMonth() + 1}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`
@@ -164,7 +167,7 @@ export async function GET(request: NextRequest) {
     // Monthly aggregation (last 12 months)
     const monthlyRevenue: { month: string; count: number; revenue: number }[] = []
     for (let i = 11; i >= 0; i--) {
-      const month = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const monthLabel = month.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
       
       let monthCount = 0

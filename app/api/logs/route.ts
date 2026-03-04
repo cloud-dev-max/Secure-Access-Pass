@@ -50,10 +50,11 @@ export async function GET(request: NextRequest) {
       .select('*, profile:user_id(id, name, unit)')
       .eq('property_id', propertyId)
     
-    // V10.8.32: Use new Date().toISOString() for all date filters
+    // V10.8.35: Parse dateFilter locally to avoid UTC timezone shift
     if (dateFilter) {
-      const startOfDay = new Date(dateFilter).toISOString()
-      const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
+      const [y, m, d] = dateFilter.split('-')
+      const startOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 0, 0, 0).toISOString()
+      const endOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 23, 59, 59, 999).toISOString()
       accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay).lte('scanned_at', endOfDay)
     } else {
       if (startDate) accessLogsQuery = accessLogsQuery.gte('scanned_at', new Date(startDate).toISOString())
@@ -77,10 +78,11 @@ export async function GET(request: NextRequest) {
       .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
       .eq('property_id', propertyId)
     
-    // V10.8.32: Use new Date().toISOString() for all date filters
+    // V10.8.35: Parse dateFilter locally to avoid UTC timezone shift
     if (dateFilter) {
-      const startOfDay = new Date(dateFilter).toISOString()
-      const endOfDay = new Date(new Date(dateFilter).setHours(23, 59, 59, 999)).toISOString()
+      const [y, m, d] = dateFilter.split('-')
+      const startOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 0, 0, 0).toISOString()
+      const endOfDay = new Date(parseInt(y), parseInt(m)-1, parseInt(d), 23, 59, 59, 999).toISOString()
       purchaseLogsQuery = purchaseLogsQuery.gte('created_at', startOfDay).lte('created_at', endOfDay)
     } else {
       if (startDate) purchaseLogsQuery = purchaseLogsQuery.gte('created_at', new Date(startDate).toISOString())

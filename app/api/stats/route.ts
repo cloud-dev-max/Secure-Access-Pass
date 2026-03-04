@@ -144,6 +144,36 @@ export async function GET(request: NextRequest) {
           } : null, // null for system events (broadcasts, status changes)
         }))
       }
+
+      // V10.8.35: Fetch recent purchases from visitor_passes
+      const { data: purchases, error: purchasesError } = await adminClient
+        .from('visitor_passes')
+        .select('id, purchased_by, amount_paid, price_paid, created_at')
+        .eq('property_id', propertyId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (!purchasesError && purchases) {
+        const purchaseLogs = purchases.map(pass => ({
+          id: `purchase_${pass.id}`,
+          user_id: pass.purchased_by,
+          property_id: propertyId,
+          qr_code: `PURCHASE_${pass.id}`,
+          scan_type: 'PURCHASE',
+          result: 'SUCCESS',
+          denial_reason: `Pass Purchased - $${pass.amount_paid || pass.price_paid || 0}`,
+          guest_count: 0,
+          location_before: null,
+          location_after: null,
+          scanned_at: pass.created_at,
+          user: null
+        }))
+
+        // Merge and sort by scanned_at descending
+        recentActivity = [...recentActivity, ...purchaseLogs]
+          .sort((a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime())
+          .slice(0, 10)
+      }
     } catch (error) {
       console.error('Exception fetching recent activity:', error)
       // If access_logs table doesn't exist, gracefully return empty array
