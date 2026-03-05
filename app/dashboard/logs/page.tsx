@@ -119,9 +119,9 @@ export default function LogsPage() {
         const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
         // V10.8.27: Handle purchase events in CSV export
         const isPurchase = log.scan_type === 'PURCHASE'
-        const isSystemEvent = isStatusChange || isSystemBroadcast || isPurchase
+        const isSystemEvent = isStatusChange || isSystemBroadcast
         
-        // V9.3 Fix #1: System events should show 'System' as name, not 'Unknown'
+        // V10.8.42: Purchases should show resident name, not 'System'
         let name = log.user?.name || log.profile?.name || 'Unknown'
         if (isSystemEvent) {
           name = 'System'
@@ -129,8 +129,11 @@ export default function LogsPage() {
         
         const unit = log.user?.unit || log.profile?.unit || 'N/A'
         
+        // V10.8.42: Purchases should show as 'Purchase', not 'System Event'
         let type = 'Resident'
-        if (isSystemEvent) {
+        if (isPurchase) {
+          type = 'Purchase'
+        } else if (isSystemEvent) {
           type = 'System Event'
         } else if (isVisitorPass) {
           type = 'Visitor Pass'

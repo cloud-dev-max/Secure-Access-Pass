@@ -35,30 +35,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') // YYYY-MM-DD
     const endDate = searchParams.get('endDate') // YYYY-MM-DD
 
-    // Build count query with date filters
-    let countQuery = adminClient
-      .from('access_logs')
-      .select('id', { count: 'exact', head: true })
-    
-    // V10.8.19: Only filter by property_id if provided (for global export support)
-    if (propertyId) {
-      countQuery = countQuery.eq('property_id', propertyId)
-    }
-    
-    // V10.8.41: Apply EDT offset to date range filters
-    if (startDate) {
-      const startOfDay = new Date(`${startDate}T00:00:00-04:00`).toISOString()
-      countQuery = countQuery.gte('scanned_at', startOfDay)
-    }
-    if (endDate) {
-      const endOfDay = new Date(`${endDate}T23:59:59.999-04:00`).toISOString()
-      countQuery = countQuery.lte('scanned_at', endOfDay)
-    }
-
-    const { count: totalCount } = await countQuery
-
-    // Build logs query with date filters
-    let logsQuery = adminClient
+    // V10.8.42: Step 1 - Fetch access_logs
+    let accessLogsQuery = adminClient
       .from('access_logs')
       .select(`
         *,
@@ -66,39 +44,104 @@ export async function GET(request: NextRequest) {
         property:property_id(id, name, property_name)
       `)
     
-    // V10.8.19: Only filter by property_id if provided (for global export support)
     if (propertyId) {
-      logsQuery = logsQuery.eq('property_id', propertyId)
+      accessLogsQuery = accessLogsQuery.eq('property_id', propertyId)
     }
     
-    // V10.8.41: Apply EDT offset to date range filters
     if (startDate) {
       const startOfDay = new Date(`${startDate}T00:00:00-04:00`).toISOString()
-      logsQuery = logsQuery.gte('scanned_at', startOfDay)
+      accessLogsQuery = accessLogsQuery.gte('scanned_at', startOfDay)
     }
     if (endDate) {
       const endOfDay = new Date(`${endDate}T23:59:59.999-04:00`).toISOString()
-      logsQuery = logsQuery.lte('scanned_at', endOfDay)
+      accessLogsQuery = accessLogsQuery.lte('scanned_at', endOfDay)
     }
 
-    const { data: logs, error } = await logsQuery
+    const { data: accessLogs, error: accessError } = await accessLogsQuery
       .order('scanned_at', { ascending: false })
-      .range(offset, offset + limit - 1)
 
-    if (error) {
-      console.error('Error fetching activity logs:', error)
-      throw error
+    if (accessError) {
+      console.error('Error fetching access logs:', accessError)
+      throw accessError
     }
 
-    const totalPages = Math.ceil((totalCount || 0) / limit)
+    // V10.8.42: Step 2 - Fetch visitor_passes (purchases)
+    let purchaseLogsQuery = adminClient
+      .from('visitor_passes')
+      .select('id, created_at, guest_count, amount_paid, price_paid, purchased_by, qr_code')
+    
+    if (propertyId) {
+      purchaseLogsQuery = purchaseLogsQuery.eq('property_id', propertyId)
+    }
+    
+    if (startDate) {
+      purchaseLogsQuery = purchaseLogsQuery.gte('created_at', new Date(`${startDate}T00:00:00-04:00`).toISOString())
+    }
+    if (endDate) {
+      purchaseLogsQuery = purchaseLogsQuery.lte('created_at', new Date(`${endDate}T23:59:59.999-04:00`).toISOString())
+    }
+
+    const { data: guestPasses, error: passesError } = await purchaseLogsQuery
+      .order('created_at', { ascending: false })
+
+    if (passesError) {
+      console.error('Error fetching visitor_passes:', passesError)
+      // Continue without purchase logs if this fails
+    }
+
+    // V10.8.42: Step 3 - Fetch profiles for purchased_by mapping
+    const residentIds = [...new Set((guestPasses || []).map(p => p.purchased_by).filter(Boolean))]
+    const { data: profiles } = await adminClient
+      .from('profiles')
+      .select('id, name, unit')
+      .in('id', residentIds.length > 0 ? residentIds : ['00000000-0000-0000-0000-000000000000'])
+
+    const profileMap = new Map()
+    ;(profiles || []).forEach(profile => {
+      profileMap.set(profile.id, profile)
+    })
+
+    // V10.8.42: Step 4 - Map guest_passes to log-like objects
+    const virtualPurchaseLogs = (guestPasses || []).map(pass => {
+      const profile = pass.purchased_by ? profileMap.get(pass.purchased_by) : null
+      const amount = pass.amount_paid || pass.price_paid || 0
+      return {
+        id: `purchase_${pass.id}`,
+        property_id: propertyId,
+        user_id: pass.purchased_by,
+        qr_code: pass.qr_code,
+        scan_type: 'PURCHASE',
+        result: 'SUCCESS',
+        denial_reason: `Pass Purchased - $${amount.toFixed(2)}`,
+        guest_count: pass.guest_count || 0,
+        scanned_at: pass.created_at,
+        profile: profile ? { id: profile.id, name: profile.name, unit: profile.unit } : null,
+        user: profile ? { id: profile.id, name: profile.name, unit: profile.unit } : null,
+        _isPurchase: true
+      }
+    })
+
+    // V10.8.42: Step 5 - Merge and sort by timestamp
+    const allLogs = [...(accessLogs || []), ...virtualPurchaseLogs].sort((a, b) => {
+      const timeA = new Date(a.scanned_at).getTime()
+      const timeB = new Date(b.scanned_at).getTime()
+      return timeB - timeA // Descending
+    })
+
+    // V10.8.42: Step 6 - Apply pagination AFTER merge
+    const totalCount = allLogs.length
+    const paginatedLogs = allLogs.slice(offset, offset + limit)
+    const totalPages = Math.ceil(totalCount / limit)
+
+    console.log(`[V10.8.42] Merged ${accessLogs?.length || 0} access logs + ${virtualPurchaseLogs.length} purchase logs = ${totalCount} total`)
 
     return NextResponse.json({
       success: true,
-      logs: logs || [],
+      logs: paginatedLogs,
       pagination: {
         page,
         limit,
-        totalCount: totalCount || 0,
+        totalCount,
         totalPages,
         hasNext: page < totalPages,
         hasPrev: page > 1
