@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
       countQuery = countQuery.eq('property_id', propertyId)
     }
     
-    // V9.1 Fix #3: Apply date range filters
+    // V10.8.41: Apply EDT offset to date range filters
     if (startDate) {
-      const startOfDay = `${startDate}T00:00:00.000Z`
+      const startOfDay = new Date(`${startDate}T00:00:00-04:00`).toISOString()
       countQuery = countQuery.gte('scanned_at', startOfDay)
     }
     if (endDate) {
-      const endOfDay = `${endDate}T23:59:59.999Z`
+      const endOfDay = new Date(`${endDate}T23:59:59.999-04:00`).toISOString()
       countQuery = countQuery.lte('scanned_at', endOfDay)
     }
 
@@ -71,13 +71,13 @@ export async function GET(request: NextRequest) {
       logsQuery = logsQuery.eq('property_id', propertyId)
     }
     
-    // V9.1 Fix #3: Apply date range filters
+    // V10.8.41: Apply EDT offset to date range filters
     if (startDate) {
-      const startOfDay = `${startDate}T00:00:00.000Z`
+      const startOfDay = new Date(`${startDate}T00:00:00-04:00`).toISOString()
       logsQuery = logsQuery.gte('scanned_at', startOfDay)
     }
     if (endDate) {
-      const endOfDay = `${endDate}T23:59:59.999Z`
+      const endOfDay = new Date(`${endDate}T23:59:59.999-04:00`).toISOString()
       logsQuery = logsQuery.lte('scanned_at', endOfDay)
     }
 

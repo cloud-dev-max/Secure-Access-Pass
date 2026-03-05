@@ -153,21 +153,34 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(10)
 
-      if (!purchasesError && purchases) {
-        const purchaseLogs = purchases.map(pass => ({
-          id: `purchase_${pass.id}`,
-          user_id: pass.purchased_by,
-          property_id: propertyId,
-          qr_code: `PURCHASE_${pass.id}`,
-          scan_type: 'PURCHASE',
-          result: 'SUCCESS',
-          denial_reason: `Pass Purchased - $${pass.amount_paid || pass.price_paid || 0}`,
-          guest_count: 0,
-          location_before: null,
-          location_after: null,
-          scanned_at: pass.created_at,
-          user: null
-        }))
+      if (!purchasesError && purchases && purchases.length > 0) {
+        // V10.8.41: Fetch resident profiles to fix 'Unknown' display
+        const residentIds = [...new Set(purchases.map(p => p.purchased_by).filter(Boolean))]
+        const { data: profiles } = await adminClient
+          .from('profiles')
+          .select('id, name, unit')
+          .in('id', residentIds.length > 0 ? residentIds : ['00000000-0000-0000-0000-000000000000'])
+        
+        const profileMap = new Map()
+        ;(profiles || []).forEach(p => profileMap.set(p.id, p))
+
+        const purchaseLogs = purchases.map(pass => {
+          const profile = pass.purchased_by ? profileMap.get(pass.purchased_by) : null
+          return {
+            id: `purchase_${pass.id}`,
+            user_id: pass.purchased_by,
+            property_id: propertyId,
+            qr_code: `PURCHASE_${pass.id}`,
+            scan_type: 'PURCHASE',
+            result: 'SUCCESS',
+            denial_reason: `Pass Purchased - $${pass.amount_paid || pass.price_paid || 0}`,
+            guest_count: 0,
+            location_before: null,
+            location_after: null,
+            scanned_at: pass.created_at,
+            user: profile ? { name: profile.name, unit: profile.unit } : null
+          }
+        })
 
         // Merge and sort by scanned_at descending
         recentActivity = [...recentActivity, ...purchaseLogs]

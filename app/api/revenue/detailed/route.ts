@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
 
     // V10.8.37: Fix timezone shift with EST offset
     if (startDate) {
-      passesQuery = passesQuery.gte('created_at', new Date(`${startDate}T00:00:00-05:00`).toISOString())
+      passesQuery = passesQuery.gte('created_at', new Date(`${startDate}T00:00:00-04:00`).toISOString())
     }
     if (endDate) {
-      passesQuery = passesQuery.lte('created_at', new Date(`${endDate}T23:59:59.999-05:00`).toISOString())
+      passesQuery = passesQuery.lte('created_at', new Date(`${endDate}T23:59:59.999-04:00`).toISOString())
     }
 
     const { data: passes, error: passesError } = await passesQuery
