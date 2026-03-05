@@ -53,22 +53,20 @@ export async function GET(request: NextRequest) {
       const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999)
       
       // V9.11 Fix #1: Presence Pairing Algorithm (Match Drill-Down Logic)
-      // Fetch logs from 24 hours prior + target day to track user presence
+      // V10.8.49: Extended lookback to 14 days (336 hours) to catch "trapped users"
+      // Prevents UI crashes from users who checked in days ago but never checked out
       const priorDayStart = new Date(startOfDay)
-      priorDayStart.setHours(priorDayStart.getHours() - 24)
+      priorDayStart.setHours(priorDayStart.getHours() - 336)
       
       // V10.8.44: CRITICAL - Only use access_logs (physical door scans)
       // Do NOT query visitor_passes table - purchases do not equal physical entries
       // Hourly occupancy MUST reflect actual check-ins (ENTRY scans) vs check-outs (EXIT scans)
-      // V10.8.45: CRITICAL BUG FIX - Exclude system events (SYSTEM_BROADCAST, STATUS_CHANGE)
-      // These were logged as ENTRY but never EXIT, polluting graph with phantom occupants
-      // V10.8.46: Fixed Supabase syntax - use chained .neq() instead of .not('in', ...)
+      // V10.8.49: CRITICAL FIX - Remove SQL filters for system events (they drop NULL qr_codes)
+      // Filter system events in JavaScript instead to preserve manual check-ins
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
         .select('user_id, qr_code, scanned_at, scan_type, guest_count, profiles (name, unit)')
         .eq('property_id', propertyId)
-        .neq('qr_code', 'SYSTEM_BROADCAST')
-        .neq('qr_code', 'STATUS_CHANGE')
         .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
         .order('scanned_at', { ascending: true })
@@ -81,10 +79,15 @@ export async function GET(request: NextRequest) {
         )
       }
     
+      // V10.8.49: Filter system events in JavaScript (SQL .neq() drops NULL qr_codes)
+      const validLogs = (allLogs || []).filter(log => 
+        log.qr_code !== 'SYSTEM_BROADCAST' && log.qr_code !== 'STATUS_CHANGE'
+      )
+
       // V9.14 Fix #1: Group logs by user with joined profile data
       const userLogs = new Map()
       
-      ;(allLogs || []).forEach(log => {
+      validLogs.forEach(log => {
         if (!log || !log.scanned_at) return
         
         const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
