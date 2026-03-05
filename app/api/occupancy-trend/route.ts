@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date') // Format: YYYY-MM-DD
     
+    // V10.8.43: Use America/New_York timezone for current date
+    const estDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    
     // Parse requested date or use today (V9.7: defensive parsing)
     let targetDate: Date
     if (dateParam && dateParam.includes('-')) {
@@ -24,19 +27,23 @@ export async function GET(request: NextRequest) {
         // Parse as local date (avoid timezone shifts)
         const [year, month, day] = dateParam.split('-').map(Number)
         if (year && month && day) {
-          targetDate = new Date(year, month - 1, day)
+          targetDate = new Date(year, month - 1, day, 12, 0, 0)
           // Validate date
           if (isNaN(targetDate.getTime())) {
-            targetDate = new Date()
+            const [y, m, d] = estDateStr.split('-')
+            targetDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0)
           }
         } else {
-          targetDate = new Date()
+          const [y, m, d] = estDateStr.split('-')
+          targetDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0)
         }
       } catch {
-        targetDate = new Date()
+        const [y, m, d] = estDateStr.split('-')
+        targetDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0)
       }
     } else {
-      targetDate = new Date()
+      const [y, m, d] = estDateStr.split('-')
+      targetDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0)
     }
     
     // V9.7 Fix #1: Wrap entire data processing in try/catch
@@ -158,7 +165,18 @@ export async function GET(request: NextRequest) {
       const maxOccupancy = Math.max(0, ...hourlyData.map(d => d.occupancy || 0))
       
       // V9.9 Fix #2: Hide future hours when viewing today
-      const now = new Date()
+      // V10.8.43: Use America/New_York timezone for current time
+      const nowEstStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const [nowY, nowM, nowD] = nowEstStr.split('-')
+      const now = new Date(parseInt(nowY), parseInt(nowM) - 1, parseInt(nowD), 12, 0, 0)
+      
+      // Get current hour in America/New_York
+      const currentHour = parseInt(new Date().toLocaleTimeString('en-US', { 
+        timeZone: 'America/New_York', 
+        hour12: false, 
+        hour: '2-digit' 
+      }))
+      
       const isToday = targetDate.getFullYear() === now.getFullYear() &&
                      targetDate.getMonth() === now.getMonth() &&
                      targetDate.getDate() === now.getDate()
@@ -166,7 +184,7 @@ export async function GET(request: NextRequest) {
       const filteredData = isToday 
         ? hourlyData.filter(d => {
             const hour = parseInt(d.hour.split(':')[0])
-            return hour <= now.getHours()
+            return hour <= currentHour
           })
         : hourlyData
       

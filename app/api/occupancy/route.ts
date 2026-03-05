@@ -47,11 +47,16 @@ export async function GET(request: NextRequest) {
     const accompanyingGuests = residentsWithGuests?.reduce((sum, r) => sum + (r.active_guests || 0), 0) || 0
 
     // V8.6 Fix #1: Count visitor passes currently INSIDE (not just used today)
+    // V10.8.43: Filter stale data - only count passes created/updated in last 14 hours
+    const fourteenHoursAgo = new Date()
+    fourteenHoursAgo.setHours(fourteenHoursAgo.getHours() - 14)
+    
     const { count: visitorPassesCount } = await adminClient
       .from('visitor_passes')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
       .eq('is_inside', true)
+      .gte('created_at', fourteenHoursAgo.toISOString())
 
     const totalOccupancy = (residentsCount || 0) + accompanyingGuests + (visitorPassesCount || 0)
 

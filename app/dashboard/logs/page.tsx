@@ -161,10 +161,11 @@ export default function LogsPage() {
         }
         
         // V9.3 Fix #1 + V9.4 Fix #2: System events - use 0 for Guests, N/A for Total People
+        // V10.8.43: Purchases are receipts, not physical entries - show N/A
         let guests: any = log.guest_count || 0
         let totalPeople: any = 1 + (log.guest_count || 0)
         
-        if (isSystemEvent) {
+        if (isSystemEvent || isPurchase) {
           guests = 0
           totalPeople = 'N/A'
         }
@@ -302,6 +303,7 @@ export default function LogsPage() {
   const getLogDetails = (log: Log) => {
     const isStatusChange = log.qr_code === 'STATUS_CHANGE' || (log.denial_reason && log.denial_reason.includes('Status changed from'))
     const isSystemBroadcast = log.qr_code === 'SYSTEM_BROADCAST' || (log.denial_reason && log.denial_reason.includes('BROADCAST'))
+    const isPurchase = log.scan_type === 'PURCHASE'
     
     if (isStatusChange || isSystemBroadcast) {
       return <div className="text-sm text-navy-700 mt-1">{log.denial_reason}</div>
@@ -309,7 +311,8 @@ export default function LogsPage() {
 
     return (
       <div className="text-sm text-navy-600 mt-1">
-        {log.guest_count > 0 && <span className="mr-2">+{log.guest_count} guests</span>}
+        {/* V10.8.43: Don't show guest count for purchases (receipts, not entries) */}
+        {!isPurchase && log.guest_count > 0 && <span className="mr-2">+{log.guest_count} guests</span>}
         <span className="capitalize">{log.scan_type.toLowerCase()}</span>
         <span className="mx-2">•</span>
         <span>{log.result}</span>
