@@ -116,9 +116,11 @@ export async function GET(request: NextRequest) {
     }, 0)
     const todayPasses = todayPassesFiltered.length
 
-    // V10.8.38: Fix - Lock now to EST timezone to prevent 'tomorrow' bug
-    const estStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-    const now = new Date(estStr)
+    // V10.8.39: Brute-force EST date construction to prevent UTC shift
+    const estDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const [y, m, d] = estDateStr.split('-')
+    // Set to exactly Noon local time so adding/subtracting days never hits a midnight UTC boundary
+    const now = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0)
     
     // Get last 30 days of data (using local timezone)
     const last30Days = Array.from({ length: 30 }, (_, i) => {
