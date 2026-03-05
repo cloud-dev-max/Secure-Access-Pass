@@ -44,23 +44,30 @@ export async function GET(request: NextRequest) {
 
     // V8.7 Fix #2: Get ALL visitor passes currently inside (no date filter)
     // This prevents "phantom visitors" who forget to scan out
+    // V10.8.47: Remove purchaser foreign key join - fetch profiles separately
     const { data: visitors, error: visitorsError } = await adminClient
       .from('visitor_passes')
-      .select(`
-        id,
-        guest_name,
-        is_inside,
-        expires_at,
-        status,
-        purchased_by,
-        purchaser:purchased_by(name, unit)
-      `)
+      .select('id, guest_name, is_inside, expires_at, status, purchased_by')
       .eq('property_id', propertyId)
       .eq('is_inside', true)
 
     if (visitorsError) {
       console.error('Error fetching visitors:', visitorsError)
       throw visitorsError
+    }
+
+    // V10.8.47: Fetch purchaser profiles separately (same pattern as stats API)
+    let purchaserProfiles = new Map()
+    if (visitors && visitors.length > 0) {
+      const purchaserIds = [...new Set(visitors.map(v => v.purchased_by).filter(Boolean))]
+      if (purchaserIds.length > 0) {
+        const { data: profiles } = await adminClient
+          .from('profiles')
+          .select('id, name, unit')
+          .in('id', purchaserIds)
+        
+        ;(profiles || []).forEach(p => purchaserProfiles.set(p.id, p))
+      }
     }
 
     // Combine into unified list
@@ -73,16 +80,19 @@ export async function GET(request: NextRequest) {
         active_guests: r.active_guests || 0,
         total_people: 1 + (r.active_guests || 0)
       })),
-      ...(visitors || []).map(v => ({
-        type: 'visitor',
-        id: v.id,
-        name: v.guest_name || 'Visitor',
-        unit: 'Visitor Pass',
-        purchaser_name: v.purchaser?.name || 'Unknown',
-        purchaser_unit: v.purchaser?.unit || 'N/A',
-        active_guests: 0,
-        total_people: 1
-      }))
+      ...(visitors || []).map(v => {
+        const purchaser = v.purchased_by ? purchaserProfiles.get(v.purchased_by) : null
+        return {
+          type: 'visitor',
+          id: v.id,
+          name: v.guest_name || 'Visitor',
+          unit: 'Visitor Pass',
+          purchaser_name: purchaser?.name || 'Unknown',
+          purchaser_unit: purchaser?.unit || 'N/A',
+          active_guests: 0,
+          total_people: 1
+        }
+      })
     ]
 
     // Calculate totals
