@@ -57,7 +57,9 @@ export async function GET(request: NextRequest) {
       const priorDayStart = new Date(startOfDay)
       priorDayStart.setHours(priorDayStart.getHours() - 24)
       
-      // V9.14 Fix #1: Fetch logs with Supabase join to profiles table
+      // V10.8.44: CRITICAL - Only use access_logs (physical door scans)
+      // Do NOT query visitor_passes table - purchases do not equal physical entries
+      // Hourly occupancy MUST reflect actual check-ins (ENTRY scans) vs check-outs (EXIT scans)
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
         .select('user_id, qr_code, scanned_at, scan_type, guest_count, profiles (name, unit)')
