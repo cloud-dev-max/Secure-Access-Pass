@@ -62,11 +62,13 @@ export async function GET(request: NextRequest) {
       // Hourly occupancy MUST reflect actual check-ins (ENTRY scans) vs check-outs (EXIT scans)
       // V10.8.45: CRITICAL BUG FIX - Exclude system events (SYSTEM_BROADCAST, STATUS_CHANGE)
       // These were logged as ENTRY but never EXIT, polluting graph with phantom occupants
+      // V10.8.46: Fixed Supabase syntax - use chained .neq() instead of .not('in', ...)
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
         .select('user_id, qr_code, scanned_at, scan_type, guest_count, profiles (name, unit)')
         .eq('property_id', propertyId)
-        .not('qr_code', 'in', '("SYSTEM_BROADCAST","STATUS_CHANGE")')
+        .neq('qr_code', 'SYSTEM_BROADCAST')
+        .neq('qr_code', 'STATUS_CHANGE')
         .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
         .order('scanned_at', { ascending: true })
