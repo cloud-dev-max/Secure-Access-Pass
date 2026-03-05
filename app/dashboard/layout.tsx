@@ -5,8 +5,10 @@ import { Building2, QrCode, Shield, ChevronDown, CheckCircle2 } from 'lucide-rea
 import Link from 'next/link'
 import { useContext, useState, useEffect } from 'react'
 import { PropertyContext } from '@/app/context/PropertyContext'
+import { useRouter } from 'next/navigation'
 
 function DashboardHeader() {
+  const router = useRouter()
   const { propertyId, setPropertyId } = useContext(PropertyContext)
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false)
   const [allProperties, setAllProperties] = useState<any[]>([])
@@ -35,11 +37,13 @@ function DashboardHeader() {
   const currentPropertyName = allProperties.find(p => p.id === propertyId)?.name || 'Select Property'
 
   // V10.8.9: Switch property - context is single source of truth
+  // V10.8.38: Auto-redirect to dashboard on property switch
   const switchProperty = (newPropertyId: string) => {
     console.log('[Header] Switching to property ID:', newPropertyId)
     setPropertyId(newPropertyId)
     localStorage.setItem('selectedPropertyId', newPropertyId)
     setShowPropertyDropdown(false)
+    router.push('/dashboard')
   }
 
   return (

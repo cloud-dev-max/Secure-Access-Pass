@@ -116,8 +116,9 @@ export async function GET(request: NextRequest) {
     }, 0)
     const todayPasses = todayPassesFiltered.length
 
-    // V10.8.35: Fix - Add const now for date calculations
-    const now = new Date()
+    // V10.8.38: Fix - Lock now to EST timezone to prevent 'tomorrow' bug
+    const estStr = new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
+    const now = new Date(estStr)
     
     // Get last 30 days of data (using local timezone)
     const last30Days = Array.from({ length: 30 }, (_, i) => {
