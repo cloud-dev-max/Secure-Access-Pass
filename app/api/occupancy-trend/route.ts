@@ -60,10 +60,13 @@ export async function GET(request: NextRequest) {
       // V10.8.44: CRITICAL - Only use access_logs (physical door scans)
       // Do NOT query visitor_passes table - purchases do not equal physical entries
       // Hourly occupancy MUST reflect actual check-ins (ENTRY scans) vs check-outs (EXIT scans)
+      // V10.8.45: CRITICAL BUG FIX - Exclude system events (SYSTEM_BROADCAST, STATUS_CHANGE)
+      // These were logged as ENTRY but never EXIT, polluting graph with phantom occupants
       const { data: allLogs, error } = await adminClient
         .from('access_logs')
         .select('user_id, qr_code, scanned_at, scan_type, guest_count, profiles (name, unit)')
         .eq('property_id', propertyId)
+        .not('qr_code', 'in', '("SYSTEM_BROADCAST","STATUS_CHANGE")')
         .gte('scanned_at', priorDayStart.toISOString())
         .lte('scanned_at', endOfDay.toISOString())
         .order('scanned_at', { ascending: true })
