@@ -84,90 +84,75 @@ export async function GET(request: NextRequest) {
         log.qr_code !== 'SYSTEM_BROADCAST' && log.qr_code !== 'STATUS_CHANGE'
       )
 
-      // V9.14 Fix #1: Group logs by user with joined profile data
-      const userLogs = new Map()
+      // V10.8.51: CRITICAL FIX - Rewrite to use running state for long-term occupants
+      // Process ALL logs chronologically (from up to 14 days ago) to build running state
+      // This ensures "trapped users" who entered days ago are counted in today's hourly totals
       
-      validLogs.forEach(log => {
-        if (!log || !log.scanned_at) return
-        
-        const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
-        
-        if (!userLogs.has(userId)) {
-          // V9.14 Fix #1: Extract joined profile data
-          const profileData = Array.isArray(log.profiles) ? log.profiles[0] : log.profiles
-          const logName = profileData?.name
-          const logUnit = profileData?.unit
-          let displayName = logName || 'Unknown'
-          if (!logName || logName === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
-            displayName = 'Visitor'
-          }
-          
-          userLogs.set(userId, {
-            entries: [],
-            exits: [],
-            guestCount: log.guest_count || 0,
-            name: displayName,
-            unit: logUnit || ''
-          })
-        }
-        
-        const userLog = userLogs.get(userId)
-        const timestamp = new Date(log.scanned_at)
-        
-        if (log.scan_type === 'ENTRY') {
-          userLog.entries.push(timestamp)
-          userLog.guestCount = log.guest_count || 0 // Update from most recent entry
-        } else if (log.scan_type === 'EXIT') {
-          userLog.exits.push(timestamp)
-        }
-      })
+      // Sort all logs chronologically
+      const sortedLogs = validLogs.sort((a, b) => 
+        new Date(a.scanned_at).getTime() - new Date(b.scanned_at).getTime()
+      )
       
-      // V9.13 Fix #2: Calculate occupancy + people array for each hour
+      // Running state: who is currently inside
+      const currentInside = new Map()
+      
+      // Generate hourly snapshots for the requested date
       const hourlyData: any[] = []
+      const targetDateStr = targetDate.toISOString().split('T')[0]
       
       for (let hour = 0; hour < 24; hour++) {
         const hourStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0, 0, 0)
         const hourEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59, 999)
         
-        let hourOccupancy = 0
-        const people: any[] = [] // V9.13 Fix #2: Build people array
-        
-        // Loop through every user and check if they were present during this hour
-        userLogs.forEach((userLog) => {
-          // Find most recent entry that occurred before or during this hour
-          const relevantEntry = userLog.entries
-            .filter((t: Date) => t <= hourEnd)
-            .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
+        // Process all logs up to the END of this hour to update running state
+        for (const log of sortedLogs) {
+          const logTime = new Date(log.scanned_at)
+          if (logTime > hourEnd) break // Stop processing logs beyond this hour
           
-          if (!relevantEntry) return // Never entered by this hour
+          const userId = log.user_id || log.qr_code || `unknown-${Math.random()}`
           
-          // Find first exit that occurred after that entry
-          const relevantExit = userLog.exits
-            .filter((t: Date) => t >= relevantEntry)
-            .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0]
-          
-          // User was present if: entered before/during hour AND (no exit OR exit after hour started)
-          const wasPresent = relevantEntry <= hourEnd && (!relevantExit || relevantExit >= hourStart)
-          
-          if (wasPresent) {
-            const guestCount = userLog.guestCount || 0
-            hourOccupancy += 1 + guestCount
+          if (log.scan_type === 'ENTRY') {
+            // Extract profile data
+            const profileData = Array.isArray(log.profiles) ? log.profiles[0] : log.profiles
+            const logName = profileData?.name
+            const logUnit = profileData?.unit
+            let displayName = logName || 'Unknown'
+            if (!logName || logName === 'Unknown' || log.qr_code?.startsWith('GUEST-') || log.qr_code?.startsWith('VISITOR-')) {
+              displayName = 'Visitor'
+            }
             
-            // V9.13 Fix #2: Add person to people array
-            people.push({
-              name: userLog.name,
-              unit: userLog.unit,
-              guests: guestCount,
-              total: 1 + guestCount
+            // Add/update user in running state
+            currentInside.set(userId, {
+              name: displayName,
+              unit: logUnit || '',
+              guests: log.guest_count || 0,
+              entryTime: logTime
             })
+          } else if (log.scan_type === 'EXIT') {
+            // Remove user from running state
+            currentInside.delete(userId)
           }
+        }
+        
+        // Calculate occupancy from running state at this hour
+        let hourOccupancy = 0
+        const people: any[] = []
+        
+        currentInside.forEach((userData) => {
+          hourOccupancy += 1 + userData.guests
+          people.push({
+            name: userData.name,
+            unit: userData.unit,
+            guests: userData.guests,
+            total: 1 + userData.guests
+          })
         })
         
         const timeLabel = `${String(hour).padStart(2, '0')}:00`
         hourlyData.push({
           hour: timeLabel,
           occupancy: hourOccupancy,
-          people // V9.13 Fix #2: Include people array
+          people
         })
       }
     

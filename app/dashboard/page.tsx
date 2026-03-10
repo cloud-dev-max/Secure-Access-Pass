@@ -81,9 +81,25 @@ function DashboardPageContent() {
     recentActivity: [],
   });
   const [loading, setLoading] = useState(true);
+  // V10.8.51: Persist active tab across property switches using localStorage
   const [activeTab, setActiveTab] = useState<
     "overview" | "residents" | "rules" | "settings" | "revenue" | "occupancy"
-  >("overview");
+  >(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dashboardActiveTab');
+      if (saved && ['overview', 'residents', 'rules', 'settings', 'revenue', 'occupancy'].includes(saved)) {
+        return saved as any;
+      }
+    }
+    return 'overview';
+  });
+  
+  // V10.8.51: Save active tab to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboardActiveTab', activeTab);
+    }
+  }, [activeTab]);
   
   // V10.8.9: Reactive tab detection - client-side URL check
   // V10.8.16: Support all tab values from URL parameter
