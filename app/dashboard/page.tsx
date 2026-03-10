@@ -494,45 +494,60 @@ function DashboardPageContent() {
     if (!propertyId) return; // V10.8.1: Require property selection
     
     setLoading(true);
+    
+    // V10.8.50: Fetch APIs individually to prevent Promise rejection cascade
+    // If one API fails, others can still succeed
+    
+    // Fetch residents
     try {
-      const [residentsRes, rulesRes, statsRes] = await Promise.all([
-        fetch(`/api/residents?property_id=${propertyId}`),
-        fetch(`/api/rules?property_id=${propertyId}`),
-        fetch(`/api/stats?property_id=${propertyId}`),
-      ]);
-
-      // Check if responses are OK
-      if (!residentsRes.ok || !rulesRes.ok || !statsRes.ok) {
-        console.error("API Error:", {
-          residents: residentsRes.status,
-          rules: rulesRes.status,
-          stats: statsRes.status,
-        });
-        throw new Error("Failed to fetch data from API");
+      const residentsRes = await fetch(`/api/residents?property_id=${propertyId}`);
+      if (residentsRes.ok) {
+        const residentsData = await residentsRes.json();
+        setResidents(Array.isArray(residentsData) ? residentsData : []);
+      } else {
+        console.error("Residents API error:", residentsRes.status);
+        setResidents([]);
       }
-
-      const residentsData = await residentsRes.json();
-      const rulesData = await rulesRes.json();
-      const statsData = await statsRes.json();
-
-      // Ensure we always have arrays
-      setResidents(Array.isArray(residentsData) ? residentsData : []);
-      setRules(
-        Array.isArray(rulesData)
-          ? rulesData.filter((r: AccessRule) => r.is_active)
-          : [],
-      );
-      setStats(statsData);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error fetching residents:", error);
       setResidents([]);
-      setRules([]);
-      alert(
-        "Failed to load data. Please check your Supabase connection and ensure the database schema is set up correctly.",
-      );
-    } finally {
-      setLoading(false);
     }
+
+    // Fetch rules
+    try {
+      const rulesRes = await fetch(`/api/rules?property_id=${propertyId}`);
+      if (rulesRes.ok) {
+        const rulesData = await rulesRes.json();
+        setRules(
+          Array.isArray(rulesData)
+            ? rulesData.filter((r: AccessRule) => r.is_active)
+            : [],
+        );
+      } else {
+        console.error("Rules API error:", rulesRes.status);
+        setRules([]);
+      }
+    } catch (error) {
+      console.error("Error fetching rules:", error);
+      setRules([]);
+    }
+
+    // Fetch stats
+    try {
+      const statsRes = await fetch(`/api/stats?property_id=${propertyId}`);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      } else {
+        console.error("Stats API error:", statsRes.status);
+        // Don't update stats if fetch fails - leave existing data intact
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      // Don't update stats if fetch fails - leave existing data intact
+    }
+
+    setLoading(false);
   };
 
   const toggleRule = async (
