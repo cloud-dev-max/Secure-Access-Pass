@@ -913,7 +913,8 @@ function DashboardPageContent() {
     setSelectedHour(null);
     setHourlyPeople([]);
     try {
-      const response = await fetch(`/api/occupancy-trend?date=${date}`);
+      // V10.8.52: Add missing property_id parameter
+      const response = await fetch(`/api/occupancy-trend?date=${date}&property_id=${propertyId}`);
       if (!response.ok) throw new Error('Failed to load trend data');
       const data = await response.json();
       setTrendData(data.hourlyTrend || []);
@@ -976,8 +977,8 @@ function DashboardPageContent() {
       while (currentDate <= endDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
         
-        // Fetch trend data for this date
-        const response = await fetch(`/api/occupancy-trend?date=${dateStr}`);
+        // V10.8.52: Add missing property_id parameter
+        const response = await fetch(`/api/occupancy-trend?date=${dateStr}&property_id=${propertyId}`);
         if (response.ok) {
           const data = await response.json();
           (data.hourlyTrend || []).forEach((point: any) => {
@@ -1778,7 +1779,8 @@ function DashboardPageContent() {
             value={activeTab}
             onChange={(e) => {
               if (e.target.value === 'logs') {
-                window.location.href = '/logs';
+                // V10.8.52: Fix mobile navigation 404 - correct path
+                window.location.href = '/dashboard/logs';
               } else {
                 setActiveTab(e.target.value as any);
               }

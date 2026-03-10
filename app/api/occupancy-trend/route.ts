@@ -11,10 +11,19 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const adminClient = createAdminClient()
-    const propertyId = process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID || '00000000-0000-0000-0000-000000000001'
+    
+    // V10.8.52: Read property_id from query params (required for multi-tenancy)
+    const { searchParams } = new URL(request.url)
+    const propertyId = searchParams.get('property_id')
+    
+    if (!propertyId) {
+      return NextResponse.json(
+        { error: 'property_id query parameter is required' },
+        { status: 400 }
+      )
+    }
     
     // V9.7 Fix #1: Safe date parsing with fallback to today
-    const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date') // Format: YYYY-MM-DD
     
     // V10.8.43: Use America/New_York timezone for current date
