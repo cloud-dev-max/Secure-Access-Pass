@@ -288,26 +288,21 @@ function DashboardPageContent() {
     loadOccupancyBreakdown(); // V6
     loadInsideResidents(); // V8.11 Fix #1: Load occupancy data on mount
     loadFacilitySettings(true); // V10.8.14: Force reload settings for new property
-    // V7.1: Load revenue after mount to avoid undefined function error
-    loadRevenueData();
+    // V10.8.53: Removed loadRevenueData() - now handled in consolidated hook below
   }, [propertyId]);
 
+  // V10.8.53: CONSOLIDATED HOOK - Fix race condition for graph/revenue loading
+  // Prevents blank graph on initial load by properly coordinating activeTab, propertyId, and trendDate
   useEffect(() => {
+    if (!propertyId) return; // Wait for property context before fetching
+    
     if (activeTab === "revenue") {
       loadRevenueData();
     }
-    // V9.4 Feature #1: Load hourly trend when occupancy tab is active
     if (activeTab === "occupancy") {
       loadHourlyTrend(trendDate);
     }
-  }, [activeTab]);
-
-  // V9.4 Feature #1: Reload trend when date changes
-  useEffect(() => {
-    if (activeTab === "occupancy") {
-      loadHourlyTrend(trendDate);
-    }
-  }, [trendDate]);
+  }, [activeTab, propertyId, trendDate]);
 
   // V8.4 Fix #6: Don't pre-fill Guest Limit - let it be empty (uses default)
   // Removed auto-fill logic - field should remain empty unless user explicitly sets it

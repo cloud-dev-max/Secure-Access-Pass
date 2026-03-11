@@ -157,7 +157,11 @@ export async function GET(request: NextRequest) {
           })
         })
         
-        const timeLabel = `${String(hour).padStart(2, '0')}:00`
+        // V10.8.53: Format time labels as 12-hour AM/PM (e.g., "1 PM" instead of "13:00")
+        const ampm = hour >= 12 ? 'PM' : 'AM'
+        const displayHour = hour % 12 || 12
+        const timeLabel = `${displayHour} ${ampm}`
+        
         hourlyData.push({
           hour: timeLabel,
           occupancy: hourOccupancy,
