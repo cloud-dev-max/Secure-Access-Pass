@@ -1231,6 +1231,47 @@ function DashboardPageContent() {
     }
   };
 
+  // V10.8.56: Generate demo data for investor pitches
+  const [generatingDemo, setGeneratingDemo] = useState(false);
+  
+  const generateDemoData = async () => {
+    if (!confirm('This will generate 7 days of realistic demo data (access logs and visitor passes). Continue?')) {
+      return;
+    }
+
+    if (!propertyId) {
+      alert('No property selected');
+      return;
+    }
+
+    setGeneratingDemo(true);
+    try {
+      const response = await fetch('/api/seed-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property_id: propertyId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate demo data');
+      }
+
+      const result = await response.json();
+      alert(`✅ Demo data generated!\n\n${result.stats.access_logs} access logs\n${result.stats.visitor_passes} visitor passes`);
+      
+      // Refresh all dashboard data
+      await loadData();
+      await loadHourlyTrend(trendDate);
+      await loadRevenueData();
+    } catch (error) {
+      console.error('Error generating demo data:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate demo data');
+    } finally {
+      setGeneratingDemo(false);
+    }
+  };
+
   // V7: Load Revenue Data
   const loadRevenueData = async () => {
     // V10.8.19: Pass property_id to revenue API for correct filtering
@@ -2972,6 +3013,40 @@ function DashboardPageContent() {
                   </p>
                 </div>
               </div>
+
+              {/* V10.8.56: Demo Seeder for Investor Pitches */}
+              <div className="mt-6 pt-6 border-t border-navy-200">
+                <h3 className="text-lg font-semibold text-navy-900 mb-3 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                  Developer / Pitch Tools
+                </h3>
+                <p className="text-sm text-navy-600 mb-4">
+                  Generate realistic 7-day demo data for investor presentations and product demos. This creates access logs and visitor passes with realistic patterns.
+                </p>
+                <button
+                  type="button"
+                  onClick={generateDemoData}
+                  disabled={generatingDemo}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg font-semibold transition-colors"
+                >
+                  {generatingDemo ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating Demo Data...
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="w-5 h-5" />
+                      Generate 7-Day Demo Data
+                    </>
+                  )}
+                </button>
+                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-xs text-purple-800">
+                    <strong>⚡ Demo Tool:</strong> Creates ~35-50 access logs and ~15-20 visitor passes spread across the last 7 days with realistic timing patterns.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -3956,9 +4031,10 @@ function DashboardPageContent() {
             {/* V10.2 Fix #1: Bulletproof Single-Page Print Layout with Logo */}
             <div className="print-container bg-navy-50 rounded-xl p-6 text-center print:bg-white print:rounded-none print:p-8">
               {/* V10.2 Fix #1: Branding Logo - Above property name */}
+              {/* V10.8.56: Custom branding - blue logo on white background */}
               <div className="mb-6 print:mb-8">
                 <img 
-                  src="/logo.png" 
+                  src="/logo-blue.png" 
                   alt="Secure Access Pass Logo" 
                   className="h-16 mx-auto object-contain print:h-24"
                   onError={(e) => {

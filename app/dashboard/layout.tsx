@@ -53,8 +53,9 @@ function DashboardHeader() {
           <div className="flex items-center justify-between gap-4">
             {/* V10.8.10: Force full navigation with standard anchor (not Next.js Link) */}
             {/* This ensures tab=overview query param is processed and Overview tab loads */}
+            {/* V10.8.56: Custom branding - white icon logo */}
             <a href="/dashboard?tab=overview" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-              <Shield className="w-6 h-6 text-teal-400" />
+              <img src="/icon-white.png" alt="Logo" className="h-8 w-8 object-contain" />
               <h1 className="text-lg font-bold text-white whitespace-nowrap">Secure Access Pass</h1>
             </a>
             

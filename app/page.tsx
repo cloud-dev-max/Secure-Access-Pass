@@ -68,11 +68,9 @@ export default function ManagerLoginPage() {
       
       <div className="relative w-full max-w-md">
         {/* Logo */}
+        {/* V10.8.56: Custom branding - full white logo on dark navy background */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-teal-500 rounded-2xl mb-4 shadow-2xl">
-            <Shield className="w-12 h-12 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Secure Access Pass</h1>
+          <img src="/logo-white.png" alt="Secure Access Pass" className="h-16 mx-auto object-contain mb-6" />
           <p className="text-white/70 text-sm">Manager Portal</p>
         </div>
 
