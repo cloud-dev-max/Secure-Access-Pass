@@ -2242,6 +2242,8 @@ function DashboardPageContent() {
                     const isStatusChange =
                       log.qr_code === "STATUS_CHANGE" ||
                       log.denial_reason?.includes("Status changed from");
+                    // V10.8.59: Handle PURCHASE events with distinct purple color
+                    const isPurchase = log.scan_type === "PURCHASE";
 
                     // V7.1: Color code by event type
                     let bgColor = "bg-gray-50";
@@ -2257,6 +2259,11 @@ function DashboardPageContent() {
                       bgColor = "bg-orange-50";
                       borderColor = "border-orange-200";
                       iconColor = "text-orange-600";
+                    } else if (isPurchase) {
+                      // V10.8.59: Purple color for purchases to match logs page
+                      bgColor = "bg-purple-50";
+                      borderColor = "border-purple-200";
+                      iconColor = "text-purple-600";
                     } else if (log.result === "DENIED") {
                       bgColor = "bg-red-50";
                       borderColor = "border-red-200";
@@ -2281,6 +2288,8 @@ function DashboardPageContent() {
                             <Shield className={`w-5 h-5 ${iconColor}`} />
                           ) : isSystemBroadcast ? (
                             <MessageSquare className={`w-5 h-5 ${iconColor}`} />
+                          ) : isPurchase ? (
+                            <DollarSign className={`w-5 h-5 ${iconColor}`} />
                           ) : log.scan_type === "ENTRY" ? (
                             <LogIn className={`w-5 h-5 ${iconColor}`} />
                           ) : (
@@ -2292,17 +2301,22 @@ function DashboardPageContent() {
                                 ? "Pool Status Change"
                                 : isSystemBroadcast
                                   ? "System Broadcast"
-                                  : isVisitorPass
-                                    ? `Visitor Pass (Guest of ${log.user?.name || "Unknown"}) - Unit ${log.user?.unit || "N/A"}`
-                                    : `${log.user?.name || "Unknown"} - Unit ${log.user?.unit || "N/A"}`}
+                                  : isPurchase
+                                    ? `Pass Purchased by ${log.user?.name || "Unknown"} - Unit ${log.user?.unit || "N/A"}`
+                                    : isVisitorPass
+                                      ? `Visitor Pass (Guest of ${log.user?.name || "Unknown"}) - Unit ${log.user?.unit || "N/A"}`
+                                      : `${log.user?.name || "Unknown"} - Unit ${log.user?.unit || "N/A"}`}
                             </p>
                             <p className="text-sm text-navy-600">
                               {isStatusChange
                                 ? log.denial_reason
                                 : isSystemBroadcast
                                   ? `${log.guest_count || 0} recipients`
-                                  : `${log.scan_type} • ${log.result}`}
+                                  : isPurchase
+                                    ? `$${(log.guest_count || 5).toFixed(2)} • ${log.result || 'SUCCESS'}`
+                                    : `${log.scan_type} • ${log.result}`}
                               {!isStatusChange &&
+                                !isPurchase &&
                                 log.denial_reason &&
                                 ` • ${log.denial_reason}`}
                             </p>

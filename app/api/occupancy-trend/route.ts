@@ -172,32 +172,11 @@ export async function GET(request: NextRequest) {
       // V9.7 Fix #1: Fixed ReferenceError - use hourlyData instead of deleted hourlyOccupancy
       const maxOccupancy = Math.max(0, ...hourlyData.map(d => d.occupancy || 0))
       
-      // V9.9 Fix #2: Hide future hours when viewing today
-      // V10.8.43: Use America/New_York timezone for current time
-      const nowEstStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-      const [nowY, nowM, nowD] = nowEstStr.split('-')
-      const now = new Date(parseInt(nowY), parseInt(nowM) - 1, parseInt(nowD), 12, 0, 0)
-      
-      // Get current hour in America/New_York
-      const currentHour = parseInt(new Date().toLocaleTimeString('en-US', { 
-        timeZone: 'America/New_York', 
-        hour12: false, 
-        hour: '2-digit' 
-      }))
-      
-      const isToday = targetDate.getFullYear() === now.getFullYear() &&
-                     targetDate.getMonth() === now.getMonth() &&
-                     targetDate.getDate() === now.getDate()
-      
-      const filteredData = isToday 
-        ? hourlyData.filter(d => {
-            const hour = parseInt(d.hour.split(':')[0])
-            return hour <= currentHour
-          })
-        : hourlyData
+      // V10.8.59: Removed server-side filter - client handles future hour nullification
+      // This ensures all 24 hours are returned so X-axis labels render correctly
       
       return NextResponse.json({
-        hourlyTrend: filteredData,  // V9.9 Fix #2: Only show hours up to now for today
+        hourlyTrend: hourlyData,  // V9.9 Fix #2: Only show hours up to now for today
         requestedDate: `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`,
         maxOccupancy
       }, { status: 200 })

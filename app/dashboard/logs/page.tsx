@@ -232,7 +232,8 @@ export default function LogsPage() {
       return <MessageSquare className="w-5 h-5 text-orange-600" />
     }
     if (isPurchase) {
-      return <DollarSign className="w-5 h-5 text-green-600" />
+      // V10.8.59: Purple color for purchases to match dashboard widget
+      return <DollarSign className="w-5 h-5 text-purple-600" />
     }
     if (log.scan_type === 'ENTRY') {
       return <LogIn className="w-5 h-5 text-green-600" />
@@ -253,7 +254,8 @@ export default function LogsPage() {
       return 'bg-orange-50 border-orange-200'
     }
     if (isPurchase) {
-      return 'bg-green-50 border-green-200'
+      // V10.8.59: Purple color for purchases to match dashboard widget
+      return 'bg-purple-50 border-purple-200'
     }
     if (log.result === 'DENIED') {
       return 'bg-red-50 border-red-200'
@@ -279,7 +281,8 @@ export default function LogsPage() {
       return <span className="font-semibold text-orange-900">System Broadcast</span>
     }
     if (isPurchase) {
-      return <span className="font-semibold text-green-900">Pass Purchased</span>
+      // V10.8.59: Purple color for purchases to match dashboard widget
+      return <span className="font-semibold text-purple-900">Pass Purchased</span>
     }
     if (isVisitorPass && log.profile) {
       return (
