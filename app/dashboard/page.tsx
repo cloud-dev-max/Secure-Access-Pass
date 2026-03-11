@@ -58,6 +58,13 @@ interface Stats {
 function DashboardPageContent() {
   const router = useRouter();
   
+  // V10.8.55: Helper to get local date string (YYYY-MM-DD) without UTC timezone shift
+  // Fixes bug where date picker defaults to tomorrow after 8PM EST
+  const getLocalDateStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  
   // V10.8.1: Multi-tenancy - Get active property from context
   const { propertyId, setPropertyId } = useContext(PropertyContext);
   const [currentPropertyName, setCurrentPropertyName] = useState<string>('');
@@ -126,16 +133,18 @@ function DashboardPageContent() {
   const residentsPerPage = 50;
 
   // V9.4 Feature #1: Hourly Occupancy Trend
-  const [trendDate, setTrendDate] = useState(new Date().toISOString().split('T')[0]);
+  // V10.8.55: Use getLocalDateStr() to prevent UTC timezone bug
+  const [trendDate, setTrendDate] = useState(getLocalDateStr());
   const [trendData, setTrendData] = useState<any[]>([]);
   const [loadingTrend, setLoadingTrend] = useState(false);
   const [selectedHour, setSelectedHour] = useState<string | null>(null);
   const [hourlyPeople, setHourlyPeople] = useState<any[]>([]);
   
   // V9.9 Fix #4: Multi-day CSV export modal state
+  // V10.8.55: Use getLocalDateStr() to prevent UTC timezone bug
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportStartDate, setExportStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [exportEndDate, setExportEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [exportStartDate, setExportStartDate] = useState(getLocalDateStr());
+  const [exportEndDate, setExportEndDate] = useState(getLocalDateStr());
   const [isExporting, setIsExporting] = useState(false);
 
   // New Resident Form
@@ -914,17 +923,18 @@ function DashboardPageContent() {
       const data = await response.json();
       
       // V10.8.54: Nullify future hours to stop line drawing beyond current time
+      // V10.8.55: Use getLocalDateStr() and add strict future date handling
       let trend = data.hourlyTrend || [];
-      // Get today's date in local time (YYYY-MM-DD format)
-      const todayStr = new Date().toLocaleDateString('en-CA');
+      const todayStr = getLocalDateStr();
       if (date === todayStr) {
         const currentHour = new Date().getHours();
         trend = trend.map((point: any, index: number) => {
-          if (index > currentHour) {
-            return { ...point, occupancy: null }; // Set future to null to stop the line
-          }
+          if (index > currentHour) return { ...point, occupancy: null };
           return point;
         });
+      } else if (date > todayStr) {
+        // Completely nullify future dates to prevent flatlines
+        trend = trend.map((point: any) => ({ ...point, occupancy: null }));
       }
       setTrendData(trend);
     } catch (error) {
@@ -3551,7 +3561,7 @@ function DashboardPageContent() {
                     type="date"
                     value={trendDate}
                     onChange={(e) => setTrendDate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={getLocalDateStr()}
                     className="px-4 py-2 border border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                   <button
@@ -3883,7 +3893,7 @@ function DashboardPageContent() {
                 type="date"
                 value={exportStartDate}
                 onChange={(e) => setExportStartDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={getLocalDateStr()}
                 className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
               />
             </div>
@@ -3896,7 +3906,7 @@ function DashboardPageContent() {
                 type="date"
                 value={exportEndDate}
                 onChange={(e) => setExportEndDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={getLocalDateStr()}
                 className="w-full px-4 py-3 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-gray-900"
               />
             </div>
