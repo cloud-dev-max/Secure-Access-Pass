@@ -1261,10 +1261,8 @@ function DashboardPageContent() {
 
       alert(`✅ Demo data generated!\n\n${result.stats.access_logs} access logs\n${result.stats.visitor_passes} visitor passes`);
       
-      // Refresh all dashboard data
-      await loadData();
-      await loadHourlyTrend(trendDate);
-      await loadRevenueData();
+      // V10.8.61: Force full page reload to clear React state cache and show fresh revenue data
+      window.location.reload();
     } catch (error) {
       console.error('Error generating demo data:', error);
       if (error instanceof Error && !error.message.includes('❌')) {
