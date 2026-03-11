@@ -87,15 +87,17 @@ export async function POST(request: NextRequest) {
         // Random guest count (0-3)
         const guestCount = Math.floor(Math.random() * 4)
 
-        // Create ENTRY log
+        // V10.8.58: Create ENTRY log with exact CSV schema
         logsToInsert.push({
           property_id,
-          profile_id: resident.id,
-          qr_code: `RESIDENT-${resident.id}`,
+          user_id: resident.id,
           scan_type: 'ENTRY',
-          status: 'SUCCESS',
-          access_method: 'MANUAL',
-          guests: guestCount,
+          result: 'GRANTED',
+          guest_count: guestCount,
+          event_type: 'SCAN',
+          qr_code: 'DEMO-PASS',
+          ip_address: '127.0.0.1',
+          user_agent: 'Demo Seeder',
           scanned_at: entryTime.toISOString()
         })
 
@@ -103,12 +105,14 @@ export async function POST(request: NextRequest) {
         if (Math.random() > 0.2) {
           logsToInsert.push({
             property_id,
-            profile_id: resident.id,
-            qr_code: `RESIDENT-${resident.id}`,
+            user_id: resident.id,
             scan_type: 'EXIT',
-            status: 'SUCCESS',
-            access_method: 'MANUAL',
-            guests: guestCount,
+            result: 'GRANTED',
+            guest_count: guestCount,
+            event_type: 'SCAN',
+            qr_code: 'DEMO-PASS',
+            ip_address: '127.0.0.1',
+            user_agent: 'Demo Seeder',
             scanned_at: exitTime.toISOString()
           })
         }
@@ -130,6 +134,7 @@ export async function POST(request: NextRequest) {
       const resident = getRandomResident()
       const guestCount = 1 + Math.floor(Math.random() * 3) // 1-3 guests
 
+      // V10.8.58: Create visitor pass with exact CSV schema
       passesToInsert.push({
         property_id,
         purchased_by: resident.id,
@@ -138,8 +143,13 @@ export async function POST(request: NextRequest) {
         amount_paid: 5.00,
         price_paid: 5.00,
         status: 'active',
-        is_inside: false, // Most guests have already left
-        created_at: date.toISOString()
+        qr_code: 'DEMO-PASS-' + Math.random().toString(36).substring(7),
+        is_inside: false,
+        is_demo: true,
+        payment_intent_id: 'pi_demo_seeder',
+        valid_date: date.toISOString().split('T')[0],
+        created_at: date.toISOString(),
+        updated_at: date.toISOString()
       })
     }
 
@@ -152,7 +162,7 @@ export async function POST(request: NextRequest) {
       if (logsError) {
         console.error('Error inserting logs:', logsError)
         return NextResponse.json(
-          { error: 'Failed to insert access logs', details: logsError.message },
+          { error: logsError.message || 'Failed to insert access logs', details: logsError?.details || logsError },
           { status: 500 }
         )
       }
@@ -167,7 +177,7 @@ export async function POST(request: NextRequest) {
       if (passesError) {
         console.error('Error inserting passes:', passesError)
         return NextResponse.json(
-          { error: 'Failed to insert visitor passes', details: passesError.message },
+          { error: passesError.message || 'Failed to insert visitor passes', details: passesError?.details || passesError },
           { status: 500 }
         )
       }

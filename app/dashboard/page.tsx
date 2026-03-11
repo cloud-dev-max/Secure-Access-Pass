@@ -1251,12 +1251,14 @@ function DashboardPageContent() {
         body: JSON.stringify({ property_id: propertyId })
       });
 
+      const result = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate demo data');
+        // V10.8.58: Enhanced error reporting with full technical details
+        alert(`❌ Error: ${result.error || 'Unknown'}\n\nDetails: ${JSON.stringify(result.details || 'None', null, 2)}`);
+        throw new Error(result.error || 'Failed to generate demo data');
       }
 
-      const result = await response.json();
       alert(`✅ Demo data generated!\n\n${result.stats.access_logs} access logs\n${result.stats.visitor_passes} visitor passes`);
       
       // Refresh all dashboard data
@@ -1265,7 +1267,9 @@ function DashboardPageContent() {
       await loadRevenueData();
     } catch (error) {
       console.error('Error generating demo data:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate demo data');
+      if (error instanceof Error && !error.message.includes('❌')) {
+        alert(`❌ Error: ${error.message}`);
+      }
     } finally {
       setGeneratingDemo(false);
     }
