@@ -13,6 +13,7 @@ interface ParsedResident {
   email: string
   unit: string
   phone?: string
+  guest_limit?: number // V10.8.64: Optional guest limit from CSV
 }
 
 export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploaderProps) {
@@ -28,6 +29,18 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
   const [isSendingInvites, setIsSendingInvites] = useState(false)
   const [invitesSent, setInvitesSent] = useState(false)
 
+  // V10.8.64: Smart CSV header mapping
+  const normalizeHeader = (header: string): string => {
+    const h = header.toLowerCase().trim()
+    // Map unit variations
+    if (['unit_number', 'unit#', 'apt'].includes(h)) return 'unit'
+    // Map phone variations
+    if (['phone_number', 'mobile', 'cell'].includes(h)) return 'phone'
+    // Map name variations
+    if (['full_name', 'resident_name'].includes(h)) return 'name'
+    return h
+  }
+
   const parseCSV = (text: string): ParsedResident[] => {
     const lines = text.trim().split('\n')
     
@@ -35,15 +48,16 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
       throw new Error('CSV file must contain at least a header row and one data row')
     }
 
-    // Parse header
-    const header = lines[0].split(',').map(h => h.trim().toLowerCase())
+    // Parse header with smart mapping
+    const rawHeader = lines[0].split(',').map(h => h.trim())
+    const header = rawHeader.map(normalizeHeader)
     
     // Validate required columns
     const requiredColumns = ['name', 'unit', 'email']
     const missingColumns = requiredColumns.filter(col => !header.includes(col))
     
     if (missingColumns.length > 0) {
-      throw new Error(`Missing required columns: ${missingColumns.join(', ')}. CSV must have: name, unit, email (phone is optional)`)
+      throw new Error(`Missing required columns: ${missingColumns.join(', ')}. CSV must have: name, unit, email (phone and guest_limit are optional)`)
     }
 
     // Parse data rows
@@ -60,13 +74,14 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
         resident[col] = values[idx] || ''
       })
       
-      // Validate required fields
+      // V10.8.64: Validate required fields and include optional guest_limit
       if (resident.name && resident.email && resident.unit) {
         residents.push({
           name: resident.name,
           email: resident.email,
           unit: resident.unit,
           phone: resident.phone || undefined,
+          guest_limit: resident.guest_limit ? parseInt(resident.guest_limit) : undefined,
         })
       }
     }
@@ -213,18 +228,39 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
             {/* Scrollable Content */}
             <div className="overflow-auto p-6">
               {/* V10.8.7: Compact Instructions */}
+              {/* V10.8.64: Added sample download and smart mapping info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-navy-700 mb-2">
-                  <strong>Required columns:</strong> name, email, unit (phone is optional)
+                  <strong>Required columns:</strong> name, email, unit (phone and guest_limit are optional)
                 </p>
-                <details className="text-xs text-navy-600">
-                  <summary className="cursor-pointer hover:text-navy-900 font-medium">View example CSV format</summary>
-                  <pre className="bg-white p-2 rounded mt-2 text-xs">
-name,email,unit,phone{'\n'}
-John Doe,john@example.com,101,555-1234{'\n'}
-Jane Smith,jane@example.com,102,555-5678
-                  </pre>
-                </details>
+                <p className="text-xs text-navy-600 mb-2">
+                  Smart mapping: unit_number→unit, phone_number/mobile/cell→phone, full_name→name
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const csv = 'name,email,unit,phone,guest_limit\nJohn Doe,john@example.com,101,555-1234,3\nJane Smith,jane@example.com,102,555-5678,5'
+                      const blob = new Blob([csv], { type: 'text/csv' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'residents_sample.csv'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    className="text-xs bg-white hover:bg-navy-50 text-navy-700 px-3 py-1.5 rounded border border-navy-300 font-medium transition-colors"
+                  >
+                    📥 Download Sample CSV
+                  </button>
+                  <details className="text-xs text-navy-600">
+                    <summary className="cursor-pointer hover:text-navy-900 font-medium">View example format</summary>
+                    <pre className="bg-white p-2 rounded mt-2 text-xs">
+name,email,unit,phone,guest_limit{'\n'}
+John Doe,john@example.com,101,555-1234,3{'\n'}
+Jane Smith,jane@example.com,102,555-5678,5
+                    </pre>
+                  </details>
+                </div>
               </div>
 
               {/* V10.8.7: Drag-and-Drop Upload Section */}

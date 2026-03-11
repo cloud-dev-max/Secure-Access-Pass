@@ -271,10 +271,11 @@ function DashboardPageContent() {
   }, [propertyId]);
 
   // V10.8.3: Close dropdown when clicking outside
+  // V10.8.64: Improved selector using data-property-dropdown attribute for better specificity
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (showPropertyDropdown && !target.closest('.relative')) {
+      if (showPropertyDropdown && !target.closest('[data-property-dropdown]')) {
         setShowPropertyDropdown(false);
       }
     };
@@ -282,6 +283,13 @@ function DashboardPageContent() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPropertyDropdown]);
+
+  // V10.8.64: Close dropdown when switching tabs
+  useEffect(() => {
+    if (showPropertyDropdown) {
+      setShowPropertyDropdown(false);
+    }
+  }, [activeTab]);
 
   // V10.8.1: Reload data when property changes
   // V10.8.2: Only load data when propertyId is available
