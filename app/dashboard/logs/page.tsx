@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PropertyContext } from '@/app/context/PropertyContext'
@@ -30,7 +30,7 @@ interface LogsResponse {
 
 export default function LogsPage() {
   const router = useRouter()
-  const { propertyId } = useContext(PropertyContext) // V10.8.12: Multi-tenancy
+  const { propertyId, setPropertyId } = useContext(PropertyContext) // V10.8.12: Multi-tenancy
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -39,6 +39,41 @@ export default function LogsPage() {
   // V9.0 Feature #2: Date range picker
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  
+  // V10.8.70: Property switcher state (matches dashboard)
+  const [allProperties, setAllProperties] = useState<any[]>([])
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false)
+  const propertyDropdownRef = useRef<HTMLDivElement>(null)
+
+  // V10.8.70: Load all properties for dropdown
+  useEffect(() => {
+    const loadAllProperties = async () => {
+      try {
+        const response = await fetch('/api/portfolio')
+        if (response.ok) {
+          const data = await response.json()
+          if (data && data.properties) {
+            setAllProperties(data.properties)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading properties:', error)
+      }
+    }
+    loadAllProperties()
+  }, [])
+
+  // V10.8.70: Close dropdown when clicking outside using useRef
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPropertyDropdown && propertyDropdownRef.current && !propertyDropdownRef.current.contains(event.target as Node)) {
+        setShowPropertyDropdown(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showPropertyDropdown])
 
   useEffect(() => {
     if (propertyId) {
@@ -336,6 +371,27 @@ export default function LogsPage() {
       {/* V10.8.18: Exact gradient match - from-navy-900 to-navy-800 */}
       <div className="bg-gradient-to-r from-navy-900 to-navy-800 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* V10.8.70: Mobile dropdown nav menu (was missing) */}
+          <select
+            value="logs"
+            onChange={(e) => {
+              if (e.target.value === 'logs') {
+                // Stay on current page
+                return
+              }
+              router.push(`/dashboard?tab=${e.target.value}`)
+            }}
+            className="block max-[850px]:block min-[850px]:hidden w-full p-2 my-2 border border-white/30 rounded-lg bg-navy-800/50 text-white font-semibold focus:ring-2 focus:ring-teal-500 text-sm"
+          >
+            <option value="overview" className="bg-navy-800 text-white">📊 Overview</option>
+            <option value="residents" className="bg-navy-800 text-white">👥 Residents</option>
+            <option value="rules" className="bg-navy-800 text-white">🛡️ Access Rules</option>
+            <option value="settings" className="bg-navy-800 text-white">⚙️ Facility Settings</option>
+            <option value="revenue" className="bg-navy-800 text-white">💰 Revenue Analytics</option>
+            <option value="occupancy" className="bg-navy-800 text-white">📈 Current Occupancy</option>
+            <option value="logs" className="bg-navy-800 text-white">🕐 All Activity</option>
+          </select>
+
           {/* V10.8.17: Exact copy of dashboard tab layout - centered, justified, breakpoint-aware */}
           <div className="hidden max-[850px]:hidden min-[850px]:flex gap-1 whitespace-nowrap pb-2 justify-center mx-auto">
             <button
@@ -405,9 +461,10 @@ export default function LogsPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* V10.8.16: Date Range Filter with Export button in same row */}
+        {/* V10.8.70: Mobile-responsive filter with flex-wrap */}
         <div className="bg-white rounded-lg border border-navy-200 p-4 mb-4">
           <div className="flex flex-col space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center space-x-4">
                 <Calendar className="w-5 h-5 text-navy-600" />
                 <span className="text-sm font-semibold text-navy-900">Filter by Date Range:</span>
@@ -415,15 +472,15 @@ export default function LogsPage() {
               {/* V10.8.16: Export CSV button moved here */}
               <button
                 onClick={exportActivityCSV}
-                className="bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto bg-navy-600 hover:bg-navy-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
               </button>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-navy-600">Start:</label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                <label className="text-sm text-navy-600 whitespace-nowrap">Start:</label>
                 <input
                   type="date"
                   value={startDate}
@@ -431,11 +488,11 @@ export default function LogsPage() {
                     setStartDate(e.target.value)
                     setPage(1)
                   }}
-                  className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full sm:w-auto px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-navy-600">End:</label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                <label className="text-sm text-navy-600 whitespace-nowrap">End:</label>
                 <input
                   type="date"
                   value={endDate}
@@ -443,13 +500,13 @@ export default function LogsPage() {
                     setEndDate(e.target.value)
                     setPage(1)
                   }}
-                  className="px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full sm:w-auto px-3 py-2 border-2 border-navy-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               </div>
               {(startDate || endDate) && (
                 <button
                   onClick={clearDateFilter}
-                  className="flex items-center space-x-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                 >
                   <X className="w-4 h-4" />
                   <span className="text-sm font-medium">Clear Filter</span>

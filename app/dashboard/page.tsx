@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useContext, Suspense } from "react";
+import { useEffect, useState, useContext, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PropertyContext } from "@/app/context/PropertyContext";
@@ -270,12 +270,13 @@ function DashboardPageContent() {
     }
   }, [propertyId]);
 
-  // V10.8.3: Close dropdown when clicking outside
-  // V10.8.64: Improved selector using data-property-dropdown attribute for better specificity
+  // V10.8.70: Property dropdown ref for click-outside detection
+  const propertyDropdownRef = useRef<HTMLDivElement>(null);
+
+  // V10.8.70: Close dropdown when clicking outside using useRef
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (showPropertyDropdown && !target.closest('[data-property-dropdown]')) {
+      if (showPropertyDropdown && propertyDropdownRef.current && !propertyDropdownRef.current.contains(event.target as Node)) {
         setShowPropertyDropdown(false);
       }
     };
@@ -2128,6 +2129,7 @@ function DashboardPageContent() {
             </div>
 
             {/* Maintenance Mode Quick Toggle */}
+            {/* V10.8.70: Mobile-responsive flex container */}
             <div
               className={`rounded-xl shadow-lg p-6 border-2 transition-all ${
                 isMaintenanceMode
@@ -2135,7 +2137,7 @@ function DashboardPageContent() {
                   : "bg-green-50 border-green-300"
               }`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div
                     className={`p-3 rounded-lg ${
@@ -2366,8 +2368,9 @@ function DashboardPageContent() {
         {activeTab === "residents" && (
           <div className="space-y-6">
             {/* V10.8.7: Polished Add Resident Form with labels and asterisks */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-navy-200">
-              <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
+            {/* V10.8.70: Tightened padding for professional look */}
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border border-navy-200">
+              <h2 className="text-lg sm:text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
                 <Plus className="w-5 h-5 text-teal-600" />
                 Add New Resident
               </h2>
@@ -2467,33 +2470,6 @@ function DashboardPageContent() {
                   <CsvUploader onUploadComplete={loadData} propertyId={propertyId || ''} />
                 </div>
               </form>
-            </div>
-
-            {/* V10.8.4: Bulk Send Invites Button */}
-            <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl shadow-lg p-6 border-2 border-teal-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-navy-900 mb-1">Resident Onboarding</h3>
-                  <p className="text-sm text-navy-600">Send welcome emails with portal links and PINs to all residents</p>
-                </div>
-                <button
-                  onClick={sendBulkInvites}
-                  disabled={bulkSendingInvites || residents.length === 0}
-                  className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
-                >
-                  {bulkSendingInvites ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Sending...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-5 h-5" />
-                      <span>Send All Invites ({residents.length})</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
 
             {/* Residents Table - V7.5 Issue #4: Sticky first column + scrollable */}
@@ -2738,6 +2714,34 @@ function DashboardPageContent() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* V10.8.70: Resident Onboarding moved to bottom per requirement */}
+            {/* V10.8.4: Bulk Send Invites Button */}
+            <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl shadow-lg p-4 sm:p-6 border-2 border-teal-200">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-navy-900 mb-1">Resident Onboarding</h3>
+                  <p className="text-xs sm:text-sm text-navy-600">Send welcome emails with portal links and PINs to all residents</p>
+                </div>
+                <button
+                  onClick={sendBulkInvites}
+                  disabled={bulkSendingInvites || residents.length === 0}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
+                >
+                  {bulkSendingInvites ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Send All Invites ({residents.length})</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -3503,11 +3507,12 @@ function DashboardPageContent() {
                 })()}
               </div>
 
-              <div className="flex gap-2">
+              {/* V10.8.70: Mobile-responsive button layout */}
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={loadInsideResidents}
                   disabled={loadingInsideResidents}
-                  className="flex-1 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full sm:flex-1 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loadingInsideResidents ? (
                     <>
@@ -3523,7 +3528,7 @@ function DashboardPageContent() {
                 </button>
                 <button
                   onClick={clearAllOccupants}
-                  className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full sm:flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <XCircle className="w-5 h-5" />
                   Clear All Occupants
@@ -3674,7 +3679,10 @@ function DashboardPageContent() {
                 </div>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={300}>
+                  {/* V10.8.70: Mobile-responsive chart with horizontal scroll */}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[600px]">
+                      <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={trendData} onClick={(data) => {
                       if (data && data.activeLabel) {
                         setSelectedHour(data.activeLabel);
@@ -3721,7 +3729,9 @@ function DashboardPageContent() {
                         cursor="pointer"
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
 
                   {/* Show people at selected hour */}
                   {selectedHour && (
