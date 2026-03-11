@@ -912,7 +912,21 @@ function DashboardPageContent() {
       const response = await fetch(`/api/occupancy-trend?date=${date}&property_id=${propertyId}`);
       if (!response.ok) throw new Error('Failed to load trend data');
       const data = await response.json();
-      setTrendData(data.hourlyTrend || []);
+      
+      // V10.8.54: Nullify future hours to stop line drawing beyond current time
+      let trend = data.hourlyTrend || [];
+      // Get today's date in local time (YYYY-MM-DD format)
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      if (date === todayStr) {
+        const currentHour = new Date().getHours();
+        trend = trend.map((point: any, index: number) => {
+          if (index > currentHour) {
+            return { ...point, occupancy: null }; // Set future to null to stop the line
+          }
+          return point;
+        });
+      }
+      setTrendData(trend);
     } catch (error) {
       console.error('Error loading hourly trend:', error);
       setTrendData([]);
@@ -3579,7 +3593,11 @@ function DashboardPageContent() {
                       <XAxis 
                         dataKey="hour" 
                         stroke="#6b7280"
-                        style={{ fontSize: '12px' }}
+                        style={{ fontSize: '11px' }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
                       />
                       <YAxis 
                         stroke="#6b7280"
