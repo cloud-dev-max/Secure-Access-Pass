@@ -90,11 +90,12 @@ export async function POST(request: NextRequest) {
         // Create ENTRY log
         logsToInsert.push({
           property_id,
-          user_id: resident.id,
+          profile_id: resident.id,
           qr_code: `RESIDENT-${resident.id}`,
           scan_type: 'ENTRY',
-          result: 'SUCCESS',
-          guest_count: guestCount,
+          status: 'SUCCESS',
+          access_method: 'MANUAL',
+          guests: guestCount,
           scanned_at: entryTime.toISOString()
         })
 
@@ -102,11 +103,12 @@ export async function POST(request: NextRequest) {
         if (Math.random() > 0.2) {
           logsToInsert.push({
             property_id,
-            user_id: resident.id,
+            profile_id: resident.id,
             qr_code: `RESIDENT-${resident.id}`,
             scan_type: 'EXIT',
-            result: 'SUCCESS',
-            guest_count: guestCount,
+            status: 'SUCCESS',
+            access_method: 'MANUAL',
+            guests: guestCount,
             scanned_at: exitTime.toISOString()
           })
         }
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
       passesToInsert.push({
         property_id,
         purchased_by: resident.id,
-        guest_name: `Guest ${i + 1}`,
+        guest_name: 'Demo Guest',
         guest_count: guestCount,
         amount_paid: 5.00,
         price_paid: 5.00,

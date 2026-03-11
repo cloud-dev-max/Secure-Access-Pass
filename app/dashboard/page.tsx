@@ -1233,12 +1233,11 @@ function DashboardPageContent() {
 
   // V10.8.56: Generate demo data for investor pitches
   const [generatingDemo, setGeneratingDemo] = useState(false);
+  // V10.8.57: Easter egg click counter for demo seeder
+  const [easterEggClicks, setEasterEggClicks] = useState(0);
   
   const generateDemoData = async () => {
-    if (!confirm('This will generate 7 days of realistic demo data (access logs and visitor passes). Continue?')) {
-      return;
-    }
-
+    // V10.8.57: Removed confirm dialog for easter egg trigger
     if (!propertyId) {
       alert('No property selected');
       return;
@@ -1898,7 +1897,20 @@ function DashboardPageContent() {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab("settings")}
+              onClick={() => {
+                setActiveTab("settings");
+                // V10.8.57: Easter egg - 5 clicks triggers demo data generator
+                setEasterEggClicks(prev => {
+                  const newCount = prev + 1;
+                  if (newCount === 5) {
+                    generateDemoData();
+                    return 0; // Reset counter
+                  }
+                  // Reset counter after 3 seconds of inactivity
+                  setTimeout(() => setEasterEggClicks(0), 3000);
+                  return newCount;
+                });
+              }}
               className={`shrink-0 px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "settings"
                   ? "border-teal-400 text-white bg-white/10"
@@ -3014,39 +3026,7 @@ function DashboardPageContent() {
                 </div>
               </div>
 
-              {/* V10.8.56: Demo Seeder for Investor Pitches */}
-              <div className="mt-6 pt-6 border-t border-navy-200">
-                <h3 className="text-lg font-semibold text-navy-900 mb-3 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-600" />
-                  Developer / Pitch Tools
-                </h3>
-                <p className="text-sm text-navy-600 mb-4">
-                  Generate realistic 7-day demo data for investor presentations and product demos. This creates access logs and visitor passes with realistic patterns.
-                </p>
-                <button
-                  type="button"
-                  onClick={generateDemoData}
-                  disabled={generatingDemo}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg font-semibold transition-colors"
-                >
-                  {generatingDemo ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating Demo Data...
-                    </>
-                  ) : (
-                    <>
-                      <Activity className="w-5 h-5" />
-                      Generate 7-Day Demo Data
-                    </>
-                  )}
-                </button>
-                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-xs text-purple-800">
-                    <strong>⚡ Demo Tool:</strong> Creates ~35-50 access logs and ~15-20 visitor passes spread across the last 7 days with realistic timing patterns.
-                  </p>
-                </div>
-              </div>
+              {/* V10.8.57: Demo Seeder UI removed - triggered via 5-click easter egg on "Facility Settings" tab button */}
             </div>
           </div>
         )}
