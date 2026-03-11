@@ -302,10 +302,11 @@ function DashboardPageContent() {
 
   // V10.8.53: CONSOLIDATED HOOK - Fix race condition for graph/revenue loading
   // Prevents blank graph on initial load by properly coordinating activeTab, propertyId, and trendDate
+  // V10.8.63: Load revenue data on BOTH overview and revenue tabs (overview has Today's Revenue card)
   useEffect(() => {
     if (!propertyId) return; // Wait for property context before fetching
     
-    if (activeTab === "revenue") {
+    if (activeTab === "revenue" || activeTab === "overview") {
       loadRevenueData();
     }
     if (activeTab === "occupancy") {
@@ -1267,12 +1268,8 @@ function DashboardPageContent() {
 
       alert(`✅ Demo data generated!\n\n${result.stats.access_logs} access logs\n${result.stats.visitor_passes} visitor passes`);
       
-      // V10.8.62: Smooth state updates with cache-busted fetches (no full page reload)
-      await loadData();
-      await loadOccupancyBreakdown();
-      await loadInsideResidents();
-      await loadHourlyTrend(trendDate);
-      await loadRevenueData();
+      // V10.8.63: Auto-reload after seeder (useEffect now properly loads revenue on overview tab)
+      window.location.reload();
     } catch (error) {
       console.error('Error generating demo data:', error);
       if (error instanceof Error && !error.message.includes('❌')) {
