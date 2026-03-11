@@ -400,7 +400,8 @@ function DashboardPageContent() {
     if (!propertyId) return;
     
     try {
-      const response = await fetch(`/api/occupancy?property_id=${propertyId}`);
+      // V10.8.62: Add cache-busting timestamp
+      const response = await fetch(`/api/occupancy?property_id=${propertyId}&t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
         setStats((prev) => ({
@@ -518,9 +519,12 @@ function DashboardPageContent() {
     // V10.8.50: Fetch APIs individually to prevent Promise rejection cascade
     // If one API fails, others can still succeed
     
+    // V10.8.62: Add cache-busting timestamp to prevent Next.js aggressive caching
+    const cacheBuster = `&t=${Date.now()}`;
+    
     // Fetch residents
     try {
-      const residentsRes = await fetch(`/api/residents?property_id=${propertyId}`);
+      const residentsRes = await fetch(`/api/residents?property_id=${propertyId}${cacheBuster}`);
       if (residentsRes.ok) {
         const residentsData = await residentsRes.json();
         setResidents(Array.isArray(residentsData) ? residentsData : []);
@@ -535,7 +539,7 @@ function DashboardPageContent() {
 
     // Fetch rules
     try {
-      const rulesRes = await fetch(`/api/rules?property_id=${propertyId}`);
+      const rulesRes = await fetch(`/api/rules?property_id=${propertyId}${cacheBuster}`);
       if (rulesRes.ok) {
         const rulesData = await rulesRes.json();
         setRules(
@@ -554,7 +558,7 @@ function DashboardPageContent() {
 
     // Fetch stats
     try {
-      const statsRes = await fetch(`/api/stats?property_id=${propertyId}`);
+      const statsRes = await fetch(`/api/stats?property_id=${propertyId}${cacheBuster}`);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
@@ -767,7 +771,8 @@ function DashboardPageContent() {
     try {
       // Use unified occupancy endpoint that includes visitors
       // V10.8.16: Pass property_id explicitly
-      const response = await fetch(`/api/occupancy-list?property_id=${propertyId}`);
+      // V10.8.62: Add cache-busting timestamp
+      const response = await fetch(`/api/occupancy-list?property_id=${propertyId}&t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
         // Transform occupants into format expected by the table
@@ -918,7 +923,8 @@ function DashboardPageContent() {
     setHourlyPeople([]);
     try {
       // V10.8.52: Add missing property_id parameter
-      const response = await fetch(`/api/occupancy-trend?date=${date}&property_id=${propertyId}`);
+      // V10.8.62: Add cache-busting timestamp
+      const response = await fetch(`/api/occupancy-trend?date=${date}&property_id=${propertyId}&t=${Date.now()}`);
       if (!response.ok) throw new Error('Failed to load trend data');
       const data = await response.json();
       
@@ -1261,8 +1267,12 @@ function DashboardPageContent() {
 
       alert(`✅ Demo data generated!\n\n${result.stats.access_logs} access logs\n${result.stats.visitor_passes} visitor passes`);
       
-      // V10.8.61: Force full page reload to clear React state cache and show fresh revenue data
-      window.location.reload();
+      // V10.8.62: Smooth state updates with cache-busted fetches (no full page reload)
+      await loadData();
+      await loadOccupancyBreakdown();
+      await loadInsideResidents();
+      await loadHourlyTrend(trendDate);
+      await loadRevenueData();
     } catch (error) {
       console.error('Error generating demo data:', error);
       if (error instanceof Error && !error.message.includes('❌')) {
@@ -1295,12 +1305,14 @@ function DashboardPageContent() {
       const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       
       // Build URL with timezone boundaries
+      // V10.8.62: Add cache-busting timestamp at the end
       const url = `/api/revenue?property_id=${propertyId}` +
         `&todayStart=${todayStart.toISOString()}` +
         `&todayEnd=${todayEnd.toISOString()}` +
         `&last7DaysStart=${last7DaysStart.toISOString()}` +
         `&thisMonthStart=${thisMonthStart.toISOString()}` +
-        `&thisMonthEnd=${thisMonthEnd.toISOString()}`;
+        `&thisMonthEnd=${thisMonthEnd.toISOString()}` +
+        `&t=${Date.now()}`;
       
       console.log('[V10.8.32] Local timezone boundaries:', {
         todayStart: todayStart.toISOString(),
