@@ -30,8 +30,9 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
   const [invitesSent, setInvitesSent] = useState(false)
 
   // V10.8.64: Smart CSV header mapping
+  // V10.8.65: Strip carriage returns to fix last column mapping
   const normalizeHeader = (header: string): string => {
-    const h = header.toLowerCase().trim()
+    const h = header.toLowerCase().trim().replace(/\r/g, '')
     // Map unit variations
     if (['unit_number', 'unit#', 'apt'].includes(h)) return 'unit'
     // Map phone variations
@@ -75,13 +76,22 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
       })
       
       // V10.8.64: Validate required fields and include optional guest_limit
+      // V10.8.65: Explicitly parse guest_limit as integer with proper NaN check
       if (resident.name && resident.email && resident.unit) {
+        let parsedGuestLimit: number | undefined = undefined
+        if (resident.guest_limit && resident.guest_limit.trim() !== '') {
+          const parsed = parseInt(resident.guest_limit, 10)
+          if (!isNaN(parsed)) {
+            parsedGuestLimit = parsed
+          }
+        }
+        
         residents.push({
           name: resident.name,
           email: resident.email,
           unit: resident.unit,
           phone: resident.phone || undefined,
-          guest_limit: resident.guest_limit ? parseInt(resident.guest_limit) : undefined,
+          guest_limit: parsedGuestLimit,
         })
       }
     }
@@ -229,38 +239,51 @@ export default function CsvUploader({ onUploadComplete, propertyId }: CsvUploade
             <div className="overflow-auto p-6">
               {/* V10.8.7: Compact Instructions */}
               {/* V10.8.64: Added sample download and smart mapping info */}
+              {/* V10.8.65: Refined UI - removed smart mapping text, elegant table example */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-navy-700 mb-2">
                   <strong>Required columns:</strong> name, email, unit (phone and guest_limit are optional)
                 </p>
-                <p className="text-xs text-navy-600 mb-2">
-                  Smart mapping: unit_number→unit, phone_number/mobile/cell→phone, full_name→name
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const csv = 'name,email,unit,phone,guest_limit\nJohn Doe,john@example.com,101,555-1234,3\nJane Smith,jane@example.com,102,555-5678,5'
-                      const blob = new Blob([csv], { type: 'text/csv' })
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = 'residents_sample.csv'
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    }}
-                    className="text-xs bg-white hover:bg-navy-50 text-navy-700 px-3 py-1.5 rounded border border-navy-300 font-medium transition-colors"
-                  >
-                    📥 Download Sample CSV
-                  </button>
-                  <details className="text-xs text-navy-600">
-                    <summary className="cursor-pointer hover:text-navy-900 font-medium">View example format</summary>
-                    <pre className="bg-white p-2 rounded mt-2 text-xs">
-name,email,unit,phone,guest_limit{'\n'}
-John Doe,john@example.com,101,555-1234,3{'\n'}
-Jane Smith,jane@example.com,102,555-5678,5
-                    </pre>
-                  </details>
-                </div>
+                <details className="text-sm text-navy-600">
+                  <summary className="cursor-pointer hover:text-navy-900 font-medium">View example CSV format</summary>
+                  <div className="mt-3">
+                    <table className="w-full text-xs border border-gray-300 rounded-lg overflow-hidden">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b">name</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b">email</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b">unit</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b">phone</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b">guest_limit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white">
+                        <tr>
+                          <td className="px-3 py-2 border-b text-gray-800">John Doe</td>
+                          <td className="px-3 py-2 border-b text-gray-800">john@example.com</td>
+                          <td className="px-3 py-2 border-b text-gray-800">101</td>
+                          <td className="px-3 py-2 border-b text-gray-800">555-1234</td>
+                          <td className="px-3 py-2 border-b text-gray-800">3</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <button
+                      onClick={() => {
+                        const csv = 'name,email,unit,phone,guest_limit\nJohn Doe,john@example.com,101,555-1234,3\nJane Smith,jane@example.com,102,555-5678,5'
+                        const blob = new Blob([csv], { type: 'text/csv' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = 'residents_sample.csv'
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }}
+                      className="mt-3 bg-white hover:bg-teal-50 text-teal-700 px-4 py-2 rounded-lg border border-teal-400 font-medium transition-colors text-sm flex items-center gap-2"
+                    >
+                      📥 Download Sample CSV
+                    </button>
+                  </div>
+                </details>
               </div>
 
               {/* V10.8.7: Drag-and-Drop Upload Section */}
