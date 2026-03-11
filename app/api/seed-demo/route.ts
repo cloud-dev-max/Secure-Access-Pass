@@ -101,8 +101,9 @@ export async function POST(request: NextRequest) {
           scanned_at: entryTime.toISOString()
         })
 
-        // Create EXIT log (80% chance of exit)
-        if (Math.random() > 0.2) {
+        // V10.8.60: Skip EXIT logs for today to populate Current Occupancy widget
+        // Only create EXIT logs for past days (dayOffset > 0)
+        if (dayOffset > 0 && Math.random() > 0.2) {
           logsToInsert.push({
             property_id,
             user_id: resident.id,
@@ -132,20 +133,22 @@ export async function POST(request: NextRequest) {
       date.setHours(hour, minute, 0, 0)
 
       const resident = getRandomResident()
-      const guestCount = 1 + Math.floor(Math.random() * 3) // 1-3 guests
 
-      // V10.8.58: Create visitor pass with exact CSV schema
+      // V10.8.60: Fix revenue math & populate financial cards
+      // - is_demo: false (so revenue APIs count these passes)
+      // - guest_count: 1 (consistent $5 per pass, no random 1-3)
+      // - amount_paid: 5.00 (matches guest_count × $5)
       passesToInsert.push({
         property_id,
         purchased_by: resident.id,
         guest_name: 'Demo Guest',
-        guest_count: guestCount,
+        guest_count: 1,
         amount_paid: 5.00,
         price_paid: 5.00,
         status: 'active',
         qr_code: 'DEMO-PASS-' + Math.random().toString(36).substring(7),
         is_inside: false,
-        is_demo: true,
+        is_demo: false,
         payment_intent_id: 'pi_demo_seeder',
         valid_date: date.toISOString().split('T')[0],
         created_at: date.toISOString(),
